@@ -142,6 +142,17 @@ Set the same environment variables in Netlify, and add Netlify production/previe
 - Failed export: export panel shows a fallback message and suggests Print Preview.
 - Missing resume/profile data: AI tools ask the user to complete the needed profile details.
 
+## Follow-Up Reminder Testing
+
+Follow-up reminders are in-app only for now; there are no system, browser, calendar, or email notifications.
+
+1. Open a job detail modal and set the follow-up date to today.
+2. Confirm Dashboard Today's Focus shows the role and Applications shows `Follow up today`.
+3. Set the follow-up date to yesterday and confirm the overdue state appears.
+4. Snooze the follow-up to tomorrow and confirm `Snoozed until ...` appears.
+5. Mark the follow-up completed and confirm `Completed` appears.
+6. Use `Generate follow-up message` in the modal follow-up area and confirm the message is from the candidate to the company/recruiter.
+
 ## Current MVP Scope
 
 Implemented:

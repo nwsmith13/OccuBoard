@@ -77,7 +77,7 @@ export const messageSchema = {
   additionalProperties: false,
   required: ["type", "content"],
   properties: {
-    type: { type: "string", enum: ["Recruiter Message"] },
+    type: { type: "string", enum: ["Recruiter Message", "Follow-up Message"] },
     content: { type: "string" },
   },
 };
@@ -182,6 +182,28 @@ Rules:
 - Reorder emphasis and rephrase only when supported by the user's material.
 - Integrate ATS keywords naturally when supported.
 - Keep it concise and directly usable.`;
+  }
+
+  if (action === "followupMessage") {
+    return `${context}
+
+Generate one concise application follow-up message.
+Rules:
+- Write from the user/candidate to a recruiter, hiring manager, or company contact.
+- Use first person as the user/candidate.
+- Never write from the recruiter, hiring manager, company, or employer.
+- Never start with "Hi [candidate name]" or "Hi Matthew".
+- Never say "I'm recruiting for", "I'm reaching out from [Company]", "our role", "our team", or "we are hiring".
+- Mention the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}.
+- Make it clear the user is following up on an application or prior outreach.
+- Do not sound desperate, apologetic, or overly eager.
+- Avoid the phrase "just checking in".
+- Short, polite, specific, and practical.
+- 3-5 sentences maximum.
+- Mention 1 relevant strength only if it is supported by the profile/resume.
+- Close with a low-pressure offer to provide more information.
+- A strong style example:
+"Hello - I wanted to follow up on my application for the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}. I remain very interested in the opportunity and believe my background aligns well with the role. Please let me know if there is anything else I can provide."`;
   }
 
   return `${context}

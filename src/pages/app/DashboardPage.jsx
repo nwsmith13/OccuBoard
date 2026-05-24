@@ -5,17 +5,21 @@ import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
+import { useAuth } from "../../contexts/AuthContext.jsx";
 import { getCompletenessTone } from "../../lib/completenessTone.js";
 import { formatDate, isThisWeek } from "../../lib/date.js";
 import { getFollowUpStatus, getStageNextStep, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getProfileCompleteness } from "../../lib/profile.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
+import { JobDetail } from "./JobsPage.jsx";
 
 export function DashboardPage() {
-  const { jobs, profile, activityLogs, resumeVersions, jobScores, messages, loading, error } = useWorkspaceStore();
+  const { user } = useAuth();
+  const { jobs, profile, activityLogs, resumeVersions, jobScores, messages, loading, error, updateJob, deleteJob } = useWorkspaceStore();
   const [activityOpen, setActivityOpen] = useState(true);
   const [showAllActivity, setShowAllActivity] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
   const completeness = getProfileCompleteness(profile);
   const completenessTone = getCompletenessTone(completeness);
   const focusItems = getFocusItems({ jobs, jobScores, resumeVersions, messages });
@@ -23,6 +27,11 @@ export function DashboardPage() {
   const bestMatchRoles = getBestMatchRoles(jobScores, jobs, profile);
   const momentum = getMomentumSummary({ jobs, resumeVersions, jobScores, messages });
   const visibleActivity = showAllActivity ? activityLogs : activityLogs.slice(0, 4);
+
+  async function moveToApplied(job) {
+    const saved = await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || new Date().toISOString().slice(0, 10) });
+    setSelectedJob(saved ? { ...saved, initialTab: "overview" } : null);
+  }
 
   if (loading) return <DashboardSkeleton />;
 
@@ -64,7 +73,13 @@ export function DashboardPage() {
           </div>
           <div className="mt-5 grid gap-4">
             {focusItems.map((item) => (
-              <div key={`${item.kind}-${item.id}`} className={`group flex cursor-pointer gap-4 rounded-xl p-5 shadow-sm ring-1 ring-transparent transition-all duration-200 hover:-translate-y-0.5 hover:ring-emerald-100 hover:shadow-card ${getFocusTone(item.kind)}`}>
+              <button
+                key={`${item.kind}-${item.id}`}
+                type="button"
+                className={`group flex cursor-pointer gap-4 rounded-xl p-5 text-left shadow-sm ring-1 ring-transparent transition-all duration-200 hover:-translate-y-0.5 hover:ring-emerald-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${getFocusTone(item.kind)}`}
+                onClick={() => setSelectedJob({ ...item, initialTab: getFocusInitialTab(item) })}
+                aria-label={`Open ${getDisplayJobTitle(item)} at ${getDisplayCompanyName(item)}`}
+              >
                 <span className={`mt-1 h-auto w-2 shrink-0 rounded-full ${getFocusAccent(item.kind)}`} />
                 <CompanyLogo companyName={getDisplayCompanyName(item)} companyDomain={item.company_domain} companyLogoUrl={item.company_logo_url} sourceUrl={item.source_url} size="lg" className="mt-0.5" />
                 <div className="min-w-0 flex-1">
@@ -76,7 +91,7 @@ export function DashboardPage() {
                   <p className={`mt-3 text-sm font-semibold ${item.kind === "Overdue" ? "text-rose-700" : item.kind === "Upcoming" ? "text-amber-700" : "text-brand-800"}`}>{item.message}</p>
                 </div>
                 <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" size={18} />
-              </div>
+              </button>
             ))}
             {!focusItems.length && (
               <div className="flex gap-3 rounded-lg bg-stone-50 p-4">
@@ -163,6 +178,16 @@ export function DashboardPage() {
           )}
         </Card>
       </aside>
+      {selectedJob && (
+        <JobDetail
+          job={selectedJob}
+          initialTab={selectedJob.initialTab}
+          onClose={() => setSelectedJob(null)}
+          onEdit={() => setSelectedJob(null)}
+          onDelete={async () => { await deleteJob(user, selectedJob.id); setSelectedJob(null); }}
+          onMove={() => moveToApplied(selectedJob)}
+        />
+      )}
     </div>
   );
 }
@@ -248,6 +273,14 @@ function getFocusAccent(kind) {
     Priority: "bg-emerald-400",
     Recent: "bg-brand-300",
   }[kind] ?? "bg-brand-300";
+}
+
+function getFocusInitialTab(item) {
+  const followStatus = getFollowUpStatus(item);
+  if (["due", "overdue", "snoozed", "scheduled", "completed"].includes(followStatus)) return "overview";
+  if (item.message === "Review high-fit role") return "fit";
+  if (item.message === "Review and apply" || item.message === "Apply when ready") return "resume";
+  return "overview";
 }
 
 function getReadyToSendCount(jobs, resumeVersions, messages) {

@@ -44,7 +44,7 @@ export function getFollowUpLabel(job = {}) {
   const date = getFollowUpDate(job);
   const snoozedUntil = getFollowUpSnoozedUntil(job);
 
-  if (status === followUpStatuses.due) return "Due today";
+  if (status === followUpStatuses.due) return "Follow up today";
   if (status === followUpStatuses.overdue) return "Overdue";
   if (status === followUpStatuses.scheduled) return `Follow up ${formatDate(date)}`;
   if (status === followUpStatuses.snoozed) return `Snoozed until ${formatDate(snoozedUntil)}`;

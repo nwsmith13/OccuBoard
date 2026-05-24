@@ -1,6 +1,6 @@
 import { CheckCircle2, Edit3, ExternalLink, MapPin, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AiToolsPanel, GenerationHistory } from "../../components/ai/AiToolsPanel.jsx";
+import { AiToolsPanel, CopyButton, GenerationHistory } from "../../components/ai/AiToolsPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
@@ -11,6 +11,7 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { priorities, remoteTypes, stages } from "../../data/seedData.js";
 import { formatDate, isOverdue, todayIso } from "../../lib/date.js";
 import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, getFollowUpNote, getFollowUpSnoozedUntil, getFollowUpStatus, getFollowUpTone } from "../../lib/followUp.js";
+import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
 import { getResumeExportHistory } from "../../lib/resumeExport.js";
@@ -262,7 +263,7 @@ function getDisplayStage(status) {
 
 export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDelete, onMove }) {
   const { user } = useAuth();
-  const { jobScores, resumeVersions, messages, updateJob } = useWorkspaceStore();
+  const { profile, jobScores, resumeVersions, messages, updateJob, saveMessage } = useWorkspaceStore();
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const fitSectionRef = useRef(null);
   const [exportedResumeIds, setExportedResumeIds] = useState(() => new Set(getResumeExportHistory().map((item) => item.resumeId).filter(Boolean)));
@@ -322,15 +323,6 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
             <AiToolsPanel compact job={job} activeTab={activeTab === "overview" ? "fit" : activeTab === "export" ? "resume" : activeTab} onTabChange={setActiveTab} />
           </div>
           <WorkflowSteps activeTab={activeTab} completed={completedSteps} score={latestScore} onSelect={setActiveTab} />
-          <nav className="flex gap-2 overflow-x-auto border-t border-brand-100 bg-white/70 px-4 py-2 sm:px-5">
-            <button
-              type="button"
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${activeTab === "overview" ? "bg-brand-100 text-brand-900" : "text-slate-500 hover:bg-brand-50 hover:text-brand-800"}`}
-              onClick={() => setActiveTab("overview")}
-            >
-              Overview
-            </button>
-          </nav>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
@@ -373,7 +365,7 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
               <section>
                 <h3 className="font-bold">Notes</h3>
                 <p className="mt-2 whitespace-pre-wrap rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">{job.notes || "No notes yet."}</p>
-                <FollowUpControls job={job} user={user} updateJob={updateJob} />
+                <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} />
                 <div className="sticky bottom-0 -mx-1 mt-6 flex flex-wrap gap-3 border-t border-brand-100 bg-white/95 px-1 py-4 backdrop-blur">
                   <Button onClick={onMove}>Move to Applied</Button>
                   <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>
@@ -417,13 +409,18 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
   );
 }
 
-function FollowUpControls({ job, user, updateJob }) {
+function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage }) {
   const [reminder, setReminder] = useState(job);
   const [date, setDate] = useState(getFollowUpDate(reminder));
   const [note, setNote] = useState(getFollowUpNote(reminder));
   const [customSnooze, setCustomSnooze] = useState("");
   const [saving, setSaving] = useState("");
+  const [generatingMessage, setGeneratingMessage] = useState(false);
+  const [messageError, setMessageError] = useState("");
   const [message, setMessage] = useState("");
+  const latestFollowUpMessage = [...messages]
+    .filter((item) => item.job_id === job.id && item.type === "Follow-up Message")
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const draftReminder = { ...reminder, followup_date: date, followup_note: note };
   const status = getFollowUpStatus(draftReminder);
   const label = getFollowUpLabel(draftReminder);
@@ -468,6 +465,33 @@ function FollowUpControls({ job, user, updateJob }) {
     saveReminder({ followup_status: "snoozed", followup_snoozed_until: until, followup_completed_at: null }, `Snoozed until ${formatDate(until)}.`);
   }
 
+  async function generateFollowUpMessage() {
+    setMessageError("");
+    if (!canRunAi(profile)) {
+      setMessageError("Complete your profile target roles and base resume before generating a follow-up message.");
+      return;
+    }
+    if (!job?.job_description?.trim()) {
+      setMessageError("Paste the job description before generating a follow-up message.");
+      return;
+    }
+    setGeneratingMessage(true);
+    try {
+      const result = await generateAiOutput("followupMessage", profile, job, {
+        followUpStatus: status,
+        followUpDate: date,
+        followUpNote: note,
+      });
+      await saveMessage(user, job, { ...result, type: "Follow-up Message" });
+      setMessage("Follow-up message generated.");
+      window.setTimeout(() => setMessage(""), 2600);
+    } catch (error) {
+      setMessageError(error.message || "We couldn't generate the follow-up message yet.");
+    } finally {
+      setGeneratingMessage(false);
+    }
+  }
+
   return (
     <div className="mt-5 rounded-xl bg-brand-50/70 p-4 ring-1 ring-brand-100">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -503,6 +527,9 @@ function FollowUpControls({ job, user, updateJob }) {
       <div className="mt-4 flex flex-wrap gap-2">
         <Button className="min-h-8 px-3 text-xs" onClick={saveFollowUp} disabled={Boolean(saving)}>Save follow-up</Button>
         <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markCompleted} disabled={Boolean(saving || completedAt)}>Mark followed up</Button>
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={generateFollowUpMessage} disabled={generatingMessage}>
+          {generatingMessage ? "Generating..." : "Generate follow-up message"}
+        </Button>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -522,6 +549,16 @@ function FollowUpControls({ job, user, updateJob }) {
         />
       </div>
       {snoozedUntil && <p className="mt-2 text-xs font-semibold text-slate-500">Currently snoozed until {formatDate(snoozedUntil)}.</p>}
+      {messageError && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{messageError}</p>}
+      {latestFollowUpMessage && (
+        <div className="mt-3 rounded-lg bg-white/85 p-3 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-bold text-ink">Latest follow-up message</p>
+            <CopyButton text={latestFollowUpMessage.content} />
+          </div>
+          <p className="mt-2 whitespace-pre-wrap">{latestFollowUpMessage.content}</p>
+        </div>
+      )}
       {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{message}</p>}
     </div>
   );
@@ -529,6 +566,7 @@ function FollowUpControls({ job, user, updateJob }) {
 
 function WorkflowSteps({ activeTab, completed, score, onSelect }) {
   const steps = [
+    ["overview", "Overview"],
     ["fit", "Analysis"],
     ["resume", "Resume"],
     ["message", "Message"],
@@ -537,7 +575,7 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
   const current = activeTab;
   return (
     <div className="border-t border-brand-100 bg-white/90 px-4 py-3 sm:px-5">
-      <div className="grid gap-2 sm:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-5">
         {steps.map(([id, label], index) => {
           const selected = current === id;
           const done = completed[id];
@@ -553,7 +591,7 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
               }`}
             >
               <span className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10px] ${selected ? "bg-white/20 text-white" : done ? completionTone : "bg-white text-slate-600"}`}>
-                {completion || index + 1}
+                {id === "overview" ? "1" : completion || index + 1}
               </span>
               {label}
             </button>
@@ -565,6 +603,7 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
 }
 
 function getStepCompletionLabel(id, score, done) {
+  if (id === "overview") return "";
   if (!done) return "";
   if (id === "fit" && Number.isFinite(Number(score?.score))) return `${Math.round(Number(score.score))}%`;
   return "Ready";

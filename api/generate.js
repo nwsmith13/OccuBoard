@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { DEFAULT_MODEL, GLOBAL_AI_RULES, buildPrompt, getSchema } from "./prompts.js";
 
-const supportedActions = ["fit", "resume", "message"];
+const supportedActions = ["fit", "resume", "message", "followupMessage"];
 
 export default async function handler(req, res) {
   setJson(res);
@@ -85,7 +85,7 @@ function parseStructuredOutput(response) {
 }
 
 export function validateGeneratedResult(action, result, profile, job) {
-  if (action !== "message") return;
+  if (!["message", "followupMessage"].includes(action)) return;
   const content = String(result?.content || "").trim();
   const firstName = String(profile?.full_name || "").trim().split(/\s+/)[0];
   const fullName = String(profile?.full_name || "").trim();
@@ -101,6 +101,16 @@ export function validateGeneratedResult(action, result, profile, job) {
   ].filter(Boolean);
 
   const hasBadVoice = badPatterns.some((pattern) => pattern.test(content));
+  if (action === "followupMessage") {
+    if (hasBadVoice || /\bjust\s+checking\s+in\b/i.test(content)) {
+      const error = new Error("The generated follow-up message used the wrong voice or tone. Please regenerate.");
+      error.status = 422;
+      error.code = "message_voice_validation_failed";
+      throw error;
+    }
+    return;
+  }
+
   const hasCandidateInterest = /\bi\s+am\s+interested\s+in\b/i.test(content);
   const hasNameIntroduction = /\bmy\s+name\s+is\b/i.test(content);
   if (hasBadVoice || !hasCandidateInterest || !hasNameIntroduction) {

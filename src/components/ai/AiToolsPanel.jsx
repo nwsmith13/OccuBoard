@@ -390,7 +390,7 @@ export function GenerationHistory({ scores, resumes, messages }) {
   const items = [
     ...scores.map((score) => ({ kind: "Fit Analysis", date: score.created_at, content: score.summary, score })),
     ...resumes.map((resume) => ({ kind: "Resume Draft", date: resume.updated_at || resume.created_at, content: resume.content, resume })),
-    ...messages.map((message) => ({ kind: "Recruiter Message", date: message.created_at, content: message.content, message })),
+    ...messages.map((message) => ({ kind: normalizeMessageType(message.type), date: message.created_at, content: message.content, message })),
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   return (
