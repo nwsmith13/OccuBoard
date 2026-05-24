@@ -16,9 +16,9 @@ const exportColors = {
   Charcoal: "#334155",
 };
 
-export function ResumeExportPanel({ resume, content, profile, job, compact = false, showHistory = !compact, historyResumeId, onExportComplete }) {
+export function ResumeExportPanel({ resume, content, profile, job, compact = false, showHistory = !compact, showPreviewDefault = true, historyResumeId, onExportComplete }) {
   const [includeWhyThisFits, setIncludeWhyThisFits] = useState(false);
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(showPreviewDefault);
   const [exportStyle, setExportStyle] = useState("Professional");
   const [exportColor, setExportColor] = useState("Purple");
   const [exporting, setExporting] = useState("");

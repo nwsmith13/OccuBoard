@@ -395,7 +395,7 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
             </div>
           )}
           {activeTab === "message" && (
-            <div className="mx-auto max-w-4xl">
+            <div className="mx-auto max-w-5xl">
               <AiToolsPanel contentOnly job={job} activeTab="message" onTabChange={setActiveTab} />
             </div>
           )}

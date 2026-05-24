@@ -64,7 +64,7 @@ function validateRequest(action, profile, job) {
   if (!profile?.target_roles?.trim()) return "Add target roles to your profile before using AI tools.";
   if (!profile?.base_resume_text?.trim()) return "Add your base resume text before using AI tools.";
   if (!job?.job_title?.trim() || !job?.company_name?.trim()) return "Save the job title and company before using AI tools.";
-  if (!job?.job_description?.trim()) return "Paste the job description before using AI tools.";
+  if (!job?.job_description?.trim()) return "Paste the job description before running AI tools.";
   return "";
 }
 
@@ -88,22 +88,22 @@ export function validateGeneratedResult(action, result, profile, job) {
   if (action !== "message") return;
   const content = String(result?.content || "").trim();
   const firstName = String(profile?.full_name || "").trim().split(/\s+/)[0];
+  const fullName = String(profile?.full_name || "").trim();
   const company = String(job?.company_name || "").trim();
   const escapedCompany = escapeRegex(company);
   const badPatterns = [
     firstName && new RegExp(`^\\s*hi\\s+${escapeRegex(firstName)}\\b`, "i"),
-    /\bi['’]?m\s+recruiting\s+for\b/i,
-    /\bi\s+am\s+recruiting\s+for\b/i,
-    /\bwe['’]?re\s+hiring\b/i,
-    /\bwe\s+are\s+hiring\b/i,
+    fullName && new RegExp(`\\bi(?:['\\u2019]m|\\s+am)\\s+${escapeRegex(fullName)}\\b`, "i"),
+    /\bi(?:['\u2019]m|\s+am)\s+recruiting\s+for\b/i,
+    /\bwe(?:['\u2019]re|\s+are)\s+hiring\b/i,
     /\bour\s+(role|team|company|opening|position)\b/i,
-    escapedCompany && new RegExp(`\\bi['’]?m\\s+reaching\\s+out\\s+from\\s+${escapedCompany}\\b`, "i"),
-    escapedCompany && new RegExp(`\\bi\\s+am\\s+reaching\\s+out\\s+from\\s+${escapedCompany}\\b`, "i"),
+    escapedCompany && new RegExp(`\\bi(?:['\\u2019]m|\\s+am)\\s+reaching\\s+out\\s+from\\s+${escapedCompany}\\b`, "i"),
   ].filter(Boolean);
 
   const hasBadVoice = badPatterns.some((pattern) => pattern.test(content));
   const hasCandidateInterest = /\bi\s+am\s+interested\s+in\b/i.test(content);
-  if (hasBadVoice || !hasCandidateInterest) {
+  const hasNameIntroduction = /\bmy\s+name\s+is\b/i.test(content);
+  if (hasBadVoice || !hasCandidateInterest || !hasNameIntroduction) {
     const error = new Error("The generated message used recruiter voice instead of candidate voice. Please regenerate.");
     error.status = 422;
     error.code = "message_voice_validation_failed";

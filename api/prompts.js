@@ -196,7 +196,8 @@ Rules:
 - Never say "I'm reaching out from [Company]".
 - Never say "our role", "our team", or "we are hiring".
 - Make it clear the user is reaching out about the role.
-- Must use candidate voice, such as: "Hello - I'm ${profile?.full_name || "the candidate"}, and I am interested in the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}."
+- Must use candidate voice, such as: "Hello - my name is ${profile?.full_name || "the candidate"}, and I am interested in the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}."
+- Prefer "my name is ${profile?.full_name || "the candidate"}" instead of "I'm ${profile?.full_name || "the candidate"}."
 - Use clear phrasing like "I am interested in..." when naming the role.
 - Avoid clipped phrasing like "interested in..." without a subject.
 - 4-8 sentences maximum.

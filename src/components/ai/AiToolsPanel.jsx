@@ -301,7 +301,7 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
   if (!score) return <EmptyAiState title="No fit analysis yet" description="See strengths, gaps, keywords, and a recommendation for this role." action={showAction && onGenerate ? "Analyze Fit" : ""} onAction={onGenerate} loading={loading} />;
   const tone = getScoreTone(score.score);
   return (
-    <div className={`animate-[fadeIn_260ms_ease-out] rounded-lg border p-6 shadow-card ${tone.panel}`}>
+    <div className={`w-full animate-[fadeIn_260ms_ease-out] rounded-lg border p-6 shadow-card ${tone.panel}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <div className={`grid h-28 w-28 shrink-0 place-items-center rounded-full border-4 ${tone.ring}`}>
@@ -332,20 +332,37 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
 export function ResumeResult({ resume, onGenerate, onRegenerate, onExportComplete, loading, showAction = true }) {
   const { profile, jobs } = useWorkspaceStore();
   const job = resume ? jobs.find((item) => item.id === resume.job_id) : null;
+  const whyThisFits = extractWhyThisFits(resume?.content);
   if (!resume) return <EmptyAiState title="No tailored resume yet" description="Create an application-ready resume version using your base resume and this job." action={showAction && onGenerate ? "Tailor Resume" : ""} onAction={onGenerate} loading={loading} />;
   return (
-    <div className="rounded-lg bg-brand-50 p-5 shadow-card">
-      <div className="flex items-center justify-between gap-3">
+    <div className="w-full rounded-lg bg-brand-50 p-5 shadow-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-500">Ready to Apply</p>
           <h4 className="mt-1 font-bold">{resume.title}</h4>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Your tailored resume is ready. Review the polished version in Generated Resumes or export it from here.
+          </p>
         </div>
         <CopyButton text={resume.content} />
       </div>
-      <div className="mt-5">
-        <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
+      {whyThisFits && (
+        <div className="mt-4 rounded-lg bg-white/85 p-4 text-sm leading-6 text-slate-700">
+          <p className="font-bold text-ink">Why this fits</p>
+          <p className="mt-2">{whyThisFits}</p>
+        </div>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link
+          className="inline-flex min-h-10 items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+          to={`/app/generated-resumes?resume=${resume.id}`}
+        >
+          View in Generated Resumes
+        </Link>
       </div>
-      <FormattedDraft content={resume.content} />
+      <div className="mt-5">
+        <ResumeExportPanel resume={resume} profile={profile} job={job} compact showPreviewDefault={false} onExportComplete={onExportComplete} />
+      </div>
       {onRegenerate && <RegenerateButton label="Regenerate resume" onClick={onRegenerate} disabled={Boolean(loading)} />}
     </div>
   );
@@ -354,7 +371,7 @@ export function ResumeResult({ resume, onGenerate, onRegenerate, onExportComplet
 export function MessageResult({ message, onGenerate, onRegenerate, loading, showAction = true }) {
   if (!message) return <EmptyAiState title="No recruiter message yet" description="Create a short outreach message you can send to a recruiter or hiring contact." action={showAction && onGenerate ? "Generate Recruiter Message" : ""} onAction={onGenerate} loading={loading} />;
   return (
-    <div className="rounded-lg bg-brand-50 p-5 shadow-card">
+    <div className="w-full rounded-lg bg-brand-50 p-5 shadow-card">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h4 className="font-bold">{normalizeMessageType(message.type)}</h4>
@@ -445,19 +462,9 @@ function RegenerateButton({ label, onClick, disabled }) {
   );
 }
 
-function FormattedDraft({ content }) {
-  return (
-    <div className="mt-5 max-w-3xl rounded-lg bg-white p-5 text-sm leading-7 text-slate-700">
-      {content.split("\n").filter(Boolean).map((line) => {
-        const trimmed = line.trim();
-        const isHeading = /^[A-Z][A-Za-z\s/]+:?$/.test(trimmed) && trimmed.length < 70;
-        const isBullet = /^[-*]/.test(trimmed);
-        if (isHeading) return <h5 key={line} className="mt-5 first:mt-0 text-base font-bold text-ink">{trimmed.replace(/:$/, "")}</h5>;
-        if (isBullet) return <p key={line} className="ml-4 mt-2 list-item">{trimmed.replace(/^[-*]\s*/, "")}</p>;
-        return <p key={line} className="mt-3">{trimmed}</p>;
-      })}
-    </div>
-  );
+function extractWhyThisFits(content = "") {
+  const match = String(content).match(/(?:^|\n)\s*why this fits\s*:?\s*\n?([\s\S]*)$/i);
+  return match?.[1]?.trim() || "";
 }
 
 function AiList({ title, items = [], inline = false }) {
