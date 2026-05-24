@@ -4,12 +4,12 @@ import occuboardMark from "../../../assets/occuboard-mark.svg";
 export function Logo({ compact = false, sidebar = false }) {
   if (sidebar && !compact) {
     return (
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2">
         <img
           src={occuboardMark}
           alt=""
           aria-hidden="true"
-          className="h-20 w-20 shrink-0 object-contain"
+          className="h-16 w-16 shrink-0 object-contain"
         />
         <span className="truncate text-2xl font-bold tracking-normal text-brand-800">OccuBoard</span>
       </div>

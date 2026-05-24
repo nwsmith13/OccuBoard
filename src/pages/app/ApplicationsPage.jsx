@@ -82,7 +82,7 @@ export function ApplicationsPage() {
             {stages.map((stage) => (
               <div
                 key={stage}
-              className={`min-h-[260px] w-[min(315px,calc(100vw-2rem))] snap-start rounded-xl p-3 shadow-sm sm:p-4 ${getStageColumnTone(stage)}`}
+              className={`min-h-[260px] w-[min(315px,calc(100vw-2rem))] snap-start rounded-xl p-3 shadow-sm ring-1 ring-white/70 sm:p-4 ${getStageColumnTone(stage)}`}
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => moveApplication(stage)}
             >
@@ -122,10 +122,10 @@ export function ApplicationsPage() {
 
 function getStageColumnTone(stage) {
   return {
-    Saved: "bg-[#eefbfe]",
-    Applied: "bg-[#eefaff]",
-    Interview: "bg-[#effdf7]",
-    Closed: "bg-slate-100/70",
+    Saved: "bg-[rgba(127,215,231,0.12)]",
+    Applied: "bg-[rgba(15,94,168,0.10)]",
+    Interview: "bg-[rgba(52,211,153,0.10)]",
+    Closed: "bg-[rgba(148,163,184,0.10)]",
   }[stage] ?? "bg-stone-50";
 }
 
@@ -150,7 +150,7 @@ function ApplicationCard({ job, score, status, onOpen, onDragStart, compact = fa
           onOpen();
         }
       }}
-      className="rounded-xl bg-white/95 px-3.5 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 sm:px-4"
+      className="rounded-xl bg-white/95 px-3.5 py-3 text-left shadow-sm ring-1 ring-white/70 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 sm:px-4"
     >
       <div className={`flex gap-2 ${compact ? "flex-col sm:flex-row sm:items-center sm:justify-between" : "flex-col"}`}>
         <div className="min-w-0">
@@ -171,7 +171,7 @@ function PipelineSkeleton() {
   return (
     <div className="kanban-scroll grid snap-x grid-flow-col gap-4 overflow-x-auto pb-3 sm:gap-6">
       {stages.map((stage) => (
-        <div key={stage} className={`min-h-[260px] w-[min(315px,calc(100vw-2rem))] snap-start rounded-xl p-3 shadow-sm sm:p-4 ${getStageColumnTone(stage)}`}>
+        <div key={stage} className={`min-h-[260px] w-[min(315px,calc(100vw-2rem))] snap-start rounded-xl p-3 shadow-sm ring-1 ring-white/70 sm:p-4 ${getStageColumnTone(stage)}`}>
           <div className="mb-4 flex items-center justify-between">
             <div className="h-4 w-20 rounded-full bg-white/80" />
             <div className="h-4 w-6 rounded-full bg-white/80" />

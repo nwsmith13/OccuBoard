@@ -24,8 +24,8 @@ export default {
         ink: "#17243a",
       },
       boxShadow: {
-        soft: "0 18px 55px rgba(15, 94, 168, 0.13)",
-        card: "0 10px 32px rgba(23, 36, 58, 0.08)",
+        soft: "0 16px 42px rgba(15, 94, 168, 0.11)",
+        card: "0 8px 24px rgba(23, 36, 58, 0.07)",
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
