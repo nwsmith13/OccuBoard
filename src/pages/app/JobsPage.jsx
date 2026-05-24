@@ -1,6 +1,6 @@
 import { CheckCircle2, Edit3, ExternalLink, MapPin, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AiToolsPanel, FitResult, GenerationHistory, MessageResult, ResumeResult } from "../../components/ai/AiToolsPanel.jsx";
+import { AiToolsPanel, GenerationHistory } from "../../components/ai/AiToolsPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
@@ -376,19 +376,29 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
             </div>
           )}
 
-          {activeTab === "fit" && <div ref={fitSectionRef} className="mx-auto max-w-5xl scroll-mt-44"><FitResult score={latestScore} showAction={false} onContinue={() => setActiveTab("resume")} /></div>}
+          {activeTab === "fit" && (
+            <div ref={fitSectionRef} className="mx-auto max-w-5xl scroll-mt-44">
+              <AiToolsPanel contentOnly job={job} activeTab="fit" onTabChange={setActiveTab} />
+            </div>
+          )}
           {(activeTab === "resume" || activeTab === "export") && (
             <div className="mx-auto max-w-5xl">
-              <ResumeResult
-                resume={latestResume}
-                showAction={false}
+              <AiToolsPanel
+                contentOnly
+                job={job}
+                activeTab="resume"
+                onTabChange={setActiveTab}
                 onExportComplete={(resume) => {
                   if (resume?.id) setExportedResumeIds((current) => new Set([...current, resume.id]));
                 }}
               />
             </div>
           )}
-          {activeTab === "message" && <div className="mx-auto max-w-4xl"><MessageResult message={latestMessage} showAction={false} /></div>}
+          {activeTab === "message" && (
+            <div className="mx-auto max-w-4xl">
+              <AiToolsPanel contentOnly job={job} activeTab="message" onTabChange={setActiveTab} />
+            </div>
+          )}
           {activeTab !== "overview" && (
             <div className="mx-auto max-w-5xl">
               <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />

@@ -188,10 +188,27 @@ Rules:
 
 Generate one concise recruiter outreach message.
 Rules:
+- Write from the user/candidate to a recruiter, hiring manager, or company contact.
+- Use first person as the user/candidate.
+- Never write from the recruiter, hiring manager, or company.
+- Never start with "Hi [candidate name]" or "Hi Matthew".
+- Never say "I'm recruiting for" or imply the sender is recruiting.
+- Never say "I'm reaching out from [Company]".
+- Never say "our role", "our team", or "we are hiring".
+- Make it clear the user is reaching out about the role.
+- Must use candidate voice, such as: "Hello - I'm ${profile?.full_name || "the candidate"}, and I am interested in the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}."
+- Use clear phrasing like "I am interested in..." when naming the role.
+- Avoid clipped phrasing like "interested in..." without a subject.
 - 4-8 sentences maximum.
 - Human, professional, practical, not overly enthusiastic.
-- Mention the role.
+- Warm, direct, and human.
+- Mention the role and company.
 - Mention 1-2 matching strengths supported by the profile/resume.
-- Invite a brief discussion.
+- Do not use "I'd welcome a brief conversation."
+- Do not use wording that sounds like the candidate is granting permission.
+- End with one of these closing styles:
+  - "Would you be open to a quick conversation this week?"
+  - "Would you be open to connecting for 15-20 minutes this week?"
+  - "Would it make sense to connect briefly this week?"
 - Do not oversell or invent anything.`;
 }

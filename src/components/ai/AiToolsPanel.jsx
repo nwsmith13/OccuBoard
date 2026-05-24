@@ -9,7 +9,7 @@ import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { ResumeExportPanel } from "../resume/ResumeExportPanel.jsx";
 import { Button } from "../ui/Button.jsx";
 
-export function AiToolsPanel({ job, compact = false, activeTab = "fit", onTabChange }) {
+export function AiToolsPanel({ job, compact = false, contentOnly = false, activeTab = "fit", onTabChange, onExportComplete }) {
   const { user } = useAuth();
   const {
     profile,
@@ -31,11 +31,6 @@ export function AiToolsPanel({ job, compact = false, activeTab = "fit", onTabCha
   const latestResume = getLatestForJob(resumeVersions, job.id);
   const latestMessage = getLatestForJob(messages, job.id);
   const activeAction = ["fit", "resume", "message"].includes(activeTab) ? activeTab : "fit";
-  const activeExisting = {
-    fit: latestScore,
-    resume: latestResume,
-    message: latestMessage,
-  }[activeAction];
 
   async function runAi(action, { regenerate = false } = {}) {
     if (aiState.loading) return;
@@ -69,6 +64,36 @@ export function AiToolsPanel({ job, compact = false, activeTab = "fit", onTabCha
     }
   }
 
+  if (contentOnly) {
+    return (
+      <section className="grid gap-4">
+        {aiState.loading && <div ref={loadingRef}><AiSkeleton action={aiState.loading} /></div>}
+        {aiState.error && <MissingOrError message={aiState.error} />}
+        {aiState.latest?.action === "fit" && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">
+            Analysis completed. You have a clearer view of this opportunity.
+          </div>
+        )}
+        {aiState.latest?.action === "resume" && aiState.latest.resumeId && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+            <p className="font-bold">Tailored resume saved.</p>
+            <Link className="mt-2 inline-flex font-semibold text-emerald-800 underline" to={`/app/generated-resumes?resume=${aiState.latest.resumeId}`}>
+              View in Generated Resumes
+            </Link>
+          </div>
+        )}
+        {aiState.latest?.action === "message" && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">
+            Recruiter message saved. Your outreach is ready when you are.
+          </div>
+        )}
+        {activeAction === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} />}
+        {activeAction === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
+        {activeAction === "message" && <MessageResult message={latestMessage} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+      </section>
+    );
+  }
+
   return (
     <section className={compact ? "grid gap-3" : "rounded-lg border border-brand-100 bg-white p-5 shadow-card"}>
       {!compact && (
@@ -94,16 +119,6 @@ export function AiToolsPanel({ job, compact = false, activeTab = "fit", onTabCha
             <AiAction action="resume" label="Resume" fullLabel="Tailor Resume" existing={latestResume} activeTab={activeTab} loading={aiState.loading} onRun={runAi} onView={() => onTabChange?.("resume")} />
             <AiAction action="message" label="Message" fullLabel="Generate Message" existing={latestMessage} activeTab={activeTab} loading={aiState.loading} onRun={runAi} onView={() => onTabChange?.("message")} />
           </div>
-        )}
-        {compact && activeExisting && (
-          <button
-            type="button"
-            className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-lg px-3 text-xs font-semibold text-slate-600 hover:bg-brand-50 hover:text-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => runAi(activeAction, { regenerate: true })}
-            disabled={Boolean(aiState.loading)}
-          >
-            <RefreshCcw size={13} /> Regenerate {getActionNoun(activeAction)}
-          </button>
         )}
       </div>
       <div className={`${compact ? "rounded-lg bg-brand-50/70 p-3" : "mt-4 flex flex-col gap-2 rounded-lg bg-brand-50 p-3 sm:flex-row sm:items-center sm:justify-between"}`}>
@@ -166,9 +181,9 @@ export function AiToolsPanel({ job, compact = false, activeTab = "fit", onTabCha
       )}
       {!compact && (
         <>
-          {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} showAction={false} />}
-          {activeTab === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} showAction={false} />}
-          {activeTab === "message" && <MessageResult message={latestMessage} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} showAction={false} />}
+          {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "message" && <MessageResult message={latestMessage} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
         </>
       )}
@@ -249,8 +264,8 @@ function getPrimaryAction(activeAction, existing, all) {
   if (activeAction === "fit") return { label: "Analyze Fit", variant: "primary" };
   if (activeAction === "resume" && existing) return { label: "Ready to Export", nextTab: "resume", variant: "secondary" };
   if (activeAction === "resume") return { label: all.latestScore ? "Tailor Resume" : "Analyze Fit First", nextTab: all.latestScore ? "" : "fit", variant: all.latestScore ? "primary" : "secondary" };
-  if (activeAction === "message" && existing) return { label: "Copy or Regenerate Message", nextTab: "message", variant: "secondary" };
-  return { label: "Generate Message", variant: "primary" };
+  if (activeAction === "message" && existing) return { label: "View Message", nextTab: "message", variant: "secondary" };
+  return { label: "Generate Recruiter Message", variant: "primary" };
 }
 
 function getLocalError(action, profile, job) {
@@ -258,10 +273,6 @@ function getLocalError(action, profile, job) {
   if (!job?.job_description?.trim()) return "Paste the job description before running AI tools.";
   if (!["fit", "resume", "message"].includes(action)) return "That AI action is not available.";
   return "";
-}
-
-function getActionNoun(action) {
-  return action === "fit" ? "analysis" : action === "resume" ? "resume" : "message";
 }
 
 function AiSkeleton({ action }) {
@@ -287,7 +298,7 @@ function AiSkeleton({ action }) {
 }
 
 export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading, showAction = true }) {
-  if (!score) return <EmptyAiState title="No fit analysis yet" description="Analyze this job against your profile and base resume to see strengths, gaps, keywords, and a recommendation." action={showAction && onGenerate ? "Analyze Fit" : ""} onAction={onGenerate} loading={loading} />;
+  if (!score) return <EmptyAiState title="No fit analysis yet" description="See strengths, gaps, keywords, and a recommendation for this role." action={showAction && onGenerate ? "Analyze Fit" : ""} onAction={onGenerate} loading={loading} />;
   const tone = getScoreTone(score.score);
   return (
     <div className={`animate-[fadeIn_260ms_ease-out] rounded-lg border p-6 shadow-card ${tone.panel}`}>
@@ -312,7 +323,7 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
       <AiList title="Keywords" items={score.keywords} inline />
       <div className="mt-5 flex flex-wrap gap-2">
         {onContinue && <Button onClick={onContinue}>Continue to Resume</Button>}
-        {onRegenerate && <RegenerateButton onClick={onRegenerate} disabled={Boolean(loading)} />}
+        {onRegenerate && <RegenerateButton label="Regenerate analysis" onClick={onRegenerate} disabled={Boolean(loading)} />}
       </div>
     </div>
   );
@@ -321,7 +332,7 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
 export function ResumeResult({ resume, onGenerate, onRegenerate, onExportComplete, loading, showAction = true }) {
   const { profile, jobs } = useWorkspaceStore();
   const job = resume ? jobs.find((item) => item.id === resume.job_id) : null;
-  if (!resume) return <EmptyAiState title="No tailored resume yet" description="Generate a truthful, ATS-friendly draft based on your base resume and this job description." action={showAction && onGenerate ? "Tailor Resume" : ""} onAction={onGenerate} loading={loading} />;
+  if (!resume) return <EmptyAiState title="No tailored resume yet" description="Create an application-ready resume version using your base resume and this job." action={showAction && onGenerate ? "Tailor Resume" : ""} onAction={onGenerate} loading={loading} />;
   return (
     <div className="rounded-lg bg-brand-50 p-5 shadow-card">
       <div className="flex items-center justify-between gap-3">
@@ -335,13 +346,13 @@ export function ResumeResult({ resume, onGenerate, onRegenerate, onExportComplet
         <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
       </div>
       <FormattedDraft content={resume.content} />
-      {onRegenerate && <RegenerateButton onClick={onRegenerate} disabled={Boolean(loading)} />}
+      {onRegenerate && <RegenerateButton label="Regenerate resume" onClick={onRegenerate} disabled={Boolean(loading)} />}
     </div>
   );
 }
 
 export function MessageResult({ message, onGenerate, onRegenerate, loading, showAction = true }) {
-  if (!message) return <EmptyAiState title="No recruiter message yet" description="Generate a concise outreach note that mentions the role and a couple of relevant strengths." action={showAction && onGenerate ? "Generate Message" : ""} onAction={onGenerate} loading={loading} />;
+  if (!message) return <EmptyAiState title="No recruiter message yet" description="Create a short outreach message you can send to a recruiter or hiring contact." action={showAction && onGenerate ? "Generate Recruiter Message" : ""} onAction={onGenerate} loading={loading} />;
   return (
     <div className="rounded-lg bg-brand-50 p-5 shadow-card">
       <div className="flex items-center justify-between gap-3">
@@ -352,7 +363,7 @@ export function MessageResult({ message, onGenerate, onRegenerate, loading, show
         <CopyButton text={message.content} />
       </div>
       <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm leading-6 text-slate-700">{message.content}</p>
-      {onRegenerate && <RegenerateButton onClick={onRegenerate} disabled={Boolean(loading)} />}
+      {onRegenerate && <RegenerateButton label="Regenerate message" onClick={onRegenerate} disabled={Boolean(loading)} />}
     </div>
   );
 }
@@ -411,7 +422,7 @@ function EmptyAiState({ title, description, action, onAction, loading }) {
     <div className="rounded-lg border border-brand-100 bg-brand-50 p-5">
       <h4 className="font-bold text-brand-900">{title}</h4>
       <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-      {onAction && action && <Button className="mt-4" onClick={onAction} disabled={Boolean(loading)}>{action}</Button>}
+      {onAction && action && <Button className="mt-4 shadow-soft" onClick={onAction} disabled={Boolean(loading)}>{action}</Button>}
     </div>
   );
 }
@@ -426,10 +437,10 @@ function MissingOrError({ message }) {
   );
 }
 
-function RegenerateButton({ onClick, disabled }) {
+function RegenerateButton({ label, onClick, disabled }) {
   return (
     <Button variant="ghost" className="mt-4 min-h-8 px-2 text-xs" onClick={onClick} disabled={disabled}>
-      <RefreshCcw size={14} /> Regenerate as new version
+      <RefreshCcw size={14} /> {label}
     </Button>
   );
 }

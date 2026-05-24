@@ -52,6 +52,7 @@ export default async function handler(req, res) {
     });
 
     const result = parseStructuredOutput(response);
+    validateGeneratedResult(action, result, profile, job);
     return send(res, 200, { result });
   } catch (error) {
     return send(res, getStatus(error), { error: getFriendlyError(error), code: error.code });
@@ -83,10 +84,38 @@ function parseStructuredOutput(response) {
   }
 }
 
+export function validateGeneratedResult(action, result, profile, job) {
+  if (action !== "message") return;
+  const content = String(result?.content || "").trim();
+  const firstName = String(profile?.full_name || "").trim().split(/\s+/)[0];
+  const company = String(job?.company_name || "").trim();
+  const escapedCompany = escapeRegex(company);
+  const badPatterns = [
+    firstName && new RegExp(`^\\s*hi\\s+${escapeRegex(firstName)}\\b`, "i"),
+    /\bi['’]?m\s+recruiting\s+for\b/i,
+    /\bi\s+am\s+recruiting\s+for\b/i,
+    /\bwe['’]?re\s+hiring\b/i,
+    /\bwe\s+are\s+hiring\b/i,
+    /\bour\s+(role|team|company|opening|position)\b/i,
+    escapedCompany && new RegExp(`\\bi['’]?m\\s+reaching\\s+out\\s+from\\s+${escapedCompany}\\b`, "i"),
+    escapedCompany && new RegExp(`\\bi\\s+am\\s+reaching\\s+out\\s+from\\s+${escapedCompany}\\b`, "i"),
+  ].filter(Boolean);
+
+  const hasBadVoice = badPatterns.some((pattern) => pattern.test(content));
+  const hasCandidateInterest = /\bi\s+am\s+interested\s+in\b/i.test(content);
+  if (hasBadVoice || !hasCandidateInterest) {
+    const error = new Error("The generated message used recruiter voice instead of candidate voice. Please regenerate.");
+    error.status = 422;
+    error.code = "message_voice_validation_failed";
+    throw error;
+  }
+}
+
 function getFriendlyError(error) {
   const message = error.message || "";
   if (error.status === 429) return "AI is temporarily rate limited. Please wait a moment and try again.";
   if (error.status === 401) return "The server OpenAI key is invalid or missing.";
+  if (error.code === "message_voice_validation_failed") return message;
   if (message.includes("malformed") || message.includes("empty")) return message;
   return "AI generation failed. Please try again.";
 }
@@ -110,4 +139,8 @@ function setJson(res) {
 function send(res, status, body) {
   res.statusCode = status;
   res.end(JSON.stringify(body));
+}
+
+function escapeRegex(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
