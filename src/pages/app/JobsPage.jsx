@@ -10,6 +10,7 @@ import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBa
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { priorities, remoteTypes, stages } from "../../data/seedData.js";
 import { formatDate, isOverdue, todayIso } from "../../lib/date.js";
+import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, getFollowUpNote, getFollowUpSnoozedUntil, getFollowUpStatus, getFollowUpTone } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
 import { getResumeExportHistory } from "../../lib/resumeExport.js";
@@ -260,7 +261,8 @@ function getDisplayStage(status) {
 }
 
 export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDelete, onMove }) {
-  const { jobScores, resumeVersions, messages } = useWorkspaceStore();
+  const { user } = useAuth();
+  const { jobScores, resumeVersions, messages, updateJob } = useWorkspaceStore();
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const fitSectionRef = useRef(null);
   const [exportedResumeIds, setExportedResumeIds] = useState(() => new Set(getResumeExportHistory().map((item) => item.resumeId).filter(Boolean)));
@@ -371,6 +373,7 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
               <section>
                 <h3 className="font-bold">Notes</h3>
                 <p className="mt-2 whitespace-pre-wrap rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">{job.notes || "No notes yet."}</p>
+                <FollowUpControls job={job} user={user} updateJob={updateJob} />
                 <div className="sticky bottom-0 -mx-1 mt-6 flex flex-wrap gap-3 border-t border-brand-100 bg-white/95 px-1 py-4 backdrop-blur">
                   <Button onClick={onMove}>Move to Applied</Button>
                   <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>
@@ -410,6 +413,116 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function FollowUpControls({ job, user, updateJob }) {
+  const [reminder, setReminder] = useState(job);
+  const [date, setDate] = useState(getFollowUpDate(reminder));
+  const [note, setNote] = useState(getFollowUpNote(reminder));
+  const [customSnooze, setCustomSnooze] = useState("");
+  const [saving, setSaving] = useState("");
+  const [message, setMessage] = useState("");
+  const draftReminder = { ...reminder, followup_date: date, followup_note: note };
+  const status = getFollowUpStatus(draftReminder);
+  const label = getFollowUpLabel(draftReminder);
+  const completedAt = getFollowUpCompletedAt(reminder);
+  const snoozedUntil = getFollowUpSnoozedUntil(reminder);
+
+  async function saveReminder(patch, successMessage) {
+    setSaving(successMessage);
+    setMessage("");
+    try {
+      const saved = await updateJob(user, job.id, patch);
+      const nextReminder = { ...reminder, ...patch, ...saved };
+      setReminder(nextReminder);
+      setDate(getFollowUpDate(nextReminder));
+      setNote(getFollowUpNote(nextReminder));
+      setMessage(successMessage);
+      window.setTimeout(() => setMessage(""), 2600);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  function saveFollowUp() {
+    saveReminder(
+      {
+        followup_date: date || null,
+        followup_note: note,
+        followup_status: date ? "scheduled" : "none",
+        followup_completed_at: null,
+        followup_snoozed_until: null,
+      },
+      "Follow-up reminder saved.",
+    );
+  }
+
+  function markCompleted() {
+    saveReminder({ followup_status: "completed", followup_completed_at: new Date().toISOString(), followup_snoozed_until: null }, "Follow-up marked complete.");
+  }
+
+  function snooze(until) {
+    if (!until) return;
+    saveReminder({ followup_status: "snoozed", followup_snoozed_until: until, followup_completed_at: null }, `Snoozed until ${formatDate(until)}.`);
+  }
+
+  return (
+    <div className="mt-5 rounded-xl bg-brand-50/70 p-4 ring-1 ring-brand-100">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-bold">Next follow-up</h3>
+          <p className="mt-1 text-sm text-slate-600">{label || "Add a follow-up date so this role comes back to your attention."}</p>
+        </div>
+        {label && <span className={`rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${getFollowUpTone(status)}`}>{label}</span>}
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        <label className="grid gap-1 text-sm font-semibold text-ink">
+          Follow-up date
+          <input
+            type="date"
+            value={date || ""}
+            onChange={(event) => setDate(event.target.value)}
+            className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-semibold text-ink">
+          Follow-up note
+          <textarea
+            rows="2"
+            value={note || ""}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="Add a short reminder for future you."
+            className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm leading-6 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button className="min-h-8 px-3 text-xs" onClick={saveFollowUp} disabled={Boolean(saving)}>Save follow-up</Button>
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markCompleted} disabled={Boolean(saving || completedAt)}>Mark followed up</Button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Snooze</span>
+        <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => snooze(addDaysIso(1))}>Tomorrow</Button>
+        <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => snooze(addDaysIso(3))}>3 days</Button>
+        <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => snooze(addDaysIso(7))}>1 week</Button>
+        <input
+          type="date"
+          value={customSnooze}
+          onChange={(event) => {
+            setCustomSnooze(event.target.value);
+            snooze(event.target.value);
+          }}
+          aria-label="Custom snooze date"
+          className="min-h-8 rounded-lg border border-brand-100 bg-white px-2 text-xs outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+        />
+      </div>
+      {snoozedUntil && <p className="mt-2 text-xs font-semibold text-slate-500">Currently snoozed until {formatDate(snoozedUntil)}.</p>}
+      {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{message}</p>}
     </div>
   );
 }

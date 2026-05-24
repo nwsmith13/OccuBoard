@@ -6,7 +6,8 @@ import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { stages } from "../../data/seedData.js";
-import { formatDate, todayIso } from "../../lib/date.js";
+import { todayIso } from "../../lib/date.js";
+import { getFollowUpLabel, getFollowUpStatus, getFollowUpTone, getStageNextStep, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -131,9 +132,7 @@ function getStageColumnTone(stage) {
 }
 
 function getPipelineStage(status) {
-  if (status === "Tailoring") return "Saved";
-  if (["Offer", "Rejected", "Closed"].includes(status)) return "Closed";
-  return status || "Saved";
+  return normalizeStage(status);
 }
 
 function ApplicationCard({ job, score, status, onOpen, onDragStart, compact = false }) {
@@ -168,6 +167,7 @@ function ApplicationCard({ job, score, status, onOpen, onDragStart, compact = fa
         </div>
       </div>
       <KanbanAiStatus status={status} />
+      <FollowUpChip job={job} />
       {getNextAction(job, status) && <p className="mt-2 text-xs font-semibold text-slate-500">{getNextAction(job, status)}</p>}
     </div>
   );
@@ -192,22 +192,19 @@ function PipelineSkeleton() {
 }
 
 export function getNextAction(job, status) {
-  const stage = getPipelineStage(job.status);
+  return getStageNextStep(job, status);
+}
 
-  if (stage === "Applied") {
-    return job.followup_date ? `Follow up on ${formatDate(job.followup_date)}` : "Waiting for response";
-  }
+function FollowUpChip({ job }) {
+  const status = getFollowUpStatus(job);
+  const label = getFollowUpLabel(job);
+  if (!label) return null;
 
-  if (stage === "Interview") {
-    return job.followup_date ? `Follow up on ${formatDate(job.followup_date)}` : "Prepare for interview";
-  }
-
-  if (stage === "Closed") return "Outcome recorded";
-
-  if (status.resumeDrafted && status.messageDrafted) return "Ready to apply";
-  if (!status.resumeDrafted) return "Generate resume";
-  if (!status.messageDrafted) return "Generate message";
-  return "";
+  return (
+    <span className={`mt-2 inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getFollowUpTone(status)}`}>
+      {label}
+    </span>
+  );
 }
 
 function KanbanAiStatus({ status }) {

@@ -6,7 +6,8 @@ import { Card } from "../../components/ui/Card.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { getCompletenessTone } from "../../lib/completenessTone.js";
-import { formatDate, isOverdue, isThisWeek } from "../../lib/date.js";
+import { formatDate, isThisWeek } from "../../lib/date.js";
+import { getFollowUpStatus, getStageNextStep, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getProfileCompleteness } from "../../lib/profile.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -17,7 +18,8 @@ export function DashboardPage() {
   const [showAllActivity, setShowAllActivity] = useState(false);
   const completeness = getProfileCompleteness(profile);
   const completenessTone = getCompletenessTone(completeness);
-  const focusItems = getFocusItems(jobs);
+  const focusItems = getFocusItems({ jobs, jobScores, resumeVersions, messages });
+  const followUpsDue = jobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
   const bestMatchRoles = getBestMatchRoles(jobScores, jobs, profile);
   const momentum = getMomentumSummary({ jobs, resumeVersions, jobScores, messages });
   const visibleActivity = showAllActivity ? activityLogs : activityLogs.slice(0, 4);
@@ -53,7 +55,10 @@ export function DashboardPage() {
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">Today</p>
-              <h2 className="mt-1 text-2xl font-bold text-ink">Today&apos;s Focus</h2>
+              <div className="mt-1 flex flex-wrap items-center gap-3">
+                <h2 className="text-2xl font-bold text-ink">Today&apos;s Focus</h2>
+                {followUpsDue > 0 && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-100">{followUpsDue} follow-up{followUpsDue === 1 ? "" : "s"} due</span>}
+              </div>
             </div>
             <p className="max-w-md text-sm leading-6 text-slate-600">The next few things worth your attention.</p>
           </div>
@@ -254,9 +259,7 @@ function getReadyToSendCount(jobs, resumeVersions, messages) {
 }
 
 function normalizeDashboardStage(status) {
-  if (status === "Tailoring") return "Saved";
-  if (["Offer", "Rejected", "Closed"].includes(status)) return "Closed";
-  return status || "Saved";
+  return normalizeStage(status);
 }
 
 function getMomentumSummary({ jobs, resumeVersions, jobScores, messages }) {
@@ -280,25 +283,31 @@ function getMomentumSummary({ jobs, resumeVersions, jobScores, messages }) {
   };
 }
 
-function getFocusItems(jobs) {
+function getFocusItems({ jobs, jobScores, resumeVersions, messages }) {
   const overdue = jobs
-    .filter((job) => job.followup_date && isOverdue(job.followup_date))
-    .map((job) => ({ ...job, kind: "Overdue", message: `Follow-up was due ${formatDate(job.followup_date)}` }));
-  const upcoming = jobs
-    .filter((job) => job.followup_date && !isOverdue(job.followup_date))
-    .sort((a, b) => new Date(a.followup_date) - new Date(b.followup_date))
+    .filter((job) => getFollowUpStatus(job) === "overdue")
+    .map((job) => ({ ...job, kind: "Overdue", message: "Follow up overdue" }));
+  const dueToday = jobs
+    .filter((job) => getFollowUpStatus(job) === "due")
+    .map((job) => ({ ...job, kind: "Upcoming", message: "Follow up today" }));
+  const readyToApply = jobs
+    .filter((job) => normalizeDashboardStage(job.status) === "Saved")
+    .filter((job) => resumeVersions.some((version) => version.job_id === job.id) && messages.some((message) => message.job_id === job.id))
     .slice(0, 2)
-    .map((job) => ({ ...job, kind: "Upcoming", message: `Follow up on ${formatDate(job.followup_date)}` }));
-  const highPriority = jobs
-    .filter((job) => job.priority === "High" && normalizeDashboardStage(job.status) === "Saved")
-    .map((job) => ({ ...job, kind: "Priority", message: "High-priority saved job needs a next step" }));
+    .map((job) => ({ ...job, kind: "Priority", message: getStageNextStep(job, { resumeDrafted: true, messageDrafted: true }) || "Apply when ready" }));
+  const highFit = [...jobScores]
+    .filter((score) => Number(score.score) >= 75)
+    .sort((a, b) => Number(b.score) - Number(a.score))
+    .map((score) => jobs.find((job) => job.id === score.job_id))
+    .filter(Boolean)
+    .map((job) => ({ ...job, kind: "Priority", message: "Review high-fit role" }));
   const recent = [...jobs]
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
     .slice(0, 3)
     .map((job) => ({ ...job, kind: "Recent", message: `Recently saved on ${formatDate(job.date_saved)}` }));
 
   const seen = new Set();
-  return [...overdue, ...upcoming, ...highPriority, ...recent].filter((job) => {
+  return [...overdue, ...dueToday, ...readyToApply, ...highFit, ...recent].filter((job) => {
     if (seen.has(job.id)) return false;
     seen.add(job.id);
     return true;

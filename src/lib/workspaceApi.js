@@ -204,7 +204,15 @@ export async function updateJob(user, id, patch) {
   if (hasSupabaseConfig && user?.id) {
     const supabase = await getSupabaseClient();
     const { data, error } = await supabase.from("jobs").update(payload).eq("id", id).eq("user_id", user.id).select("*").single();
-    if (error) throw error;
+    if (error) {
+      if (!isMissingColumnError(error)) throw error;
+      const legacyPayload = getLegacyJobPayload(payload);
+      const retry = await supabase.from("jobs").update(legacyPayload).eq("id", id).eq("user_id", user.id).select("*").single();
+      if (retry.error) throw retry.error;
+      const enriched = { ...retry.data, ...Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key.startsWith("company_"))) };
+      await logActivity(user, "Job", `Updated ${getDisplayJobTitle(enriched)} at ${getDisplayCompanyName(enriched)}`);
+      return enriched;
+    }
     await logActivity(user, "Job", `Updated ${getDisplayJobTitle(data)} at ${getDisplayCompanyName(data)}`);
     return data;
   }
@@ -405,6 +413,10 @@ function normalizeJob(user, job) {
     date_saved: job.date_saved || new Date().toISOString().slice(0, 10),
     applied_date: job.applied_date || null,
     followup_date: job.followup_date || null,
+    followup_status: job.followup_status || "none",
+    followup_completed_at: job.followup_completed_at || null,
+    followup_snoozed_until: job.followup_snoozed_until || null,
+    followup_note: job.followup_note || "",
     notes: job.notes,
     created_at: createdAt,
     updated_at: createdAt,
@@ -428,17 +440,23 @@ function cleanJobPayload(job) {
     "date_saved",
     "applied_date",
     "followup_date",
+    "followup_status",
+    "followup_completed_at",
+    "followup_snoozed_until",
+    "followup_note",
     "notes",
     "created_at",
     "updated_at",
   ];
   const payload = Object.fromEntries(allowed.filter((key) => key in job).map((key) => [key, job[key]]));
-  const cleaned = {
-    ...payload,
-    applied_date: payload.applied_date || null,
-    followup_date: payload.followup_date || null,
-    date_saved: payload.date_saved || new Date().toISOString().slice(0, 10),
-  };
+  const cleaned = { ...payload };
+  if ("applied_date" in payload) cleaned.applied_date = payload.applied_date || null;
+  if ("followup_date" in payload) cleaned.followup_date = payload.followup_date || null;
+  if ("followup_status" in payload) cleaned.followup_status = payload.followup_status || "none";
+  if ("followup_completed_at" in payload) cleaned.followup_completed_at = payload.followup_completed_at || null;
+  if ("followup_snoozed_until" in payload) cleaned.followup_snoozed_until = payload.followup_snoozed_until || null;
+  if ("followup_note" in payload) cleaned.followup_note = payload.followup_note || "";
+  if ("date_saved" in payload) cleaned.date_saved = payload.date_saved || new Date().toISOString().slice(0, 10);
   if ("company_name" in payload) cleaned.company_name = getDisplayCompanyName(payload);
   if ("job_title" in payload) cleaned.job_title = getDisplayJobTitle(payload);
   if ("status" in payload) cleaned.status = normalizeApplicationStage(payload.status);
@@ -449,6 +467,10 @@ function getLegacyJobPayload(payload) {
   const legacyPayload = { ...payload };
   delete legacyPayload.company_domain;
   delete legacyPayload.company_logo_url;
+  delete legacyPayload.followup_status;
+  delete legacyPayload.followup_completed_at;
+  delete legacyPayload.followup_snoozed_until;
+  delete legacyPayload.followup_note;
   return legacyPayload;
 }
 

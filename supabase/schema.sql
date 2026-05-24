@@ -35,6 +35,10 @@ create table if not exists public.jobs (
   date_saved date not null default current_date,
   applied_date date,
   followup_date date,
+  followup_status text not null default 'none',
+  followup_completed_at timestamptz,
+  followup_snoozed_until date,
+  followup_note text,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -45,6 +49,10 @@ alter table public.jobs add column if not exists priority text not null default 
 alter table public.jobs add column if not exists date_saved date not null default current_date;
 alter table public.jobs add column if not exists applied_date date;
 alter table public.jobs add column if not exists followup_date date;
+alter table public.jobs add column if not exists followup_status text not null default 'none';
+alter table public.jobs add column if not exists followup_completed_at timestamptz;
+alter table public.jobs add column if not exists followup_snoozed_until date;
+alter table public.jobs add column if not exists followup_note text;
 alter table public.jobs add column if not exists notes text;
 alter table public.jobs add column if not exists updated_at timestamptz not null default now();
 
