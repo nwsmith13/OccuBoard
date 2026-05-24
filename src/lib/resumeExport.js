@@ -100,7 +100,7 @@ export function buildResumeFilename({ profile, job, extension }) {
   return `${person}-${company}-${title}-Resume.${extension}`;
 }
 
-export async function exportResumePdf({ content, profile, job, resume, includeWhyThisFits = false, accentColor = "#7c3aed" }) {
+export async function exportResumePdf({ content, profile, job, resume, includeWhyThisFits = false, accentColor = "#0F5EA8" }) {
   const { jsPDF } = await import("jspdf");
   const sections = parseResumeForExport(content, { includeWhyThisFits, profile });
   const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -110,7 +110,7 @@ export async function exportResumePdf({ content, profile, job, resume, includeWh
   rememberResumeExport({ fileName, type: "PDF", job, resume });
 }
 
-export async function exportResumeDocx({ content, profile, job, resume, includeWhyThisFits = false, accentColor = "#7c3aed" }) {
+export async function exportResumeDocx({ content, profile, job, resume, includeWhyThisFits = false, accentColor = "#0F5EA8" }) {
   const docx = await import("docx");
   const sections = parseResumeForExport(content, { includeWhyThisFits, profile });
   const fileName = buildResumeFilename({ profile, job, extension: "docx" });
@@ -156,7 +156,7 @@ export async function exportResumeDocx({ content, profile, job, resume, includeW
   rememberResumeExport({ fileName, type: "DOCX", job, resume });
 }
 
-export function openResumePrintPreview({ content, profile, job, includeWhyThisFits = false, accentColor = "#7c3aed" }) {
+export function openResumePrintPreview({ content, profile, job, includeWhyThisFits = false, accentColor = "#0F5EA8" }) {
   const sections = parseResumeForExport(content, { includeWhyThisFits, profile });
   const fileName = buildResumeFilename({ profile, job, extension: "pdf" });
   const preview = window.open("", "_blank");
@@ -204,7 +204,7 @@ function rememberResumeExport(item) {
   }
 }
 
-function renderPdf(doc, sections, { accentColor = "#7c3aed" } = {}) {
+function renderPdf(doc, sections, { accentColor = "#0F5EA8" } = {}) {
   const page = { width: doc.internal.pageSize.getWidth(), height: doc.internal.pageSize.getHeight() };
   const margin = 54;
   const maxWidth = page.width - margin * 2;
@@ -334,7 +334,7 @@ function buildDocxParagraphs(sections, docx) {
   return paragraphs;
 }
 
-function buildPrintHtml(sections, title, { accentColor = "#7c3aed" } = {}) {
+function buildPrintHtml(sections, title, { accentColor = "#0F5EA8" } = {}) {
   return `<!doctype html>
 <html>
 <head>
@@ -592,7 +592,7 @@ function slugifyName(value) {
     .replace(/^-+|-+$/g, "") || "Resume";
 }
 
-function hexToRgb(value = "#7c3aed") {
+function hexToRgb(value = "#0F5EA8") {
   const hex = String(value).replace("#", "").trim();
   if (!/^[0-9a-f]{6}$/i.test(hex)) return [124, 58, 237];
   return [
@@ -602,9 +602,9 @@ function hexToRgb(value = "#7c3aed") {
   ];
 }
 
-function toDocxHex(value = "#7c3aed") {
+function toDocxHex(value = "#0F5EA8") {
   const hex = String(value).replace("#", "").trim();
-  return /^[0-9a-f]{6}$/i.test(hex) ? hex.toUpperCase() : "7C3AED";
+  return /^[0-9a-f]{6}$/i.test(hex) ? hex.toUpperCase() : "0F5EA8";
 }
 
 function escapeHtml(value = "") {

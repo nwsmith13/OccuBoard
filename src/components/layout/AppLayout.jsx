@@ -29,13 +29,13 @@ export function AppLayout() {
 
   const sidebar = (
     <aside className={`${collapsed ? "w-20" : "w-72"} flex h-full flex-col border-r border-slate-200 bg-white/95 transition-all lg:sticky lg:top-0 lg:h-screen`}>
-      <div className={`${collapsed ? "flex min-h-24 flex-col items-center justify-center gap-1 px-2" : "flex min-h-24 items-center justify-between gap-3 px-4"}`}>
-        <Link to="/app/dashboard" className={collapsed ? "flex justify-center" : "min-w-0 flex-1"}>
-          <Logo compact={collapsed} />
+      <div className={`${collapsed ? "flex min-h-24 flex-col items-center justify-center gap-1 px-2" : "relative flex min-h-32 items-center px-4 py-4"}`}>
+        <Link to="/app/dashboard" className={collapsed ? "flex justify-center" : "min-w-0 flex-1 pr-9"}>
+          <Logo compact={collapsed} sidebar />
         </Link>
         <button
           type="button"
-          className="rounded-lg p-2 text-slate-600 hover:bg-stone-100"
+          className={`${collapsed ? "" : "absolute right-3 top-3"} rounded-lg p-2 text-slate-600 hover:bg-stone-100`}
           onClick={() => setCollapsed((value) => !value)}
           aria-label="Toggle sidebar"
         >

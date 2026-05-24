@@ -122,9 +122,9 @@ export function ApplicationsPage() {
 
 function getStageColumnTone(stage) {
   return {
-    Saved: "bg-stone-50",
-    Applied: "bg-sky-50/70",
-    Interview: "bg-amber-50/70",
+    Saved: "bg-[#eefbfe]",
+    Applied: "bg-[#eefaff]",
+    Interview: "bg-[#effdf7]",
     Closed: "bg-slate-100/70",
   }[stage] ?? "bg-stone-50";
 }

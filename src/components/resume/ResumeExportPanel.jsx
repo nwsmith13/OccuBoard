@@ -10,9 +10,11 @@ import {
 import { Button } from "../ui/Button.jsx";
 
 const exportColors = {
-  Purple: "#7c3aed",
-  Blue: "#2563eb",
-  Green: "#059669",
+  "Occu Blue": "#0F5EA8",
+  Sky: "#7FD7E7",
+  Cyan: "#06B6D4",
+  Green: "#34D399",
+  Purple: "#7C3AED",
   Charcoal: "#334155",
 };
 
@@ -20,7 +22,7 @@ export function ResumeExportPanel({ resume, content, profile, job, compact = fal
   const [includeWhyThisFits, setIncludeWhyThisFits] = useState(false);
   const [showPreview, setShowPreview] = useState(showPreviewDefault);
   const [exportStyle, setExportStyle] = useState("Professional");
-  const [exportColor, setExportColor] = useState("Purple");
+  const [exportAccentColor, setExportAccentColor] = useState(exportColors["Occu Blue"]);
   const [exporting, setExporting] = useState("");
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -39,8 +41,8 @@ export function ResumeExportPanel({ resume, content, profile, job, compact = fal
     setExporting(type);
     setError("");
     try {
-      if (type === "PDF") await exportResumePdf({ content: resumeContent, profile, job, resume, includeWhyThisFits, accentColor: exportColors[exportColor] });
-      if (type === "DOCX") await exportResumeDocx({ content: resumeContent, profile, job, resume, includeWhyThisFits, accentColor: exportColors[exportColor] });
+      if (type === "PDF") await exportResumePdf({ content: resumeContent, profile, job, resume, includeWhyThisFits, accentColor: exportAccentColor });
+      if (type === "DOCX") await exportResumeDocx({ content: resumeContent, profile, job, resume, includeWhyThisFits, accentColor: exportAccentColor });
       setHistory(getResumeExportHistory());
       onExportComplete?.(resume);
       setSuccess(`Resume ready to send. ${type} export successful.`);
@@ -55,7 +57,7 @@ export function ResumeExportPanel({ resume, content, profile, job, compact = fal
   function printPreview() {
     setError("");
     try {
-      openResumePrintPreview({ content: resumeContent, profile, job, includeWhyThisFits, accentColor: exportColors[exportColor] });
+      openResumePrintPreview({ content: resumeContent, profile, job, includeWhyThisFits, accentColor: exportAccentColor });
     } catch {
       setError("We couldn't open Print Preview. Check that pop-ups are allowed, then try again.");
     }
@@ -137,18 +139,28 @@ export function ResumeExportPanel({ resume, content, profile, job, compact = fal
             <button
               key={label}
               type="button"
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold transition ${exportColor === label ? "bg-white text-ink shadow-sm ring-2 ring-brand-200" : "text-slate-600 hover:bg-white/70"}`}
-              onClick={() => setExportColor(label)}
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold transition ${exportAccentColor.toLowerCase() === value.toLowerCase() ? "bg-white text-ink shadow-sm ring-2 ring-brand-200" : "text-slate-600 hover:bg-white/70"}`}
+              onClick={() => setExportAccentColor(value)}
             >
               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: value }} />
               {label}
             </button>
           ))}
+          <label className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-brand-100">
+            Custom
+            <input
+              type="color"
+              className="h-5 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
+              value={exportAccentColor}
+              onChange={(event) => setExportAccentColor(event.target.value)}
+              aria-label="Choose custom resume accent color"
+            />
+          </label>
         </div>
         <p className="mt-2 text-xs text-slate-500">Applies to resume export accents only. OccuBoard stays on its current app theme.</p>
       </div>
 
-      {showPreview && <ResumeExportPreview sections={parsedSections} accentColor={exportColors[exportColor]} />}
+      {showPreview && <ResumeExportPreview sections={parsedSections} accentColor={exportAccentColor} />}
 
       {showHistory && visibleHistory.length > 0 && (
         <div className="mt-4 border-t border-brand-100/70 pt-3">
@@ -167,7 +179,7 @@ export function ResumeExportPanel({ resume, content, profile, job, compact = fal
   );
 }
 
-function ResumeExportPreview({ sections, accentColor = exportColors.Purple }) {
+function ResumeExportPreview({ sections, accentColor = exportColors["Occu Blue"] }) {
   const contactSection = sections.find((section) => section.title === "CONTACT");
   const documentSections = sections.filter((section) => section.title !== "CONTACT");
   return (
