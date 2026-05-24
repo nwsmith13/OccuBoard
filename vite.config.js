@@ -1,3 +1,4 @@
+import { cpSync, createReadStream, existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { defineConfig, loadEnv } from "vite";
@@ -13,6 +14,28 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      {
+        name: "occuboard-static-assets",
+        configureServer(server) {
+          server.middlewares.use("/assets", (req, res, next) => {
+            const requested = decodeURIComponent((req.url || "").split("?")[0]).replace(/^\/+/, "");
+            const filePath = resolve(rootDir, "assets", requested);
+            if (!filePath.startsWith(resolve(rootDir, "assets")) || !existsSync(filePath)) {
+              next();
+              return;
+            }
+            res.setHeader("content-type", "image/svg+xml");
+            createReadStream(filePath).pipe(res);
+          });
+        },
+        closeBundle() {
+          const source = resolve(rootDir, "assets");
+          const target = resolve(rootDir, "dist", "assets");
+          if (!existsSync(source)) return;
+          mkdirSync(target, { recursive: true });
+          cpSync(source, target, { recursive: true });
+        },
+      },
       {
         name: "occuboard-local-api",
         configureServer(server) {

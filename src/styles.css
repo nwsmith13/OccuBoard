@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color: #1f1b2e;
+  color: #17243a;
   background: #ffffff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -39,7 +39,7 @@ button {
 
 .kanban-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #d8b4fe #faf5ff;
+  scrollbar-color: #7fd7e7 #eef9fc;
 }
 
 @keyframes fadeIn {

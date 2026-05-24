@@ -97,7 +97,7 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold">Take control of your job search.</h2>
-            <p className="mt-2 text-brand-100">OccuBoard by ARSO</p>
+            <p className="mt-2 text-brand-100">A calmer workspace for focused job search momentum.</p>
           </div>
           <Link to="/signup"><Button variant="secondary">Get Started</Button></Link>
         </div>

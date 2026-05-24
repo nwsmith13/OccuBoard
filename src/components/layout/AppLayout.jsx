@@ -29,8 +29,10 @@ export function AppLayout() {
 
   const sidebar = (
     <aside className={`${collapsed ? "w-20" : "w-72"} flex h-full flex-col border-r border-slate-200 bg-white/95 transition-all`}>
-      <div className="flex min-h-20 items-center justify-between px-5">
-        {!collapsed && <Logo />}
+      <div className={`${collapsed ? "flex min-h-24 flex-col items-center justify-center gap-1 px-2" : "flex min-h-20 items-center justify-between px-5"}`}>
+        <Link to="/app/dashboard" className={collapsed ? "flex justify-center" : "min-w-0"}>
+          <Logo compact={collapsed} />
+        </Link>
         <button
           type="button"
           className="rounded-lg p-2 text-slate-600 hover:bg-stone-100"
@@ -52,6 +54,7 @@ export function AppLayout() {
                 isActive ? "bg-brand-100 text-brand-900" : "text-slate-600 hover:bg-stone-100 hover:text-slate-900"
               }`
             }
+            title={collapsed ? label : undefined}
           >
             <Icon size={20} />
             {!collapsed && <span>{label}</span>}
