@@ -1,0 +1,90 @@
+Project: OccuBoard
+
+OccuBoard is an AI-assisted job search workspace built by ARSO.
+
+IMPORTANT:
+This product is intentionally NOT being designed like a traditional CRM or ATS dashboard.
+
+Core product identity:
+OccuBoard should feel like:
+- a calm AI-powered career workspace
+- emotionally supportive
+- momentum-oriented
+- action-focused
+- modern SaaS
+- lightweight and guided
+
+OccuBoard should NOT feel like:
+- a CRM
+- admin software
+- enterprise workflow tooling
+- a database management system
+- a kanban-heavy ATS clone
+
+Current UX direction:
+We are actively simplifying the interface and reducing dashboard/admin noise.
+
+Key UX principles:
+- fewer borders and nested containers
+- softer warmer surfaces
+- reduced metadata
+- reduced visual clutter
+- stronger spacing rhythm
+- cleaner hierarchy
+- supportive language
+- momentum-focused guidance
+- scanability over density
+
+Current important sections:
+- Dashboard
+- Resume Studio
+- New Jobs
+- Generated Resumes
+- Applications
+
+Important UX decisions already made:
+- removed heavy CRM feeling
+- reduced kanban rigidity
+- reduced purple saturation
+- percentage-only fit scores
+- compressed pipeline cards
+- lighter status indicators
+- stronger “Today’s Focus” section
+- removed excessive metadata and dates
+- tailored resumes separated into their own section
+
+Design direction:
+Think:
+Linear
+Notion
+Arc
+modern AI SaaS
+
+NOT:
+Salesforce
+HubSpot
+Jira
+Monday.com
+
+Current active phase:
+Refinement and emotional polish.
+We are reducing noise and improving workflow clarity rather than adding large features.
+
+When making UI decisions:
+prefer:
+- calm
+- simple
+- focused
+- premium
+- emotionally intelligent
+
+Avoid:
+- excessive cards
+- repetitive KPI grids
+- too many pills/badges
+- overuse of purple
+- heavy admin-style layouts
+- dense metadata
+
+Preserve existing functionality unless explicitly instructed otherwise.
+Focus on UX refinement and workflow simplicity.
