@@ -361,7 +361,7 @@ export function ResumeResult({ resume, onGenerate, onRegenerate, onExportComplet
         </Link>
       </div>
       <div className="mt-5">
-        <ResumeExportPanel resume={resume} profile={profile} job={job} compact showPreviewDefault={false} onExportComplete={onExportComplete} />
+        <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
       </div>
       {onRegenerate && <RegenerateButton label="Regenerate resume" onClick={onRegenerate} disabled={Boolean(loading)} />}
     </div>
