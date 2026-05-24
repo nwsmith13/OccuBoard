@@ -7,9 +7,8 @@ export function Logo({ compact = false }) {
       <img
         src={compact ? occuboardMark : occuboardLogo}
         alt={compact ? "OccuBoard" : "OccuBoard logo"}
-        className={compact ? "h-10 w-10 object-contain" : "h-10 w-auto object-contain"}
+        className={compact ? "h-12 w-12 object-contain" : "h-16 w-auto max-w-full object-contain"}
       />
-      {!compact && <div className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-brand-500">An ARSO Solutions product</div>}
     </div>
   );
 }
