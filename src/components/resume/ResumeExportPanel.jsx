@@ -183,8 +183,8 @@ function ResumeExportPreview({ sections, accentColor = exportColors["Occu Blue"]
   const contactSection = sections.find((section) => section.title === "CONTACT");
   const documentSections = sections.filter((section) => section.title !== "CONTACT");
   return (
-    <div className="mt-4 max-h-[720px] animate-[fadeIn_260ms_ease-out] overflow-x-auto overflow-y-auto rounded-lg bg-stone-100/80 p-2 sm:p-3">
-      <article className="mx-auto min-h-[920px] w-full min-w-[min(640px,100%)] max-w-[760px] bg-white px-5 py-7 text-[13px] leading-7 text-slate-800 shadow-card sm:px-8 lg:px-12 lg:py-10">
+    <div className="mt-4 max-h-[720px] animate-[fadeIn_260ms_ease-out] overflow-x-auto overflow-y-auto rounded-xl bg-[#eef3f6] p-2.5 shadow-inner sm:p-4">
+      <article className="mx-auto min-h-[920px] w-full min-w-[min(640px,100%)] max-w-[760px] border border-slate-200/80 bg-white px-5 py-7 text-[13px] leading-7 text-slate-800 shadow-[0_16px_42px_rgba(23,36,58,0.12)] sm:px-8 lg:px-12 lg:py-10">
         {contactSection && <ResumeContactHeader section={contactSection} />}
         {documentSections.map((section, index) => {
           return (

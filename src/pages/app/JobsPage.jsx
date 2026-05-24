@@ -4,6 +4,7 @@ import { AiToolsPanel, GenerationHistory } from "../../components/ai/AiToolsPane
 import { Badge } from "../../components/ui/Badge.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
+import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { Field } from "../../components/ui/Field.jsx";
 import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -298,14 +299,17 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
         <header className="sticky top-0 z-20 border-b border-brand-100 bg-white/95 shadow-sm backdrop-blur">
           <div className="px-4 py-3 sm:px-5">
             <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge>{getDisplayStage(job.status)}</Badge>
-                  <PriorityBadge priority={job.priority} />
-                  <FitScoreBadge score={latestScore} />
+              <div className="flex min-w-0 items-start gap-3">
+                <CompanyLogo companyName={getDisplayCompanyName(job)} companyDomain={job.company_domain} companyLogoUrl={job.company_logo_url} sourceUrl={job.source_url} size="lg" className="mt-0.5" />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge>{getDisplayStage(job.status)}</Badge>
+                    <PriorityBadge priority={job.priority} />
+                    <FitScoreBadge score={latestScore} />
+                  </div>
+                  <h2 className="mt-2 text-lg font-bold text-ink sm:text-xl">{getDisplayJobTitle(job)}</h2>
+                  <p className="mt-0.5 text-sm font-semibold text-brand-800">{getDisplayCompanyName(job)}</p>
                 </div>
-                <h2 className="mt-2 text-lg font-bold text-ink sm:text-xl">{getDisplayJobTitle(job)}</h2>
-                <p className="mt-0.5 text-sm font-semibold text-brand-800">{getDisplayCompanyName(job)}</p>
               </div>
               <button type="button" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50" onClick={onClose} aria-label="Close job details">
                 <X size={20} />

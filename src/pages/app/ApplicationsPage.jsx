@@ -2,6 +2,7 @@ import { CheckCircle2, Rows3, SquareKanban } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
+import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { stages } from "../../data/seedData.js";
@@ -125,7 +126,7 @@ function getStageColumnTone(stage) {
     Saved: "bg-[rgba(127,215,231,0.12)]",
     Applied: "bg-[rgba(15,94,168,0.10)]",
     Interview: "bg-[rgba(52,211,153,0.10)]",
-    Closed: "bg-[rgba(148,163,184,0.10)]",
+    Closed: "bg-[rgba(96,125,156,0.12)]",
   }[stage] ?? "bg-stone-50";
 }
 
@@ -154,11 +155,16 @@ function ApplicationCard({ job, score, status, onOpen, onDragStart, compact = fa
     >
       <div className={`flex gap-2 ${compact ? "flex-col sm:flex-row sm:items-center sm:justify-between" : "flex-col"}`}>
         <div className="min-w-0">
-          <div className="flex items-start gap-2">
-            <FitScoreBadge score={score} compact />
-            <p className="min-w-0 flex-1 overflow-hidden text-base font-bold leading-snug text-ink" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{getDisplayJobTitle(job)}</p>
+          <div className="flex items-start gap-2.5">
+            <CompanyLogo companyName={getDisplayCompanyName(job)} companyDomain={job.company_domain} companyLogoUrl={job.company_logo_url} sourceUrl={job.source_url} size="md" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-2">
+                <FitScoreBadge score={score} compact />
+                <p className="min-w-0 flex-1 overflow-hidden text-base font-bold leading-snug text-ink" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{getDisplayJobTitle(job)}</p>
+              </div>
+              <p className="mt-1 text-sm font-medium text-slate-500">{getDisplayCompanyName(job)} <span className="text-slate-300">/</span> {getPipelineStage(job.status)}</p>
+            </div>
           </div>
-          <p className="mt-1 text-sm font-medium text-slate-500">{getDisplayCompanyName(job)} <span className="text-slate-300">/</span> {getPipelineStage(job.status)}</p>
         </div>
       </div>
       <KanbanAiStatus status={status} />

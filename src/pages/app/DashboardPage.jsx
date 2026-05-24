@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
+import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { getCompletenessTone } from "../../lib/completenessTone.js";
 import { formatDate, isOverdue, isThisWeek } from "../../lib/date.js";
@@ -60,6 +61,7 @@ export function DashboardPage() {
             {focusItems.map((item) => (
               <div key={`${item.kind}-${item.id}`} className={`group flex cursor-pointer gap-4 rounded-xl p-5 shadow-sm ring-1 ring-transparent transition-all duration-200 hover:-translate-y-0.5 hover:ring-emerald-100 hover:shadow-card ${getFocusTone(item.kind)}`}>
                 <span className={`mt-1 h-auto w-2 shrink-0 rounded-full ${getFocusAccent(item.kind)}`} />
+                <CompanyLogo companyName={getDisplayCompanyName(item)} companyDomain={item.company_domain} companyLogoUrl={item.company_logo_url} sourceUrl={item.source_url} size="lg" className="mt-0.5" />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <FitScoreBadge score={getLatestFitScore(jobScores, item.id)} compact />
@@ -89,8 +91,13 @@ export function DashboardPage() {
             {bestMatchRoles.map((item, index) => (
               <div key={`${item.label}-${index}`} className="rounded-xl bg-white/65 p-3.5 shadow-sm transition hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-card">
                 <div className="flex items-center gap-3">
-                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold ${item.score ? getFitScoreTone(item.score.score).className.replace("ring-1 ", "") : "bg-white text-slate-700"}`}>{item.score ? `${Math.round(Number(item.score.score))}%` : index + 1}</span>
-                  <p className="min-w-0 font-bold leading-tight text-brand-900">{item.label}</p>
+                  {item.job ? <CompanyLogo companyName={item.company} companyDomain={item.job.company_domain} companyLogoUrl={item.job.company_logo_url} sourceUrl={item.job.source_url} size="md" /> : <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-xs font-bold text-brand-800">{index + 1}</span>}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start gap-2">
+                      <p className="min-w-0 flex-1 font-bold leading-tight text-brand-900">{item.label}</p>
+                      {item.score && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${getFitScoreTone(item.score.score).className.replace("ring-1 ", "")}`}>{Math.round(Number(item.score.score))}%</span>}
+                    </div>
+                  </div>
                 </div>
                 {item.company && <p className="mt-2.5 text-sm font-semibold text-slate-800">{item.company}</p>}
                 {item.matchLabel && <p className="mt-1 text-xs font-semibold text-slate-500">{item.matchLabel}</p>}
@@ -160,17 +167,17 @@ function DashboardSkeleton() {
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <main className="grid min-w-0 gap-6">
         <section className="rounded-xl bg-white/80 p-5 shadow-card">
-          <div className="h-4 w-28 rounded-full bg-slate-100" />
-          <div className="mt-4 h-7 w-2/3 max-w-md rounded-full bg-slate-100" />
-          <div className="mt-3 h-4 w-full max-w-xl rounded-full bg-slate-100" />
+          <div className="occu-skeleton h-4 w-28 rounded-full bg-slate-100" />
+          <div className="occu-skeleton mt-4 h-7 w-2/3 max-w-md rounded-full bg-slate-100" />
+          <div className="occu-skeleton mt-3 h-4 w-full max-w-xl rounded-full bg-slate-100" />
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            {[0, 1, 2].map((item) => <div key={item} className="h-20 rounded-lg bg-slate-100/80" />)}
+            {[0, 1, 2].map((item) => <div key={item} className="occu-skeleton h-20 rounded-lg bg-slate-100/80" />)}
           </div>
         </section>
         <section className="rounded-xl bg-white/80 p-5 shadow-card">
-          <div className="h-7 w-48 rounded-full bg-slate-100" />
+          <div className="occu-skeleton h-7 w-48 rounded-full bg-slate-100" />
           <div className="mt-5 grid gap-4">
-            {[0, 1, 2].map((item) => <div key={item} className="h-24 rounded-xl bg-slate-100/80" />)}
+            {[0, 1, 2].map((item) => <div key={item} className="occu-skeleton h-24 rounded-xl bg-slate-100/80" />)}
           </div>
         </section>
       </main>
@@ -189,7 +196,7 @@ function getBestMatchRoles(jobScores, jobs, profile) {
     .slice(0, 3)
     .map((score) => {
       const job = jobs.find((item) => item.id === score.job_id);
-      return job ? { label: getDisplayJobTitle(job), company: getDisplayCompanyName(job), matchLabel: getFitScoreTone(score.score).label, score } : null;
+      return job ? { label: getDisplayJobTitle(job), company: getDisplayCompanyName(job), matchLabel: getFitScoreTone(score.score).label, score, job } : null;
     })
     .filter(Boolean);
   if (topJobs.length) return topJobs;

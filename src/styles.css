@@ -42,6 +42,26 @@ button {
   scrollbar-color: #7fd7e7 #eef9fc;
 }
 
+.occu-skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.occu-skeleton::after {
+  animation: occuScan 1.8s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(127, 215, 231, 0.28), transparent);
+  content: "";
+  inset: 0;
+  position: absolute;
+  transform: translateX(-100%);
+}
+
+@keyframes occuScan {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

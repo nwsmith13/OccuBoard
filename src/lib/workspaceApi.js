@@ -1,4 +1,5 @@
 import { seedActivityLogs, seedJobScores, seedJobs, seedMessages, seedProfile, seedResumeVersions } from "../data/seedData.js";
+import { deriveCompanyDomain } from "./companyIdentity.js";
 import { getDisplayCompanyName, getDisplayJobTitle, getTailoredResumeTitle } from "./jobDisplay.js";
 import { createEmptyProfile } from "./profile.js";
 import { getSupabaseClient, hasSupabaseConfig } from "./supabase.js";
@@ -177,7 +178,15 @@ export async function createJob(user, job) {
   if (hasSupabaseConfig && user?.id) {
     const supabase = await getSupabaseClient();
     const { data, error } = await supabase.from("jobs").insert(payload).select("*").single();
-    if (error) throw error;
+    if (error) {
+      if (!isMissingColumnError(error)) throw error;
+      const legacyPayload = getLegacyJobPayload(payload);
+      const retry = await supabase.from("jobs").insert(legacyPayload).select("*").single();
+      if (retry.error) throw retry.error;
+      const enriched = { ...retry.data, company_domain: payload.company_domain, company_logo_url: payload.company_logo_url };
+      await logActivity(user, "Job", `Saved ${getDisplayJobTitle(enriched)} at ${getDisplayCompanyName(enriched)}`);
+      return enriched;
+    }
     await logActivity(user, "Job", `Saved ${getDisplayJobTitle(data)} at ${getDisplayCompanyName(data)}`);
     return data;
   }
@@ -379,10 +388,13 @@ function saveLocalResumeUpload(user, upload) {
 
 function normalizeJob(user, job) {
   const createdAt = now();
+  const companyDomain = deriveCompanyDomain(job);
   return cleanJobPayload({
     user_id: user?.id ?? "local-demo-user",
     company_name: getDisplayCompanyName(job),
     job_title: getDisplayJobTitle(job),
+    company_domain: companyDomain,
+    company_logo_url: companyDomain ? `https://logo.clearbit.com/${companyDomain}` : "",
     location: job.location,
     remote_type: job.remote_type,
     salary_range: job.salary_range,
@@ -404,6 +416,8 @@ function cleanJobPayload(job) {
     "user_id",
     "company_name",
     "job_title",
+    "company_domain",
+    "company_logo_url",
     "location",
     "remote_type",
     "salary_range",
@@ -429,6 +443,13 @@ function cleanJobPayload(job) {
   if ("job_title" in payload) cleaned.job_title = getDisplayJobTitle(payload);
   if ("status" in payload) cleaned.status = normalizeApplicationStage(payload.status);
   return cleaned;
+}
+
+function getLegacyJobPayload(payload) {
+  const legacyPayload = { ...payload };
+  delete legacyPayload.company_domain;
+  delete legacyPayload.company_logo_url;
+  return legacyPayload;
 }
 
 function normalizeApplicationStage(status) {

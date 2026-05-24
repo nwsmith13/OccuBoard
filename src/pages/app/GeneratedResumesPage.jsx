@@ -5,6 +5,7 @@ import { CopyButton } from "../../components/ai/AiToolsPanel.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
+import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { formatDateTime } from "../../components/resume/ResumeImportCard.jsx";
@@ -104,11 +105,11 @@ export function GeneratedResumesPage() {
         <PageHeader />
         <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(280px,0.32fr)_minmax(0,0.68fr)]">
           <aside className="grid gap-3">
-            {[0, 1, 2].map((item) => <div key={item} className="h-28 rounded-lg bg-white/80 shadow-sm" />)}
+            {[0, 1, 2].map((item) => <div key={item} className="occu-skeleton h-28 rounded-lg bg-white/80 shadow-sm" />)}
           </aside>
           <main className="grid gap-5">
-            <div className="h-36 rounded-lg bg-white/80 shadow-sm" />
-            <div className="h-[520px] rounded-lg bg-white/80 shadow-sm" />
+            <div className="occu-skeleton h-36 rounded-lg bg-white/80 shadow-sm" />
+            <div className="occu-skeleton h-[520px] rounded-lg bg-white/80 shadow-sm" />
           </main>
         </div>
       </div>
@@ -175,7 +176,7 @@ export function GeneratedResumesPage() {
                   className={`rounded-lg border bg-white px-3.5 py-3 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card ${selected?.id === version.id ? "border-brand-300 shadow-card ring-4 ring-brand-100/80" : "border-transparent"}`}
                 >
                   <div className="flex items-start gap-3">
-                    <FileText className={`mt-1 shrink-0 transition ${selected?.id === version.id ? "text-brand-800" : "text-brand-500"}`} size={17} />
+                    <CompanyLogo companyName={getDisplayCompanyName(job)} companyDomain={job?.company_domain} companyLogoUrl={job?.company_logo_url} sourceUrl={job?.source_url} size="md" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-2">
                         <p className={`min-w-0 flex-1 font-bold leading-snug ${selected?.id === version.id ? "text-ink" : "text-slate-800"}`}>{getDisplayJobTitle(job)}</p>
@@ -202,13 +203,16 @@ export function GeneratedResumesPage() {
             <section className="grid gap-5">
               <Card className="p-4 sm:p-5">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <CompanyLogo companyName={getDisplayCompanyName(selectedJob)} companyDomain={selectedJob?.company_domain} companyLogoUrl={selectedJob?.company_logo_url} sourceUrl={selectedJob?.source_url} size="lg" />
+                    <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-500">Selected Resume</p>
                     <h3 className="mt-1.5 text-2xl font-bold leading-tight text-ink">{getDisplayJobTitle(selectedJob)}</h3>
                     <p className="mt-1 text-sm font-semibold text-brand-800">{getDisplayCompanyName(selectedJob)}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <FitScoreBadge score={selectedScore} />
                       {selectedScore && <span className="rounded-full bg-stone-50 px-2.5 py-1 text-xs font-bold text-slate-700 ring-1 ring-stone-100">{getFitScoreTone(selectedScore.score).label}</span>}
+                    </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
