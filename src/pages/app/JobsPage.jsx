@@ -1,6 +1,6 @@
-import { ArrowRightCircle, Bell, CheckCircle2, ChevronDown, ChevronRight, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ArrowRightCircle, Bell, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AiToolsPanel, CopyButton, GenerationHistory } from "../../components/ai/AiToolsPanel.jsx";
+import { AiToolsPanel, CopyButton } from "../../components/ai/AiToolsPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
@@ -270,7 +270,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const fitSectionRef = useRef(null);
   const [exportedResumeIds, setExportedResumeIds] = useState(() => new Set(getResumeExportHistory().map((item) => item.resumeId).filter(Boolean)));
-  const [showDescription, setShowDescription] = useState(!(jobScores.some((score) => score.job_id === job.id) || resumeVersions.some((version) => version.job_id === job.id) || messages.some((message) => message.job_id === job.id)));
+  const [showDescription, setShowDescription] = useState(false);
   const latestScore = [...jobScores].filter((score) => score.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const latestResume = [...resumeVersions].filter((version) => version.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const latestMessage = [...messages].filter((message) => message.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
@@ -278,6 +278,10 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
   const messageHistory = messages.filter((message) => message.job_id === job.id);
   const descriptionPreview = getDescriptionPreview(job.job_description);
+  const timelineEvents = mergeTimelineEvents(
+    jobActivityLogs.filter((event) => event.job_id === job.id),
+    getDerivedGenerationEvents({ job, scores: jobScoreHistory, resumes: resumeHistory, messages: messageHistory }),
+  );
   const completedSteps = {
     fit: Boolean(latestScore),
     resume: Boolean(latestResume),
@@ -341,7 +345,8 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
           {activeTab === "overview" && (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="grid gap-6">
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
               <div className="grid gap-5">
                 <dl className="grid gap-3 sm:grid-cols-2">
                   <Detail label="Location" value={`${job.location || "Not listed"} | ${job.remote_type || "Not set"}`} />
@@ -359,18 +364,15 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
                 <section>
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="font-bold">Job description</h3>
-                    <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => setShowDescription((value) => !value)}>
-                      {showDescription ? "Hide description" : "Show full job description"}
+                    <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => setShowDescription((value) => !value)} disabled={!job.job_description}>
+                      {showDescription ? "Show less" : "See more..."}
                     </Button>
                   </div>
-                  <div className="relative mt-2 overflow-hidden rounded-lg bg-brand-50">
+                  <div className="mt-2 overflow-hidden rounded-lg bg-brand-50">
                     {showDescription ? (
                       <p className="max-h-[460px] overflow-y-auto whitespace-pre-wrap p-4 text-sm leading-6 text-slate-700">{job.job_description || "No description saved."}</p>
                     ) : (
-                      <>
-                        <p className="max-h-36 overflow-hidden whitespace-pre-wrap p-4 text-sm leading-6 text-slate-700">{descriptionPreview || "No description saved."}</p>
-                        {job.job_description && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-brand-50 to-brand-50/0" />}
-                      </>
+                      <p className="whitespace-pre-wrap p-4 text-sm leading-6 text-slate-700">{descriptionPreview || "No description saved."}</p>
                     )}
                   </div>
                 </section>
@@ -380,13 +382,14 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
                 <h3 className="font-bold">Notes</h3>
                 <p className="mt-2 whitespace-pre-wrap rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">{job.notes || "No notes yet."}</p>
                 <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} onJobUpdate={mergeJobUpdate} />
-                <JobActivityTimeline events={jobActivityLogs.filter((event) => event.job_id === job.id)} />
                 <div className="sticky bottom-0 -mx-1 mt-6 flex flex-wrap gap-3 border-t border-brand-100 bg-white/95 px-1 py-4 backdrop-blur">
                   <Button onClick={onMove}>Move to Applied</Button>
                   <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>
                   <Button variant="danger" onClick={onDelete}><Trash2 size={16} /> Delete</Button>
                 </div>
               </section>
+              </div>
+              <JobActivityTimeline events={timelineEvents} />
             </div>
           )}
 
@@ -411,11 +414,6 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
           {activeTab === "message" && (
             <div className="mx-auto max-w-5xl">
               <AiToolsPanel contentOnly job={job} activeTab="message" onTabChange={setActiveTab} />
-            </div>
-          )}
-          {activeTab !== "overview" && (
-            <div className="mx-auto max-w-5xl">
-              <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
             </div>
           )}
         </div>
@@ -587,7 +585,6 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
 }
 
 function JobActivityTimeline({ events = [] }) {
-  const [open, setOpen] = useState(true);
   const sorted = [...events].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const grouped = sorted.reduce((groups, event) => {
     const key = getActivityGroup(event.created_at);
@@ -597,29 +594,78 @@ function JobActivityTimeline({ events = [] }) {
   const groupOrder = ["Today", "Yesterday", "This week", "Earlier"].filter((group) => grouped[group]?.length);
 
   return (
-    <section className="mt-5 rounded-xl bg-white/80 ring-1 ring-brand-100">
-      <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left" onClick={() => setOpen((value) => !value)}>
+    <section className="rounded-xl bg-white/80 ring-1 ring-brand-100">
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div>
-          <h3 className="font-bold">Activity Timeline</h3>
-          <p className="mt-0.5 text-xs text-slate-500">{sorted.length ? `${sorted.length} event${sorted.length === 1 ? "" : "s"}` : "No activity yet."}</p>
+          <h3 className="font-bold">Generation Activity</h3>
+          <p className="mt-0.5 text-xs text-slate-500">{sorted.length ? `${sorted.length} event${sorted.length === 1 ? "" : "s"} recorded for this opportunity.` : "No activity recorded yet."}</p>
         </div>
-        {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-      </button>
-      {open && (
-        <div className="max-h-96 overflow-y-auto border-t border-brand-100 px-3 py-3">
-          {!sorted.length && <p className="rounded-lg bg-brand-50/70 px-3 py-2 text-sm text-slate-600">No activity yet.</p>}
-          {groupOrder.map((group) => (
-            <div key={group} className="mb-4 last:mb-0">
-              <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{group}</p>
-              <div className="relative grid gap-1.5 before:absolute before:bottom-3 before:left-[17px] before:top-3 before:w-px before:bg-brand-100">
-                {grouped[group].map((event) => <TimelineItem key={event.id} event={event} />)}
-              </div>
+      </div>
+      <div className="max-h-96 overflow-y-auto border-t border-brand-100 px-3 py-3">
+        {!sorted.length && <p className="rounded-lg bg-brand-50/70 px-3 py-2 text-sm text-slate-600">No activity recorded yet.</p>}
+        {groupOrder.map((group) => (
+          <div key={group} className="mb-4 last:mb-0">
+            <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{group}</p>
+            <div className="relative grid gap-1.5 before:absolute before:bottom-3 before:left-[17px] before:top-3 before:w-px before:bg-brand-100">
+              {grouped[group].map((event) => <TimelineItem key={event.id} event={event} />)}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </section>
   );
+}
+
+function getDerivedGenerationEvents({ job, scores, resumes, messages }) {
+  const exports = getResumeExportHistory().filter((item) => item.jobTitle === getDisplayJobTitle(job) && item.company === getDisplayCompanyName(job));
+  return [
+    ...scores.map((score) => ({
+      id: `score-${score.id}`,
+      job_id: job.id,
+      type: "analysis_generated",
+      metadata: { score: score.score, recommendation: score.recommendation },
+      created_at: score.created_at,
+      derived: true,
+    })),
+    ...resumes.map((resume) => ({
+      id: `resume-${resume.id}`,
+      job_id: job.id,
+      type: "resume_generated",
+      metadata: { title: resume.title, resumeId: resume.id },
+      created_at: resume.created_at,
+      derived: true,
+    })),
+    ...messages.map((message) => ({
+      id: `message-${message.id}`,
+      job_id: job.id,
+      type: message.type === "Follow-up Message" ? "followup_message_generated" : "message_generated",
+      metadata: { type: message.type },
+      created_at: message.created_at,
+      derived: true,
+    })),
+    ...exports.map((item) => ({
+      id: `export-${item.id}`,
+      job_id: job.id,
+      type: item.type === "DOCX" ? "resume_exported_docx" : "resume_exported_pdf",
+      metadata: { resumeId: item.resumeId, fileType: item.type },
+      created_at: item.created_at,
+      derived: true,
+    })),
+  ];
+}
+
+function mergeTimelineEvents(events, derivedEvents) {
+  const loggedKeys = new Set(events.map((event) => getTimelineDedupKey(event)));
+  return [
+    ...events,
+    ...derivedEvents.filter((event) => !loggedKeys.has(getTimelineDedupKey(event))),
+  ];
+}
+
+function getTimelineDedupKey(event) {
+  const metadata = event.metadata && typeof event.metadata === "object" ? event.metadata : {};
+  const stableId = metadata.resumeId || metadata.scoreId || metadata.messageId || metadata.fileType || "";
+  return `${event.type}-${stableId}-${String(event.created_at || "").slice(0, 16)}`;
 }
 
 function TimelineItem({ event }) {
