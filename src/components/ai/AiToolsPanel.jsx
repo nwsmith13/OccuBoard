@@ -131,7 +131,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
           <div className="contents">
             <AiAction action="fit" label="Analysis" fullLabel="Analyze Fit" existing={latestScore} activeTab={activeTab} loading={aiState.loading} onRun={runAi} onView={() => onTabChange?.("fit")} />
             <AiAction action="resume" label="Resume" fullLabel="Tailor Resume" existing={latestResume} activeTab={activeTab} loading={aiState.loading} onRun={runAi} onView={() => onTabChange?.("resume")} />
-            <AiAction action="message" label="Message" fullLabel="Generate Message" existing={latestMessage} activeTab={activeTab} loading={aiState.loading} onRun={runAi} onView={() => onTabChange?.("message")} />
+            <AiAction action="message" label="Recruiter Message" fullLabel="Generate Recruiter Message" existing={latestMessage} activeTab={activeTab} loading={aiState.loading} onRun={runAi} onView={() => onTabChange?.("message")} />
           </div>
         )}
       </div>
@@ -285,7 +285,7 @@ function CompactGuidedAction({ activeAction, latestScore, latestResume, latestMe
         {[
           ["fit", "Analysis", latestScore],
           ["resume", "Resume", latestResume],
-          ["message", "Message", latestMessage],
+          ["message", "Recruiter", latestMessage],
         ].map(([id, label, done]) => (
           <button
             key={id}

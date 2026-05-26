@@ -1,6 +1,7 @@
 import { ArrowRightCircle, Bell, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AiToolsPanel, CopyButton } from "../../components/ai/AiToolsPanel.jsx";
+import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
@@ -487,13 +488,35 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
               <AiToolsPanel contentOnly job={job} activeTab="fit" onTabChange={setActiveTab} />
             </div>
           )}
-          {(activeTab === "resume" || activeTab === "export") && (
+          {activeTab === "resume" && (
             <div className="mx-auto max-w-5xl">
               <AiToolsPanel
                 contentOnly
                 job={job}
                 activeTab="resume"
                 onTabChange={setActiveTab}
+                onExportComplete={(resume) => {
+                  if (resume?.id) setExportedResumeIds((current) => new Set([...current, resume.id]));
+                }}
+              />
+            </div>
+          )}
+          {activeTab === "export" && (
+            <div className="mx-auto max-w-5xl">
+              <ApplicationMaterialsWorkspace
+                job={job}
+                profile={profile}
+                score={latestScore}
+                resume={latestResume}
+                coverLetter={latestCoverLetter}
+                recruiterMessage={latestMessage}
+                contacts={contacts}
+                user={user}
+                onSaveCoverLetter={saveMessage}
+                onLogActivity={logJobActivity}
+                onGoToResume={() => setActiveTab("resume")}
+                onGoToCoverLetter={() => setActiveTab("coverLetter")}
+                onGoToMessage={() => setActiveTab("message")}
                 onExportComplete={(resume) => {
                   if (resume?.id) setExportedResumeIds((current) => new Set([...current, resume.id]));
                 }}
@@ -977,6 +1000,130 @@ function useSlowLoading(active) {
   return show;
 }
 
+function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onExportComplete }) {
+  const [coverLoading, setCoverLoading] = useState(false);
+  const [coverExporting, setCoverExporting] = useState("");
+  const [coverCopied, setCoverCopied] = useState(false);
+  const [error, setError] = useState("");
+  const showSlowHint = useSlowLoading(coverLoading);
+
+  async function generateCoverLetter() {
+    if (coverLoading) return;
+    if (!canRunAi(profile)) {
+      setError("Complete your profile and base resume before generating a cover letter.");
+      return;
+    }
+    setCoverLoading(true);
+    setError("");
+    try {
+      const contact = contacts[0];
+      const result = await generateAiOutput("coverLetter", profile, job, {
+        fitRecommendation: score?.recommendation,
+        fitSummary: score?.summary,
+        latestResume: resume?.content,
+        contactName: contact?.name || "",
+      });
+      await onSaveCoverLetter(user, job, {
+        type: "Cover Letter",
+        content: result.coverLetterText,
+        coverLetterText: result.coverLetterText,
+      });
+    } catch (err) {
+      setError(err.message || "Cover letter could not be generated yet.");
+    } finally {
+      setCoverLoading(false);
+    }
+  }
+
+  async function copyCoverLetter() {
+    if (!coverLetter?.content) return;
+    await navigator.clipboard.writeText(coverLetter.content);
+    await onLogActivity?.(user, job.id, "cover_letter_copied", { detail: "Cover letter copied" });
+    setCoverCopied(true);
+    window.setTimeout(() => setCoverCopied(false), 1800);
+  }
+
+  async function exportCoverLetter(type) {
+    if (!coverLetter?.content) return;
+    setCoverExporting(type);
+    try {
+      if (type === "pdf") await exportCoverLetterPdf({ content: coverLetter.content, profile, job });
+      if (type === "docx") await exportCoverLetterDocx({ content: coverLetter.content, profile, job });
+      await onLogActivity?.(user, job.id, type === "pdf" ? "cover_letter_exported_pdf" : "cover_letter_exported_docx", { fileType: type.toUpperCase() });
+    } catch (err) {
+      setError(err.message || "Cover letter export failed.");
+    } finally {
+      setCoverExporting("");
+    }
+  }
+
+  return (
+    <section className="grid gap-4">
+      <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Export</p>
+        <h3 className="mt-1 text-xl font-bold text-ink">Application Materials</h3>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Review, copy, and export the pieces you want to include for this opportunity.</p>
+        {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
+      </div>
+
+      <MaterialCard title="Resume" status={resume ? "Ready" : "Not generated"} description={resume ? "Preview or download your tailored resume." : "Create a tailored resume before exporting your application package."}>
+        {resume ? (
+          <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
+        ) : (
+          <Button className="w-fit min-h-8 px-3 text-xs" onClick={onGoToResume}>Tailor resume</Button>
+        )}
+      </MaterialCard>
+
+      <MaterialCard title="Cover Letter" status={coverLetter ? "Ready" : "Optional"} description={coverLetter ? "Copy or export the tailored cover letter." : "No cover letter yet. Generate one only when it strengthens the application."}>
+        {coverLetter ? (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={copyCoverLetter}>{coverCopied ? "Copied" : "Copy"}</Button>
+            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportCoverLetter("pdf")} disabled={Boolean(coverExporting)}>
+              {coverExporting === "pdf" && <Loader2 size={14} className="animate-spin" />}
+              PDF
+            </Button>
+            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportCoverLetter("docx")} disabled={Boolean(coverExporting)}>
+              {coverExporting === "docx" && <Loader2 size={14} className="animate-spin" />}
+              DOCX
+            </Button>
+            <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={onGoToCoverLetter}>Edit</Button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={generateCoverLetter} disabled={coverLoading}>
+              {coverLoading && <Loader2 size={14} className="animate-spin" />}
+              {coverLoading ? "Generating..." : "Generate cover letter"}
+            </Button>
+            {showSlowHint && <span className="text-xs font-semibold text-brand-700">This can take a moment.</span>}
+          </div>
+        )}
+      </MaterialCard>
+
+      <MaterialCard title="Recruiter Message" status={recruiterMessage ? "Ready" : "Not generated"} description={recruiterMessage ? "Copy your outreach note when you are ready to contact someone." : "Draft this after your application materials are ready."}>
+        {recruiterMessage ? <CopyButton text={recruiterMessage.content} /> : <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToMessage}>Open Recruiter Message</Button>}
+      </MaterialCard>
+    </section>
+  );
+}
+
+function MaterialCard({ title, status, description, children }) {
+  const optional = status === "Optional";
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+      <div className="flex flex-col gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="font-bold text-ink">{title}</h4>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${optional ? "bg-slate-50 text-slate-500 ring-slate-100" : status === "Ready" ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-brand-50 text-brand-700 ring-brand-100"}`}>{status}</span>
+          </div>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
+        </div>
+        <div>{children}</div>
+      </div>
+    </section>
+  );
+}
+
 function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, user, onSave, onUpdate, onLogActivity }) {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState("");
@@ -1091,9 +1238,9 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
       </div>
 
-      <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+      <div className="rounded-xl bg-slate-50/80 p-4 shadow-card ring-1 ring-brand-100 sm:p-6">
         <textarea
-          className="min-h-[420px] w-full rounded-lg border border-brand-100 bg-white p-5 text-sm leading-7 text-slate-800 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+          className="min-h-[480px] w-full rounded-lg border border-slate-200 bg-white px-6 py-7 text-[15px] leading-8 text-slate-800 shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100 sm:px-9 sm:py-8"
           value={draft}
           onChange={(event) => {
             setDraft(event.target.value);
@@ -1517,7 +1664,7 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
     ["fit", "Analysis"],
     ["resume", "Resume"],
     ["coverLetter", "Cover Letter"],
-    ["message", "Message"],
+    ["message", "Recruiter Message"],
     ["interview", "Interview Prep"],
     ["export", "Export"],
   ];
