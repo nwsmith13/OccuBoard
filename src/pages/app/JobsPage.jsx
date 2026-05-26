@@ -847,11 +847,11 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button className="min-h-8 px-3 text-xs" onClick={saveFollowUp} disabled={Boolean(saving)}>Save follow-up</Button>
-        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markCompleted} disabled={Boolean(saving || completedAt)}>Mark followed up</Button>
-        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={generateFollowUpMessage} disabled={generatingMessage}>
+        <Button variant={["due", "overdue"].includes(status) ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={generateFollowUpMessage} disabled={generatingMessage}>
           {generatingMessage ? "Generating..." : "Generate follow-up message"}
         </Button>
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={saveFollowUp} disabled={Boolean(saving)}>Save follow-up</Button>
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markCompleted} disabled={Boolean(saving || completedAt)}>Mark followed up</Button>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
