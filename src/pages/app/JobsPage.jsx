@@ -522,16 +522,27 @@ const contactSources = [
 function ContactsCard({ job, contacts, user, onSave, onDelete, onMarkContacted }) {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(() => getEmptyContact(job));
+  const [notice, setNotice] = useState("");
+  const [highlightedContactId, setHighlightedContactId] = useState("");
+  const firstFieldRef = useRef(null);
   const visibleForm = Boolean(editing);
+
+  useEffect(() => {
+    if (visibleForm) window.setTimeout(() => firstFieldRef.current?.focus(), 30);
+  }, [visibleForm]);
 
   function startAdd() {
     setEditing("new");
     setForm(getEmptyContact(job));
+    setNotice("");
+    setHighlightedContactId("");
   }
 
   function startEdit(contact) {
     setEditing(contact.id);
     setForm({ ...getEmptyContact(job), ...contact });
+    setNotice("");
+    setHighlightedContactId("");
   }
 
   function update(event) {
@@ -543,8 +554,20 @@ function ContactsCard({ job, contacts, user, onSave, onDelete, onMarkContacted }
     event.preventDefault();
     if (!form.name.trim()) return;
     await onSave(user, job, form);
+    setNotice(form.id ? "Contact saved." : "Contact added.");
     setEditing(null);
     setForm(getEmptyContact(job));
+    window.setTimeout(() => setNotice(""), 2600);
+  }
+
+  async function markContacted(contact) {
+    await onMarkContacted(user, contact);
+    setNotice("Marked contacted");
+    setHighlightedContactId(contact.id);
+    window.setTimeout(() => {
+      setNotice("");
+      setHighlightedContactId("");
+    }, 2600);
   }
 
   return (
@@ -558,54 +581,86 @@ function ContactsCard({ job, contacts, user, onSave, onDelete, onMarkContacted }
           <Plus size={14} /> Add contact
         </Button>
       </div>
+      {notice && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100">{notice}</p>}
+
+      {editing === "new" && (
+        <ContactForm
+          title="Add contact"
+          form={form}
+          firstFieldRef={firstFieldRef}
+          onChange={update}
+          onSubmit={save}
+          onCancel={() => setEditing(null)}
+        />
+      )}
 
       <div className="mt-3 grid gap-3">
         {!contacts.length && !visibleForm && <p className="rounded-lg bg-brand-50 p-3 text-sm text-slate-600">No contacts yet.</p>}
         {contacts.map((contact) => (
-          <div key={contact.id} className="rounded-lg bg-brand-50/70 p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-bold text-ink">{contact.name}</p>
-                <p className="mt-0.5 text-xs font-semibold text-slate-500">{[contact.title, formatContactSource(contact.source), contact.company].filter(Boolean).join(" / ")}</p>
-                {contact.email && <a className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:text-brand-900" href={`mailto:${contact.email}`}><Mail size={13} /> {contact.email}</a>}
-                {contact.phone && <p className="mt-1 text-xs font-semibold text-slate-600">{contact.phone}</p>}
-                {contact.linkedin_url && <a className="ml-0 mt-1 block text-xs font-semibold text-brand-700 hover:text-brand-900" href={contact.linkedin_url} target="_blank" rel="noreferrer">LinkedIn</a>}
-                <p className="mt-2 text-xs text-slate-500">Last contacted: {formatContactDate(contact.last_contacted_at)}</p>
-                {contact.notes && <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{contact.notes}</p>}
-              </div>
-              <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-                <Button variant="ghost" className="min-h-7 px-2 text-xs" onClick={() => startEdit(contact)}>Edit</Button>
-                <Button variant="ghost" className="min-h-7 px-2 text-xs" onClick={() => onMarkContacted(user, contact)}>Mark contacted</Button>
-                <Button variant="danger" className="min-h-7 px-2 text-xs" onClick={() => onDelete(user, contact)}>Delete</Button>
+          editing === contact.id ? (
+            <ContactForm
+              key={contact.id}
+              title="Edit contact"
+              form={form}
+              firstFieldRef={firstFieldRef}
+              onChange={update}
+              onSubmit={save}
+              onCancel={() => setEditing(null)}
+            />
+          ) : (
+            <div key={contact.id} className={`rounded-lg bg-brand-50/70 p-3 transition ${highlightedContactId === contact.id ? "ring-2 ring-emerald-100" : ""}`}>
+              <div className="flex min-w-0 flex-col gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-bold text-ink">{contact.name}</p>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-slate-500">{[contact.title, formatContactSource(contact.source), contact.company].filter(Boolean).join(" / ")}</p>
+                  {contact.email && (
+                    <a className="mt-2 flex min-w-0 items-center gap-1 text-xs font-semibold text-brand-700 hover:text-brand-900" href={`mailto:${contact.email}`}>
+                      <Mail size={13} className="shrink-0" />
+                      <span className="min-w-0 truncate">{contact.email}</span>
+                    </a>
+                  )}
+                  {contact.phone && <p className="mt-1 truncate text-xs font-semibold text-slate-600">{contact.phone}</p>}
+                  {contact.linkedin_url && <a className="mt-1 block max-w-full truncate text-xs font-semibold text-brand-700 hover:text-brand-900" href={contact.linkedin_url} target="_blank" rel="noreferrer">LinkedIn: {contact.linkedin_url}</a>}
+                  <p className={`mt-2 text-xs font-semibold transition ${highlightedContactId === contact.id ? "text-emerald-700" : "text-slate-500"}`}>Last contacted: {highlightedContactId === contact.id ? "just now" : formatContactDate(contact.last_contacted_at)}</p>
+                  {contact.notes && <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{contact.notes}</p>}
+                </div>
+                <div className="flex min-w-0 flex-wrap gap-1.5">
+                  <Button variant="ghost" className="min-h-7 px-2 text-xs" onClick={() => startEdit(contact)}>Edit</Button>
+                  <Button variant="ghost" className="min-h-7 px-2 text-xs" onClick={() => markContacted(contact)}>Mark contacted</Button>
+                  <Button variant="danger" className="min-h-7 px-2 text-xs" onClick={() => onDelete(user, contact)}>Delete</Button>
+                </div>
               </div>
             </div>
-          </div>
+          )
         ))}
       </div>
-
-      {visibleForm && (
-        <form className="mt-3 grid gap-3 rounded-lg bg-white p-3 ring-1 ring-brand-100" onSubmit={save}>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field id="contact_name" label="Name" name="name" value={form.name} onChange={update} required />
-            <Field id="contact_title" label="Title" name="title" value={form.title} onChange={update} />
-            <Field id="contact_email" label="Email" name="email" type="email" value={form.email} onChange={update} />
-            <Field id="contact_phone" label="Phone" name="phone" value={form.phone} onChange={update} />
-            <Field id="contact_linkedin" label="LinkedIn URL" name="linkedin_url" value={form.linkedin_url} onChange={update} />
-          </div>
-          <label className="text-sm font-semibold text-slate-700" htmlFor="contact_source">
-            Source/type
-            <select id="contact_source" name="source" className="mt-1 w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={form.source} onChange={update}>
-              {contactSources.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <Field id="contact_notes" label="Notes" as="textarea" rows="3" name="notes" value={form.notes} onChange={update} />
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" className="min-h-8 px-3 text-xs">{form.id ? "Save contact" : "Add contact"}</Button>
-            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => setEditing(null)}>Cancel</Button>
-          </div>
-        </form>
-      )}
     </section>
+  );
+}
+
+function ContactForm({ title, form, firstFieldRef, onChange, onSubmit, onCancel }) {
+  return (
+    <form className="mt-3 grid gap-3 rounded-lg bg-white p-3 ring-1 ring-brand-100" onSubmit={onSubmit}>
+      <h4 className="text-sm font-bold text-ink">{title}</h4>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field id={`contact_name_${form.id || "new"}`} label="Name" name="name" value={form.name} onChange={onChange} required ref={firstFieldRef} />
+        <Field id={`contact_title_${form.id || "new"}`} label="Title" name="title" value={form.title} onChange={onChange} />
+        <Field id={`contact_email_${form.id || "new"}`} label="Email" name="email" type="email" value={form.email} onChange={onChange} />
+        <Field id={`contact_phone_${form.id || "new"}`} label="Phone" name="phone" value={form.phone} onChange={onChange} />
+        <Field id={`contact_linkedin_${form.id || "new"}`} label="LinkedIn URL" name="linkedin_url" value={form.linkedin_url} onChange={onChange} />
+      </div>
+      <label className="text-sm font-semibold text-slate-700" htmlFor={`contact_source_${form.id || "new"}`}>
+        Source/type
+        <select id={`contact_source_${form.id || "new"}`} name="source" className="mt-1 w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={form.source} onChange={onChange}>
+          {contactSources.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </label>
+      <Field id={`contact_notes_${form.id || "new"}`} label="Notes" as="textarea" rows="3" name="notes" value={form.notes} onChange={onChange} />
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" className="min-h-8 px-3 text-xs">Save contact</Button>
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
   );
 }
 
