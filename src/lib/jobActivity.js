@@ -23,6 +23,9 @@ export function formatActivityLabel(event = {}) {
     contact_edited: "Contact edited",
     contact_deleted: "Contact deleted",
     contact_contacted: "Contact marked contacted",
+    interview_prep_generated: "Interview prep generated",
+    interview_thank_you_generated: "Thank-you message generated",
+    interview_completed: "Interview completed",
     resume_imported: "Resume imported",
   }[event.type] ?? fallback;
 }
@@ -68,6 +71,7 @@ export function getActivityColor(type = "") {
   if (type.includes("message")) return "bg-cyan-50 text-cyan-700 ring-cyan-100";
   if (type.includes("stage") || type.includes("application")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   if (type.includes("contact")) return "bg-cyan-50 text-cyan-700 ring-cyan-100";
+  if (type.includes("interview")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   if (type.includes("analysis")) return "bg-purple-50 text-purple-700 ring-purple-100";
   return "bg-slate-50 text-slate-600 ring-slate-100";
 }
@@ -81,6 +85,7 @@ export function getActivityIcon(type = "") {
   if (type.includes("message")) return "message-circle";
   if (type.includes("stage") || type.includes("application")) return "arrow-right-circle";
   if (type.includes("contact")) return "user";
+  if (type.includes("interview")) return "sparkles";
   if (type.includes("analysis")) return "sparkles";
   if (type.includes("import")) return "upload";
   return "circle";

@@ -82,9 +82,63 @@ export const messageSchema = {
   },
 };
 
+export const interviewPrepSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["preparationLevel", "focusAreas", "questions", "talkingPoints", "starStories", "questionsToAsk", "thankYouMessage"],
+  properties: {
+    preparationLevel: { type: "string", enum: ["Not started", "In progress", "Ready"] },
+    focusAreas: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "whyItMatters", "emphasize"],
+        properties: {
+          title: { type: "string" },
+          whyItMatters: { type: "string" },
+          emphasize: { type: "string" },
+        },
+      },
+    },
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["category", "question", "guidance"],
+        properties: {
+          category: { type: "string", enum: ["Behavioral", "Technical", "Role-specific", "Company/team fit"] },
+          question: { type: "string" },
+          guidance: { type: "string" },
+        },
+      },
+    },
+    talkingPoints: { type: "array", items: { type: "string" } },
+    starStories: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "situation", "task", "action", "result"],
+        properties: {
+          title: { type: "string" },
+          situation: { type: "string" },
+          task: { type: "string" },
+          action: { type: "string" },
+          result: { type: "string" },
+        },
+      },
+    },
+    questionsToAsk: { type: "array", items: { type: "string" } },
+    thankYouMessage: { type: "string" },
+  },
+};
+
 export function getSchema(action) {
   if (action === "fit") return fitSchema;
   if (action === "resume") return resumeSchema;
+  if (action === "interviewPrep") return interviewPrepSchema;
   return messageSchema;
 }
 
@@ -204,6 +258,29 @@ Rules:
 - Close with a low-pressure offer to provide more information.
 - A strong style example:
 "Hello - I wanted to follow up on my application for the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}. I remain very interested in the opportunity and believe my background aligns well with the role. Please let me know if there is anything else I can provide."`;
+  }
+
+  if (action === "interviewPrep") {
+    return `${context}
+
+Generate a calm, confidence-building interview prep workspace for this opportunity.
+
+Rules:
+- Keep it practical and not overwhelming.
+- Do not invent experience, metrics, employers, tools, or accomplishments.
+- Ground talking points and STAR stories in the user's base resume/profile.
+- If evidence is limited, frame suggestions as transferable themes rather than direct claims.
+- Write in a supportive, focused tone.
+- Keep each item concise.
+
+Return:
+- preparationLevel: use "In progress" when prep content is generated.
+- focusAreas: 5-7 likely interview themes with why they matter and what to emphasize.
+- questions: 8-12 likely questions across Behavioral, Technical, Role-specific, and Company/team fit.
+- talkingPoints: 5-7 strongest truthful points the user can lean on.
+- starStories: 3-5 compact STAR examples based only on resume/profile evidence.
+- questionsToAsk: 6-8 thoughtful questions the candidate can ask them.
+- thankYouMessage: one short post-interview thank-you message from the candidate to the interviewer/company contact.`;
   }
 
   return `${context}

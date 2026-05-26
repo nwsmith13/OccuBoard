@@ -266,7 +266,7 @@ function getDisplayStage(status) {
 
 export function JobDetail({ job: initialJob, initialTab = "overview", onClose, onEdit, onDelete, onMove, onJobUpdate }) {
   const { user } = useAuth();
-  const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, updateJob, saveMessage, saveJobContact, deleteJobContact, markJobContacted, logJobActivity } = useWorkspaceStore();
+  const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
   const [job, setModalJob] = useState(initialJob);
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const fitSectionRef = useRef(null);
@@ -280,6 +280,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
   const messageHistory = messages.filter((message) => message.job_id === job.id);
   const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
+  const prep = interviewPrep.find((item) => item.job_id === job.id);
   const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
   const descriptionPreview = getDescriptionPreview(job.job_description);
   const descriptionIsTruncated = isDescriptionTruncated(job.job_description);
@@ -292,6 +293,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
     fit: Boolean(latestScore),
     resume: Boolean(latestResume),
     message: Boolean(latestMessage),
+    interview: Boolean(prep),
     export: Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id)),
   };
 
@@ -320,7 +322,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
       return;
     }
     if (nextBestAction.actionType === "review_high_fit" || nextBestAction.actionType === "prepare_interview") {
-      setActiveTab("fit");
+      setActiveTab(nextBestAction.actionType === "prepare_interview" ? "interview" : "fit");
       return;
     }
     if (nextBestAction.actionType === "follow_up_overdue" || nextBestAction.actionType === "follow_up_today") {
@@ -486,6 +488,11 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
           {activeTab === "message" && (
             <div className="mx-auto max-w-5xl">
               <AiToolsPanel contentOnly job={job} activeTab="message" onTabChange={setActiveTab} />
+            </div>
+          )}
+          {activeTab === "interview" && (
+            <div className="mx-auto max-w-5xl">
+              <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} onSavePrep={saveInterviewPrep} onSaveMessage={saveMessage} onLogActivity={logJobActivity} />
             </div>
           )}
         </div>
@@ -921,6 +928,190 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
   );
 }
 
+function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, user, onSavePrep, onSaveMessage, onLogActivity }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [openQuestion, setOpenQuestion] = useState("");
+  const [openStory, setOpenStory] = useState("");
+  const content = prep?.content;
+  const practiced = new Set(prep?.practiced_questions ?? []);
+  const notes = prep?.answer_notes ?? {};
+
+  async function generatePrep() {
+    if (!canRunAi(profile)) {
+      setError("Complete your profile and base resume before generating interview prep.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const result = await generateAiOutput("interviewPrep", profile, job, {
+        fitSummary: score?.summary,
+        fitRecommendation: score?.recommendation,
+        latestResume: resume?.content,
+        contacts: contacts.map((contact) => ({ name: contact.name, title: contact.title, source: contact.source })),
+      });
+      await onSavePrep(user, job, { ...prep, content: result });
+    } catch (err) {
+      setError(err.message || "Interview prep could not be generated yet.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updatePrepPatch(patch) {
+    if (!prep) return;
+    await onSavePrep(user, job, { ...prep, ...patch, content, skipActivity: true });
+  }
+
+  function togglePracticed(index) {
+    const next = new Set(practiced);
+    if (next.has(index)) next.delete(index);
+    else next.add(index);
+    updatePrepPatch({ practiced_questions: [...next] });
+  }
+
+  function saveNote(index, value) {
+    updatePrepPatch({ answer_notes: { ...notes, [index]: value } });
+  }
+
+  async function saveThankYou() {
+    if (!content?.thankYouMessage) return;
+    await onSaveMessage(user, job, { type: "Follow-up Message", content: content.thankYouMessage });
+    await onLogActivity?.(user, job.id, "interview_thank_you_generated", { detail: "Saved interview thank-you message" });
+  }
+
+  async function markInterviewComplete() {
+    await onLogActivity?.(user, job.id, "interview_completed", { detail: "Interview marked complete" });
+  }
+
+  if (!content) {
+    return (
+      <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Prep</p>
+        <h3 className="mt-2 text-xl font-bold text-ink">Build a calm prep workspace for this interview.</h3>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Generate focus areas, likely questions, talking points, STAR stories, and a thank-you message grounded in this role and your resume.</p>
+        {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
+        <Button className="mt-5" onClick={generatePrep} disabled={loading}>{loading ? "Generating..." : "Generate interview prep"}</Button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="grid gap-5">
+      <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Snapshot</p>
+            <h3 className="mt-1 text-xl font-bold text-ink">{getDisplayJobTitle(job)}</h3>
+            <p className="mt-1 text-sm font-semibold text-brand-800">{getDisplayCompanyName(job)}</p>
+          </div>
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={generatePrep} disabled={loading}>{loading ? "Regenerating..." : "Regenerate prep"}</Button>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Detail label="Fit score" value={score ? `${Math.round(Number(score.score))}%` : "Not analyzed"} />
+          <Detail label="Stage" value={getDisplayStage(job.status)} />
+          <Detail label="Interview date" value="Future support" />
+          <Detail label="Preparation level" value={getPrepLevel(content, practiced.size)} />
+        </div>
+        {contacts[0] && <p className="mt-3 text-sm text-slate-600">Contact: <span className="font-semibold text-slate-800">{contacts[0].name}</span></p>}
+      </div>
+
+      <PrepSection title="Likely Interview Focus Areas">
+        <div className="grid gap-3 md:grid-cols-2">
+          {content.focusAreas.map((area) => (
+            <div key={area.title} className="rounded-lg bg-brand-50/80 p-3">
+              <p className="font-bold text-ink">{area.title}</p>
+              <p className="mt-1 text-sm leading-5 text-slate-600">{area.whyItMatters}</p>
+              <p className="mt-2 text-xs font-semibold text-brand-800">Emphasize: {area.emphasize}</p>
+            </div>
+          ))}
+        </div>
+      </PrepSection>
+
+      <PrepSection title="Likely Questions">
+        <div className="grid gap-2">
+          {content.questions.map((question, index) => (
+            <div key={`${question.category}-${question.question}`} className="rounded-lg bg-brand-50/70 p-3">
+              <button type="button" className="flex w-full items-start justify-between gap-3 text-left" onClick={() => setOpenQuestion(openQuestion === index ? "" : index)}>
+                <span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{question.category}</span>
+                  <span className="mt-1 block font-bold text-ink">{question.question}</span>
+                </span>
+                <span className="text-xs font-bold text-brand-700">{openQuestion === index ? "Close" : "Open"}</span>
+              </button>
+              {openQuestion === index && (
+                <div className="mt-3 grid gap-3">
+                  <p className="text-sm leading-6 text-slate-600">{question.guidance}</p>
+                  <textarea className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" rows="2" placeholder="Optional answer notes" value={notes[index] || ""} onChange={(event) => saveNote(index, event.target.value)} />
+                  <Button variant={practiced.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => togglePracticed(index)}>{practiced.has(index) ? "Practiced" : "Mark practiced"}</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </PrepSection>
+
+      <PrepSection title="Your Best Talking Points">
+        <ul className="grid gap-2">
+          {content.talkingPoints.map((point) => <li key={point} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold leading-6 text-emerald-900">{point}</li>)}
+        </ul>
+      </PrepSection>
+
+      <PrepSection title="STAR Story Builder">
+        <div className="grid gap-3">
+          {content.starStories.map((story, index) => (
+            <div key={story.title} className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+              <button type="button" className="flex w-full items-center justify-between gap-3 text-left font-bold" onClick={() => setOpenStory(openStory === index ? "" : index)}>
+                {story.title}
+                <span className="text-xs text-brand-700">{openStory === index ? "Close" : "Open"}</span>
+              </button>
+              {openStory === index && (
+                <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-600">
+                  <p><strong>Situation:</strong> {story.situation}</p>
+                  <p><strong>Task:</strong> {story.task}</p>
+                  <p><strong>Action:</strong> {story.action}</p>
+                  <p><strong>Result:</strong> {story.result}</p>
+                  <CopyButton text={`Situation: ${story.situation}\nTask: ${story.task}\nAction: ${story.action}\nResult: ${story.result}`} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </PrepSection>
+
+      <PrepSection title="Questions To Ask Them">
+        <ul className="grid gap-2">
+          {content.questionsToAsk.map((question) => <li key={question} className="rounded-lg bg-brand-50 px-3 py-2 text-sm leading-6 text-slate-700">{question}</li>)}
+        </ul>
+      </PrepSection>
+
+      <PrepSection title="Post-Interview Follow-up">
+        <p className="whitespace-pre-wrap rounded-lg bg-white p-3 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">{content.thankYouMessage}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button className="min-h-8 px-3 text-xs" onClick={saveThankYou}>Save thank-you message</Button>
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markInterviewComplete}>Log interview completed</Button>
+        </div>
+      </PrepSection>
+    </section>
+  );
+}
+
+function PrepSection({ title, children }) {
+  return (
+    <section className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+      <h3 className="font-bold text-ink">{title}</h3>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+function getPrepLevel(content, practicedCount) {
+  if (practicedCount >= Math.min(3, content.questions.length)) return "Ready";
+  if (content) return "In progress";
+  return "Not started";
+}
+
 function JobActivityTimeline({ events = [] }) {
   const sorted = [...events].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const grouped = sorted.reduce((groups, event) => {
@@ -1056,12 +1247,13 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
     ["fit", "Analysis"],
     ["resume", "Resume"],
     ["message", "Message"],
+    ["interview", "Interview Prep"],
     ["export", "Export"],
   ];
   const current = activeTab;
   return (
     <div className="border-t border-brand-100 bg-white/90 px-4 py-3 sm:px-5">
-      <div className="grid gap-2 sm:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {steps.map(([id, label], index) => {
           const selected = current === id;
           const done = completed[id];

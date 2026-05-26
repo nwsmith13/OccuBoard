@@ -293,7 +293,8 @@ function getFocusTextTone(tone) {
 
 function getFocusInitialTab(item) {
   const actionType = item.nextBestAction?.actionType;
-  if (["follow_up_due", "follow_up_overdue", "follow_up_today", "prepare_interview", "move_to_interview"].includes(actionType)) return "overview";
+  if (actionType === "prepare_interview") return "interview";
+  if (["follow_up_due", "follow_up_overdue", "follow_up_today", "move_to_interview"].includes(actionType)) return "overview";
   if (actionType === "review_high_fit") return "fit";
   if (["generate_resume", "apply_now"].includes(actionType)) return "resume";
   if (actionType === "generate_message") return "message";

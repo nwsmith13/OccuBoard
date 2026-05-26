@@ -6,6 +6,7 @@ import {
   saveJobScore,
   saveMessage,
   saveJobContact,
+  saveInterviewPrep,
   saveProfile,
   saveResumeVersion,
   saveResumeUpload,
@@ -22,6 +23,7 @@ export const useWorkspaceStore = create((set, get) => ({
   activityLogs: [],
   jobActivityLogs: [],
   jobContacts: [],
+  interviewPrep: [],
   resumeVersions: [],
   resumeUploads: [],
   jobScores: [],
@@ -96,6 +98,12 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   markJobContacted: async (user, contact) => {
     const saved = await markJobContacted(user, contact);
+    const data = await fetchWorkspace(user);
+    set(data);
+    return saved;
+  },
+  saveInterviewPrep: async (user, job, prep) => {
+    const saved = await saveInterviewPrep(user, job, prep);
     const data = await fetchWorkspace(user);
     set(data);
     return saved;

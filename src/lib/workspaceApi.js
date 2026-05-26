@@ -10,6 +10,7 @@ const keys = {
   activityLogs: "occuboard.activityLogs",
   jobActivityLogs: "occuboard.jobActivityLogs",
   jobContacts: "occuboard.jobContacts",
+  interviewPrep: "occuboard.interviewPrep",
   resumeVersions: "occuboard.resumeVersions",
   jobScores: "occuboard.jobScores",
   messages: "occuboard.messages",
@@ -109,9 +110,10 @@ export async function fetchWorkspace(user) {
       supabase.from("messages").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     ]);
     const uploadsResult = await supabase.from("resume_uploads").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
-    const [jobActivityResult, jobContactsResult] = await Promise.all([
+    const [jobActivityResult, jobContactsResult, interviewPrepResult] = await Promise.all([
       supabase.from("job_activity_logs").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("job_contacts").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
+      supabase.from("interview_prep").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
     ]);
 
     const jobScores = isMissingTableError(scoresResult.error) ? [] : scoresResult.data ?? [];
@@ -119,11 +121,13 @@ export async function fetchWorkspace(user) {
     const resumeUploads = isMissingTableError(uploadsResult.error) ? [] : uploadsResult.data ?? [];
     const jobActivityLogs = isMissingTableError(jobActivityResult.error) ? [] : jobActivityResult.data ?? [];
     const jobContacts = isMissingTableError(jobContactsResult.error) ? readLocal(keys.jobContacts, []) : jobContactsResult.data ?? [];
+    const interviewPrep = isMissingTableError(interviewPrepResult.error) ? readLocal(keys.interviewPrep, []) : interviewPrepResult.data ?? [];
     if (scoresResult.error && !isMissingTableError(scoresResult.error)) throw scoresResult.error;
     if (messagesResult.error && !isMissingTableError(messagesResult.error)) throw messagesResult.error;
     if (uploadsResult.error && !isMissingTableError(uploadsResult.error)) throw uploadsResult.error;
     if (jobActivityResult.error && !isMissingTableError(jobActivityResult.error)) throw jobActivityResult.error;
     if (jobContactsResult.error && !isMissingTableError(jobContactsResult.error)) throw jobContactsResult.error;
+    if (interviewPrepResult.error && !isMissingTableError(interviewPrepResult.error)) throw interviewPrepResult.error;
 
     let profile = profileResult.data;
     if (!profile) {
@@ -137,6 +141,7 @@ export async function fetchWorkspace(user) {
       activityLogs: logsResult.data ?? [],
       jobActivityLogs,
       jobContacts,
+      interviewPrep,
       resumeVersions: resumesResult.data ?? [],
       jobScores,
       messages,
@@ -150,6 +155,7 @@ export async function fetchWorkspace(user) {
     activityLogs: readLocal(keys.activityLogs, seedActivityLogs),
     jobActivityLogs: readLocal(keys.jobActivityLogs, seedJobActivityLogs),
     jobContacts: readLocal(keys.jobContacts, []),
+    interviewPrep: readLocal(keys.interviewPrep, []),
     resumeVersions: readLocal(keys.resumeVersions, seedResumeVersions),
     jobScores: readLocal(keys.jobScores, seedJobScores),
     messages: readLocal(keys.messages, seedMessages),
@@ -464,6 +470,33 @@ export async function markJobContacted(user, contact) {
   return saved;
 }
 
+export async function saveInterviewPrep(user, job, prep) {
+  const payload = {
+    id: prep.id,
+    user_id: user?.id ?? "local-demo-user",
+    job_id: job.id,
+    content: prep.content ?? prep,
+    practiced_questions: prep.practiced_questions ?? [],
+    answer_notes: prep.answer_notes ?? {},
+    created_at: prep.created_at || now(),
+    updated_at: now(),
+  };
+  if (hasSupabaseConfig && user?.id) {
+    const supabase = await getSupabaseClient();
+    const query = payload.id
+      ? supabase.from("interview_prep").update(payload).eq("id", payload.id).eq("user_id", user.id)
+      : supabase.from("interview_prep").insert(payload);
+    const { data, error } = await query.select("*").single();
+    if (error) {
+      if (isMissingTableError(error) || isMissingColumnError(error)) return saveLocalInterviewPrep(user, job, prep);
+      throw error;
+    }
+    if (!prep.skipActivity) await logJobActivity(user, job.id, "interview_prep_generated", { title: getDisplayJobTitle(job), company: getDisplayCompanyName(job) });
+    return data;
+  }
+  return saveLocalInterviewPrep(user, job, prep);
+}
+
 export async function saveResumeUpload(user, file, extractedText) {
   const timestamp = Date.now();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
@@ -512,6 +545,23 @@ async function saveLocalJobContact(user, job, contact, options = {}) {
     : { ...payload, id: crypto.randomUUID() };
   writeLocal(keys.jobContacts, [saved, ...contacts.filter((item) => item.id !== saved.id)]);
   if (!options.skipActivity) await logJobActivity(user, saved.job_id, payload.id ? "contact_edited" : "contact_added", { contactName: saved.name, company: saved.company });
+  return saved;
+}
+
+async function saveLocalInterviewPrep(user, job, prep) {
+  const items = readLocal(keys.interviewPrep, []);
+  const saved = {
+    id: prep.id || crypto.randomUUID(),
+    user_id: user?.id ?? "local-demo-user",
+    job_id: job.id,
+    content: prep.content ?? prep,
+    practiced_questions: prep.practiced_questions ?? [],
+    answer_notes: prep.answer_notes ?? {},
+    created_at: prep.created_at || now(),
+    updated_at: now(),
+  };
+  writeLocal(keys.interviewPrep, [saved, ...items.filter((item) => item.id !== saved.id && item.job_id !== job.id)]);
+  if (!prep.skipActivity) await logJobActivity(user, job.id, "interview_prep_generated", { title: getDisplayJobTitle(job), company: getDisplayCompanyName(job) });
   return saved;
 }
 
