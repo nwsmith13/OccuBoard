@@ -16,7 +16,7 @@ import { JobDetail } from "./JobsPage.jsx";
 
 export function ApplicationsPage() {
   const { user } = useAuth();
-  const { jobs, jobScores, resumeVersions, messages, loading, error, updateJob, deleteJob } = useWorkspaceStore();
+  const { jobs, jobScores, resumeVersions, messages, jobContacts, loading, error, updateJob, deleteJob } = useWorkspaceStore();
   const [draggingId, setDraggingId] = useState(null);
   const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState("cards");
@@ -95,7 +95,7 @@ export function ApplicationsPage() {
               </div>
               <div className="grid gap-4">
                 {grouped[stage].map((job) => (
-                  <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} onOpen={() => setSelected(job)} onDragStart={() => setDraggingId(job.id)} />
+                  <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} contacts={jobContacts.filter((contact) => contact.job_id === job.id)} onOpen={() => setSelected(job)} onDragStart={() => setDraggingId(job.id)} />
                 ))}
                 {!grouped[stage].length && <p className="rounded-lg bg-white/50 px-4 py-3 text-sm text-slate-500">Nothing here yet.</p>}
               </div>
@@ -105,7 +105,7 @@ export function ApplicationsPage() {
       ) : (
         <div className="grid gap-3">
           {jobs.map((job) => (
-            <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} onOpen={() => setSelected(job)} compact onDragStart={() => setDraggingId(job.id)} />
+            <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} contacts={jobContacts.filter((contact) => contact.job_id === job.id)} onOpen={() => setSelected(job)} compact onDragStart={() => setDraggingId(job.id)} />
           ))}
         </div>
       )}
@@ -137,7 +137,7 @@ function getPipelineStage(status) {
   return normalizeStage(status);
 }
 
-function ApplicationCard({ job, score, status, messages, onOpen, onDragStart, compact = false }) {
+function ApplicationCard({ job, score, status, messages, contacts = [], onOpen, onDragStart, compact = false }) {
   const nextBestAction = getNextBestAction(job, { score, aiStatus: status, messages });
   return (
     <div
@@ -165,6 +165,7 @@ function ApplicationCard({ job, score, status, messages, onOpen, onDragStart, co
                 <p className="min-w-0 flex-1 overflow-hidden text-base font-bold leading-snug text-ink" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{getDisplayJobTitle(job)}</p>
               </div>
               <p className="mt-1 text-sm font-medium text-slate-500">{getDisplayCompanyName(job)} <span className="text-slate-300">/</span> {getPipelineStage(job.status)}</p>
+              {contacts.length > 0 && <p className="mt-1 text-[11px] font-bold text-brand-700">{contacts.length} contact{contacts.length === 1 ? "" : "s"}</p>}
             </div>
           </div>
         </div>

@@ -18,6 +18,10 @@ export function formatActivityLabel(event = {}) {
     application_marked: metadata.stage ? `Marked ${metadata.stage}` : "Application updated",
     job_edited: "Job edited",
     job_deleted: "Job deleted",
+    contact_added: "Contact added",
+    contact_edited: "Contact edited",
+    contact_deleted: "Contact deleted",
+    contact_contacted: "Contact marked contacted",
     resume_imported: "Resume imported",
   }[event.type] ?? fallback;
 }
@@ -30,7 +34,9 @@ export function formatActivityDetails(event = {}) {
   if (event.type === "followup_saved") return metadata.date ? `Next follow-up ${formatDate(metadata.date)}` : "";
   if (event.type === "followup_snoozed") return metadata.until ? `Until ${formatDate(metadata.until)}` : "";
   if (event.type === "followup_completed") return metadata.completedAt ? `Completed ${formatDate(String(metadata.completedAt).slice(0, 10))}` : "";
+  if ((event.type === "message_generated" || event.type === "followup_message_generated") && metadata.contactName) return `For ${metadata.contactName}`;
   if (event.type === "resume_exported_pdf" || event.type === "resume_exported_docx") return metadata.fileType ? `${metadata.fileType} download` : "";
+  if (event.type?.startsWith("contact_")) return [metadata.contactName, metadata.company].filter(Boolean).join(" at ");
   return metadata.detail || metadata.title || metadata.company || "";
 }
 
@@ -59,6 +65,7 @@ export function getActivityColor(type = "") {
   if (type.includes("resume")) return "bg-brand-50 text-brand-800 ring-brand-100";
   if (type.includes("message")) return "bg-cyan-50 text-cyan-700 ring-cyan-100";
   if (type.includes("stage") || type.includes("application")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  if (type.includes("contact")) return "bg-cyan-50 text-cyan-700 ring-cyan-100";
   if (type.includes("analysis")) return "bg-purple-50 text-purple-700 ring-purple-100";
   return "bg-slate-50 text-slate-600 ring-slate-100";
 }
@@ -71,6 +78,7 @@ export function getActivityIcon(type = "") {
   if (type.includes("resume")) return "file-text";
   if (type.includes("message")) return "message-circle";
   if (type.includes("stage") || type.includes("application")) return "arrow-right-circle";
+  if (type.includes("contact")) return "user";
   if (type.includes("analysis")) return "sparkles";
   if (type.includes("import")) return "upload";
   return "circle";

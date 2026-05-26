@@ -5,10 +5,13 @@ import {
   fetchWorkspace,
   saveJobScore,
   saveMessage,
+  saveJobContact,
   saveProfile,
   saveResumeVersion,
   saveResumeUpload,
   logJobActivity,
+  deleteJobContact,
+  markJobContacted,
   updateJob,
   updateResumeVersion,
 } from "../lib/workspaceApi.js";
@@ -18,6 +21,7 @@ export const useWorkspaceStore = create((set, get) => ({
   jobs: [],
   activityLogs: [],
   jobActivityLogs: [],
+  jobContacts: [],
   resumeVersions: [],
   resumeUploads: [],
   jobScores: [],
@@ -78,6 +82,23 @@ export const useWorkspaceStore = create((set, get) => ({
     await saveMessage(user, job, message);
     const data = await fetchWorkspace(user);
     set(data);
+  },
+  saveJobContact: async (user, job, contact) => {
+    const saved = await saveJobContact(user, job, contact);
+    const data = await fetchWorkspace(user);
+    set(data);
+    return saved;
+  },
+  deleteJobContact: async (user, contact) => {
+    await deleteJobContact(user, contact);
+    const data = await fetchWorkspace(user);
+    set(data);
+  },
+  markJobContacted: async (user, contact) => {
+    const saved = await markJobContacted(user, contact);
+    const data = await fetchWorkspace(user);
+    set(data);
+    return saved;
   },
   saveResumeUpload: async (user, file, extractedText) => {
     const saved = await saveResumeUpload(user, file, extractedText);

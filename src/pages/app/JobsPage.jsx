@@ -1,4 +1,4 @@
-import { ArrowRightCircle, Bell, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ArrowRightCircle, Bell, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AiToolsPanel, CopyButton } from "../../components/ai/AiToolsPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
@@ -266,7 +266,7 @@ function getDisplayStage(status) {
 
 export function JobDetail({ job: initialJob, initialTab = "overview", onClose, onEdit, onDelete, onMove, onJobUpdate }) {
   const { user } = useAuth();
-  const { profile, jobScores, resumeVersions, messages, jobActivityLogs, updateJob, saveMessage } = useWorkspaceStore();
+  const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, updateJob, saveMessage, saveJobContact, deleteJobContact, markJobContacted } = useWorkspaceStore();
   const [job, setModalJob] = useState(initialJob);
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const fitSectionRef = useRef(null);
@@ -279,6 +279,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   const jobScoreHistory = jobScores.filter((score) => score.job_id === job.id);
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
   const messageHistory = messages.filter((message) => message.job_id === job.id);
+  const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
   const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
   const descriptionPreview = getDescriptionPreview(job.job_description);
   const descriptionIsTruncated = isDescriptionTruncated(job.job_description);
@@ -437,6 +438,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
                 <h3 className="font-bold">Notes</h3>
                 <p className="mt-2 whitespace-pre-wrap rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">{job.notes || "No notes yet."}</p>
                 <NextBestActionCard action={nextBestAction} onAction={handleNextBestAction} />
+                <ContactsCard job={job} contacts={contacts} user={user} onSave={saveJobContact} onDelete={deleteJobContact} onMarkContacted={markJobContacted} />
                 <div ref={followUpSectionRef}>
                   <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} onJobUpdate={mergeJobUpdate} />
                 </div>
@@ -507,6 +509,127 @@ function NextBestActionCard({ action, onAction }) {
       </div>
     </section>
   );
+}
+
+const contactSources = [
+  ["recruiter", "Recruiter"],
+  ["hiring_manager", "Hiring manager"],
+  ["referral", "Referral"],
+  ["company_contact", "Company contact"],
+  ["other", "Other"],
+];
+
+function ContactsCard({ job, contacts, user, onSave, onDelete, onMarkContacted }) {
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(() => getEmptyContact(job));
+  const visibleForm = Boolean(editing);
+
+  function startAdd() {
+    setEditing("new");
+    setForm(getEmptyContact(job));
+  }
+
+  function startEdit(contact) {
+    setEditing(contact.id);
+    setForm({ ...getEmptyContact(job), ...contact });
+  }
+
+  function update(event) {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    if (!form.name.trim()) return;
+    await onSave(user, job, form);
+    setEditing(null);
+    setForm(getEmptyContact(job));
+  }
+
+  return (
+    <section className="mt-4 rounded-lg bg-white/80 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="font-bold text-ink">Contacts</h3>
+          <p className="mt-1 text-xs text-slate-500">People connected to this opportunity.</p>
+        </div>
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={startAdd}>
+          <Plus size={14} /> Add contact
+        </Button>
+      </div>
+
+      <div className="mt-3 grid gap-3">
+        {!contacts.length && !visibleForm && <p className="rounded-lg bg-brand-50 p-3 text-sm text-slate-600">No contacts yet.</p>}
+        {contacts.map((contact) => (
+          <div key={contact.id} className="rounded-lg bg-brand-50/70 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-bold text-ink">{contact.name}</p>
+                <p className="mt-0.5 text-xs font-semibold text-slate-500">{[contact.title, formatContactSource(contact.source), contact.company].filter(Boolean).join(" / ")}</p>
+                {contact.email && <a className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:text-brand-900" href={`mailto:${contact.email}`}><Mail size={13} /> {contact.email}</a>}
+                {contact.phone && <p className="mt-1 text-xs font-semibold text-slate-600">{contact.phone}</p>}
+                {contact.linkedin_url && <a className="ml-0 mt-1 block text-xs font-semibold text-brand-700 hover:text-brand-900" href={contact.linkedin_url} target="_blank" rel="noreferrer">LinkedIn</a>}
+                <p className="mt-2 text-xs text-slate-500">Last contacted: {formatContactDate(contact.last_contacted_at)}</p>
+                {contact.notes && <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{contact.notes}</p>}
+              </div>
+              <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                <Button variant="ghost" className="min-h-7 px-2 text-xs" onClick={() => startEdit(contact)}>Edit</Button>
+                <Button variant="ghost" className="min-h-7 px-2 text-xs" onClick={() => onMarkContacted(user, contact)}>Mark contacted</Button>
+                <Button variant="danger" className="min-h-7 px-2 text-xs" onClick={() => onDelete(user, contact)}>Delete</Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {visibleForm && (
+        <form className="mt-3 grid gap-3 rounded-lg bg-white p-3 ring-1 ring-brand-100" onSubmit={save}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="contact_name" label="Name" name="name" value={form.name} onChange={update} required />
+            <Field id="contact_title" label="Title" name="title" value={form.title} onChange={update} />
+            <Field id="contact_email" label="Email" name="email" type="email" value={form.email} onChange={update} />
+            <Field id="contact_phone" label="Phone" name="phone" value={form.phone} onChange={update} />
+            <Field id="contact_linkedin" label="LinkedIn URL" name="linkedin_url" value={form.linkedin_url} onChange={update} />
+          </div>
+          <label className="text-sm font-semibold text-slate-700" htmlFor="contact_source">
+            Source/type
+            <select id="contact_source" name="source" className="mt-1 w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={form.source} onChange={update}>
+              {contactSources.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <Field id="contact_notes" label="Notes" as="textarea" rows="3" name="notes" value={form.notes} onChange={update} />
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" className="min-h-8 px-3 text-xs">{form.id ? "Save contact" : "Add contact"}</Button>
+            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => setEditing(null)}>Cancel</Button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+function getEmptyContact(job) {
+  return {
+    job_id: job.id,
+    name: "",
+    title: "",
+    company: getDisplayCompanyName(job),
+    email: "",
+    phone: "",
+    linkedin_url: "",
+    source: "recruiter",
+    notes: "",
+  };
+}
+
+function formatContactSource(source = "") {
+  return contactSources.find(([value]) => value === source)?.[1] ?? "Contact";
+}
+
+function formatContactDate(value) {
+  if (!value) return "Not yet";
+  return formatDate(String(value).slice(0, 10));
 }
 
 function getNextBestActionIcon(icon) {
@@ -813,6 +936,7 @@ function getTimelineIcon(type) {
     "message-circle": MessageCircle,
     sparkles: Sparkles,
     upload: Upload,
+    user: User,
     circle: Circle,
   }[getActivityIcon(type)] ?? Circle;
 }

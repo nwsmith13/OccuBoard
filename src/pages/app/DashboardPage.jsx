@@ -18,13 +18,13 @@ import { JobDetail } from "./JobsPage.jsx";
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { jobs, profile, activityLogs, resumeVersions, jobScores, messages, loading, error, updateJob, deleteJob } = useWorkspaceStore();
+  const { jobs, profile, activityLogs, resumeVersions, jobScores, messages, jobContacts, loading, error, updateJob, deleteJob } = useWorkspaceStore();
   const [activityOpen, setActivityOpen] = useState(true);
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const completeness = getProfileCompleteness(profile);
   const completenessTone = getCompletenessTone(completeness);
-  const focusItems = getFocusItems({ jobs, jobScores, resumeVersions, messages });
+  const focusItems = getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts });
   const followUpsDue = jobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
   const bestMatchRoles = getBestMatchRoles(jobScores, jobs, profile);
   const momentum = getMomentumSummary({ jobs, resumeVersions, jobScores, messages });
@@ -90,7 +90,7 @@ export function DashboardPage() {
                     <p className="text-lg font-bold leading-snug">{getDisplayJobTitle(item)}</p>
                   </div>
                   <p className="mt-1 text-sm text-slate-600">{getDisplayCompanyName(item)}</p>
-                  <p className={`mt-3 text-sm font-semibold ${getFocusTextTone(item.nextBestAction?.tone)}`}>{item.nextBestAction?.label || item.message}</p>
+                  <p className={`mt-3 text-sm font-semibold ${getFocusTextTone(item.nextBestAction?.tone)}`}>{getFocusActionLabel(item)}</p>
                   {item.nextBestAction?.description && <p className="mt-1 text-sm leading-5 text-slate-600">{item.nextBestAction.description}</p>}
                 </div>
                 <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" size={18} />
@@ -333,13 +333,14 @@ function getMomentumSummary({ jobs, resumeVersions, jobScores, messages }) {
   };
 }
 
-function getFocusItems({ jobs, jobScores, resumeVersions, messages }) {
+function getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts }) {
   return jobs
     .map((job) => {
       const score = getLatestFitScore(jobScores, job.id);
       const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
       const nextBestAction = getNextBestAction(job, { score, aiStatus, messages });
-      return { ...job, kind: nextBestAction.actionType, nextBestAction, score };
+      const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
+      return { ...job, kind: nextBestAction.actionType, nextBestAction, score, contacts };
     })
     .filter((job) => job.nextBestAction.actionType !== "no_action")
     .sort((a, b) => {
@@ -347,6 +348,14 @@ function getFocusItems({ jobs, jobScores, resumeVersions, messages }) {
       return Number(b.score?.score ?? 0) - Number(a.score?.score ?? 0);
     })
     .slice(0, 5);
+}
+
+function getFocusActionLabel(item) {
+  const actionType = item.nextBestAction?.actionType;
+  const firstName = item.contacts?.[0]?.name?.split(/\s+/)[0];
+  if (firstName && actionType === "follow_up_today") return `Follow up with ${firstName} today`;
+  if (firstName && actionType === "follow_up_overdue") return `Follow up with ${firstName} (overdue)`;
+  return item.nextBestAction?.label || item.message;
 }
 
 function formatActivity(item) {

@@ -1,5 +1,5 @@
 import { Clipboard, RefreshCcw, Sparkles } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
@@ -16,6 +16,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
     jobScores,
     resumeVersions,
     messages,
+    jobContacts,
     saveJobScore,
     saveResumeVersion,
     saveMessage,
@@ -23,14 +24,20 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   const [aiState, setAiState] = useState({ loading: "", error: "", latest: null, confirm: "" });
   const [intensity, setIntensity] = useState("Balanced");
   const [manualIntensity, setManualIntensity] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState("");
   const loadingRef = useRef(null);
   const jobScoreHistory = jobScores.filter((score) => score.job_id === job.id);
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
   const messageHistory = messages.filter((message) => message.job_id === job.id);
+  const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
   const latestScore = getLatestForJob(jobScores, job.id);
   const latestResume = getLatestForJob(resumeVersions, job.id);
   const latestMessage = getLatestForJob(messages, job.id);
   const activeAction = ["fit", "resume", "message"].includes(activeTab) ? activeTab : "fit";
+
+  useEffect(() => {
+    if (latestMessage?.contact_id && !selectedContactId) setSelectedContactId(latestMessage.contact_id);
+  }, [latestMessage?.contact_id, selectedContactId]);
 
   async function runAi(action, { regenerate = false } = {}) {
     if (aiState.loading) return;
@@ -56,7 +63,10 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       if (action === "fit") await saveJobScore(user, job, { ...result, tailoringIntensity: effectiveIntensity });
       let savedResume = null;
       if (action === "resume") savedResume = await saveResumeVersion(user, job, result, { tailoringIntensity: effectiveIntensity, recommendation: latestScore?.recommendation });
-      if (action === "message") await saveMessage(user, job, result);
+      if (action === "message") {
+        const contact = contacts.find((item) => item.id === selectedContactId);
+        await saveMessage(user, job, { ...result, contact_id: selectedContactId || null, contactName: contact?.name || "" });
+      }
       setAiState({ loading: "", error: "", latest: { action, result, resumeId: savedResume?.id }, confirm: "" });
       onTabChange?.(action);
     } catch (error) {
@@ -89,7 +99,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         )}
         {activeAction === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} />}
         {activeAction === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
-        {activeAction === "message" && <MessageResult message={latestMessage} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+        {activeAction === "message" && <MessageResult message={latestMessage} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
       </section>
     );
   }
@@ -183,7 +193,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         <>
           {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} />}
           {activeTab === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
-          {activeTab === "message" && <MessageResult message={latestMessage} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "message" && <MessageResult message={latestMessage} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
         </>
       )}
@@ -368,20 +378,48 @@ export function ResumeResult({ resume, onGenerate, onRegenerate, onExportComplet
   );
 }
 
-export function MessageResult({ message, onGenerate, onRegenerate, loading, showAction = true }) {
-  if (!message) return <EmptyAiState title="No recruiter message yet" description="Create a short outreach message you can send to a recruiter or hiring contact." action={showAction && onGenerate ? "Generate Recruiter Message" : ""} onAction={onGenerate} loading={loading} />;
+export function MessageResult({ message, contacts = [], selectedContactId = "", onContactChange, onGenerate, onRegenerate, loading, showAction = true }) {
+  const associatedContact = contacts.find((contact) => contact.id === (message?.contact_id || selectedContactId));
+  if (!message) {
+    return (
+      <div className="grid gap-3">
+        <ContactSelector contacts={contacts} selectedContactId={selectedContactId} onContactChange={onContactChange} />
+        <EmptyAiState title="No recruiter message yet" description="Create a short outreach message you can send to a recruiter or hiring contact." action={showAction && onGenerate ? "Generate Recruiter Message" : ""} onAction={onGenerate} loading={loading} />
+      </div>
+    );
+  }
   return (
     <div className="w-full rounded-lg bg-brand-50 p-5 shadow-card">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h4 className="font-bold">{normalizeMessageType(message.type)}</h4>
           <p className="text-xs text-slate-500">Saved {formatDate(message.created_at?.slice(0, 10))}</p>
+          {associatedContact && <p className="mt-1 text-xs font-semibold text-brand-700">For: {associatedContact.name}</p>}
         </div>
         <CopyButton text={message.content} />
       </div>
+      <ContactSelector contacts={contacts} selectedContactId={selectedContactId} onContactChange={onContactChange} />
       <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm leading-6 text-slate-700">{message.content}</p>
       {onRegenerate && <RegenerateButton label="Regenerate message" onClick={onRegenerate} disabled={Boolean(loading)} />}
     </div>
+  );
+}
+
+function ContactSelector({ contacts, selectedContactId, onContactChange }) {
+  if (!contacts.length || !onContactChange) return null;
+  return (
+    <label className="mt-3 block text-xs font-semibold text-slate-600" htmlFor="message_contact">
+      Associate message with contact
+      <select
+        id="message_contact"
+        className="mt-1 w-full rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+        value={selectedContactId}
+        onChange={(event) => onContactChange(event.target.value)}
+      >
+        <option value="">No contact selected</option>
+        {contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}</option>)}
+      </select>
+    </label>
   );
 }
 

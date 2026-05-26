@@ -9,6 +9,7 @@ const keys = {
   jobs: "occuboard.jobs",
   activityLogs: "occuboard.activityLogs",
   jobActivityLogs: "occuboard.jobActivityLogs",
+  jobContacts: "occuboard.jobContacts",
   resumeVersions: "occuboard.resumeVersions",
   jobScores: "occuboard.jobScores",
   messages: "occuboard.messages",
@@ -108,16 +109,21 @@ export async function fetchWorkspace(user) {
       supabase.from("messages").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     ]);
     const uploadsResult = await supabase.from("resume_uploads").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
-    const jobActivityResult = await supabase.from("job_activity_logs").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+    const [jobActivityResult, jobContactsResult] = await Promise.all([
+      supabase.from("job_activity_logs").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("job_contacts").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
+    ]);
 
     const jobScores = isMissingTableError(scoresResult.error) ? [] : scoresResult.data ?? [];
     const messages = isMissingTableError(messagesResult.error) ? [] : messagesResult.data ?? [];
     const resumeUploads = isMissingTableError(uploadsResult.error) ? [] : uploadsResult.data ?? [];
     const jobActivityLogs = isMissingTableError(jobActivityResult.error) ? [] : jobActivityResult.data ?? [];
+    const jobContacts = isMissingTableError(jobContactsResult.error) ? readLocal(keys.jobContacts, []) : jobContactsResult.data ?? [];
     if (scoresResult.error && !isMissingTableError(scoresResult.error)) throw scoresResult.error;
     if (messagesResult.error && !isMissingTableError(messagesResult.error)) throw messagesResult.error;
     if (uploadsResult.error && !isMissingTableError(uploadsResult.error)) throw uploadsResult.error;
     if (jobActivityResult.error && !isMissingTableError(jobActivityResult.error)) throw jobActivityResult.error;
+    if (jobContactsResult.error && !isMissingTableError(jobContactsResult.error)) throw jobContactsResult.error;
 
     let profile = profileResult.data;
     if (!profile) {
@@ -130,6 +136,7 @@ export async function fetchWorkspace(user) {
       jobs: jobsResult.data ?? [],
       activityLogs: logsResult.data ?? [],
       jobActivityLogs,
+      jobContacts,
       resumeVersions: resumesResult.data ?? [],
       jobScores,
       messages,
@@ -142,6 +149,7 @@ export async function fetchWorkspace(user) {
     jobs: readLocal(keys.jobs, seedJobs),
     activityLogs: readLocal(keys.activityLogs, seedActivityLogs),
     jobActivityLogs: readLocal(keys.jobActivityLogs, seedJobActivityLogs),
+    jobContacts: readLocal(keys.jobContacts, []),
     resumeVersions: readLocal(keys.resumeVersions, seedResumeVersions),
     jobScores: readLocal(keys.jobScores, seedJobScores),
     messages: readLocal(keys.messages, seedMessages),
@@ -382,6 +390,7 @@ export async function saveMessage(user, job, message) {
   const payload = {
     user_id: user?.id ?? "local-demo-user",
     job_id: job.id,
+    contact_id: message.contact_id ?? message.contactId ?? null,
     type: message.type === "LinkedIn intro" ? "Recruiter Message" : message.type ?? "Recruiter Message",
     content: message.content,
     created_at: now(),
@@ -389,15 +398,69 @@ export async function saveMessage(user, job, message) {
   if (hasSupabaseConfig && user?.id) {
     const supabase = await getSupabaseClient();
     const { data, error } = await supabase.from("messages").insert(payload).select("*").single();
-    if (error) throw error;
+    if (error) {
+      if (!isMissingColumnError(error)) throw error;
+      const legacyPayload = { ...payload };
+      delete legacyPayload.contact_id;
+      const retry = await supabase.from("messages").insert(legacyPayload).select("*").single();
+      if (retry.error) throw retry.error;
+      await logActivity(user, "AI", `Generated recruiter message for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
+      await logJobActivity(user, job.id, payload.type === "Follow-up Message" ? "followup_message_generated" : "message_generated", { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
+      return { ...retry.data, contact_id: payload.contact_id };
+    }
     await logActivity(user, "AI", `Generated recruiter message for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
-    await logJobActivity(user, job.id, payload.type === "Follow-up Message" ? "followup_message_generated" : "message_generated", { type: payload.type });
+    await logJobActivity(user, job.id, payload.type === "Follow-up Message" ? "followup_message_generated" : "message_generated", { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
     return data;
   }
   const saved = { ...payload, id: crypto.randomUUID() };
   writeLocal(keys.messages, [saved, ...readLocal(keys.messages, seedMessages)]);
   await logActivity(user, "AI", `Generated recruiter message for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
-  await logJobActivity(user, job.id, payload.type === "Follow-up Message" ? "followup_message_generated" : "message_generated", { type: payload.type });
+  await logJobActivity(user, job.id, payload.type === "Follow-up Message" ? "followup_message_generated" : "message_generated", { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
+  return saved;
+}
+
+export async function saveJobContact(user, job, contact, options = {}) {
+  const payload = normalizeContactPayload(user, job, contact);
+  if (hasSupabaseConfig && user?.id) {
+    const supabase = await getSupabaseClient();
+    const query = payload.id
+      ? supabase.from("job_contacts").update({ ...payload, updated_at: now() }).eq("id", payload.id).eq("user_id", user.id)
+      : supabase.from("job_contacts").insert(payload);
+    const { data, error } = await query.select("*").single();
+    if (error) {
+      if (isMissingTableError(error) || isMissingColumnError(error)) return saveLocalJobContact(user, job, contact);
+      throw error;
+    }
+    if (!options.skipActivity) await logJobActivity(user, job.id, payload.id ? "contact_edited" : "contact_added", { contactName: data.name, company: data.company });
+    return data;
+  }
+  return saveLocalJobContact(user, job, contact, options);
+}
+
+export async function deleteJobContact(user, contact) {
+  if (!contact?.id) return null;
+  if (hasSupabaseConfig && user?.id) {
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase.from("job_contacts").delete().eq("id", contact.id).eq("user_id", user.id);
+    if (error) {
+      if (isMissingTableError(error)) {
+        writeLocal(keys.jobContacts, readLocal(keys.jobContacts, []).filter((item) => item.id !== contact.id));
+        await logJobActivity(user, contact.job_id, "contact_deleted", { contactName: contact.name, company: contact.company });
+        return contact.id;
+      }
+      throw error;
+    }
+    await logJobActivity(user, contact.job_id, "contact_deleted", { contactName: contact.name, company: contact.company });
+    return contact.id;
+  }
+  writeLocal(keys.jobContacts, readLocal(keys.jobContacts, []).filter((item) => item.id !== contact.id));
+  await logJobActivity(user, contact.job_id, "contact_deleted", { contactName: contact.name, company: contact.company });
+  return contact.id;
+}
+
+export async function markJobContacted(user, contact) {
+  const saved = await saveJobContact(user, { id: contact.job_id, company_name: contact.company }, { ...contact, last_contacted_at: now() }, { skipActivity: true });
+  await logJobActivity(user, contact.job_id, "contact_contacted", { contactName: contact.name, company: contact.company });
   return saved;
 }
 
@@ -439,6 +502,38 @@ function saveLocalResumeUpload(user, upload) {
   const saved = { ...upload, id: crypto.randomUUID(), user_id: user?.id ?? "local-demo-user" };
   writeLocal(keys.resumeUploads, [saved, ...readLocal(keys.resumeUploads, [])]);
   return saved;
+}
+
+async function saveLocalJobContact(user, job, contact, options = {}) {
+  const payload = normalizeContactPayload(user, job, contact);
+  const contacts = readLocal(keys.jobContacts, []);
+  const saved = payload.id
+    ? { ...contacts.find((item) => item.id === payload.id), ...payload, updated_at: now() }
+    : { ...payload, id: crypto.randomUUID() };
+  writeLocal(keys.jobContacts, [saved, ...contacts.filter((item) => item.id !== saved.id)]);
+  if (!options.skipActivity) await logJobActivity(user, saved.job_id, payload.id ? "contact_edited" : "contact_added", { contactName: saved.name, company: saved.company });
+  return saved;
+}
+
+function normalizeContactPayload(user, job, contact = {}) {
+  const timestamp = now();
+  return {
+    ...(contact.id ? { id: contact.id } : {}),
+    user_id: user?.id ?? "local-demo-user",
+    job_id: contact.job_id || job?.id,
+    name: String(contact.name || "").trim(),
+    title: String(contact.title || "").trim(),
+    company: String(contact.company || job?.company_name || "").trim(),
+    email: String(contact.email || "").trim(),
+    phone: String(contact.phone || "").trim(),
+    linkedin_url: String(contact.linkedin_url || contact.linkedinUrl || "").trim(),
+    source: contact.source || "recruiter",
+    last_contacted_at: contact.last_contacted_at || contact.lastContactedAt || null,
+    next_follow_up_date: contact.next_follow_up_date || contact.nextFollowUpDate || null,
+    notes: String(contact.notes || "").trim(),
+    created_at: contact.created_at || timestamp,
+    updated_at: timestamp,
+  };
 }
 
 async function getExistingJob(user, id) {
