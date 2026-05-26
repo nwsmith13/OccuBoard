@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
-import { getLatestForJob } from "../../lib/jobAiStatus.js";
+import { getLatestForJob, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { ResumeExportPanel } from "../resume/ResumeExportPanel.jsx";
 import { Button } from "../ui/Button.jsx";
@@ -29,11 +29,11 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   const loadingRef = useRef(null);
   const jobScoreHistory = jobScores.filter((score) => score.job_id === job.id);
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
-  const messageHistory = messages.filter((message) => message.job_id === job.id);
+  const messageHistory = messages.filter((message) => message.job_id === job.id && isRecruiterMessage(message));
   const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
   const latestScore = getLatestForJob(jobScores, job.id);
   const latestResume = getLatestForJob(resumeVersions, job.id);
-  const latestMessage = getLatestForJob(messages, job.id);
+  const latestMessage = getLatestForJob(messageHistory, job.id);
   const activeAction = ["fit", "resume", "message"].includes(activeTab) ? activeTab : "fit";
 
   useEffect(() => {
@@ -603,10 +603,6 @@ function getScoreTone(score) {
   if (Number(score) >= 65) return { label: "Good Potential", panel: "border-sky-200 bg-sky-50", ring: "border-sky-200 bg-white", score: "text-sky-700" };
   if (Number(score) >= 45) return { label: "Stretch Role", panel: "border-amber-200 bg-amber-50", ring: "border-amber-200 bg-white", score: "text-amber-700" };
   return { label: "Low Match", panel: "border-rose-100 bg-rose-50", ring: "border-rose-100 bg-white", score: "text-rose-700" };
-}
-
-function normalizeMessageType(type) {
-  return type === "LinkedIn intro" ? "Recruiter Message" : type || "Recruiter Message";
 }
 
 function formatDateTime(value) {

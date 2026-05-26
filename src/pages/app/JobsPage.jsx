@@ -14,7 +14,7 @@ import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, 
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
-import { getJobAiStatus } from "../../lib/jobAiStatus.js";
+import { getJobAiStatus, isRecruiterMessage } from "../../lib/jobAiStatus.js";
 import { getResumeExportHistory } from "../../lib/resumeExport.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { getNextBestAction, getNextBestActionTone } from "../../utils/nextBestAction.js";
@@ -275,10 +275,11 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   const [showDescription, setShowDescription] = useState(false);
   const latestScore = [...jobScores].filter((score) => score.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const latestResume = [...resumeVersions].filter((version) => version.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-  const latestMessage = [...messages].filter((message) => message.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+  const allMessageHistory = messages.filter((message) => message.job_id === job.id);
+  const recruiterMessageHistory = allMessageHistory.filter(isRecruiterMessage);
+  const latestMessage = [...recruiterMessageHistory].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const jobScoreHistory = jobScores.filter((score) => score.job_id === job.id);
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
-  const messageHistory = messages.filter((message) => message.job_id === job.id);
   const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
   const prep = interviewPrep.find((item) => item.job_id === job.id);
   const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
@@ -286,7 +287,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   const descriptionIsTruncated = isDescriptionTruncated(job.job_description);
   const timelineEvents = mergeTimelineEvents(
     jobActivityLogs.filter((event) => event.job_id === job.id),
-    getDerivedGenerationEvents({ job, scores: jobScoreHistory, resumes: resumeHistory, messages: messageHistory }),
+    getDerivedGenerationEvents({ job, scores: jobScoreHistory, resumes: resumeHistory, messages: allMessageHistory }),
   );
   const nextBestAction = getNextBestAction(job, { score: latestScore, aiStatus, messages, activityEvents: timelineEvents });
   const completedSteps = {
@@ -951,6 +952,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const [openQuestion, setOpenQuestion] = useState("");
   const [openStory, setOpenStory] = useState("");
   const [draftNotes, setDraftNotes] = useState(() => prep?.answer_notes ?? {});
+  const [noteSaveStatus, setNoteSaveStatus] = useState({});
   const [thankYouDraft, setThankYouDraft] = useState(() => prep?.content?.thankYouMessage ?? "");
   const [thankYouCopied, setThankYouCopied] = useState(false);
   const [thankYouSaved, setThankYouSaved] = useState(false);
@@ -1006,8 +1008,24 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     setDraftNotes((current) => ({ ...current, [index]: value }));
   }
 
-  function persistNote(index) {
-    updatePrepPatch({ answer_notes: { ...notes, [index]: draftNotes[index] || "" } });
+  async function persistNote(index) {
+    const value = draftNotes[index] || "";
+    if ((notes[index] || "") === value) return;
+    setNoteSaveStatus((current) => ({ ...current, [index]: "saving" }));
+    try {
+      await updatePrepPatch({ answer_notes: { ...notes, [index]: value } });
+      setNoteSaveStatus((current) => ({ ...current, [index]: "saved" }));
+      window.setTimeout(() => {
+        setNoteSaveStatus((current) => {
+          if (current[index] !== "saved") return current;
+          const next = { ...current };
+          delete next[index];
+          return next;
+        });
+      }, 2400);
+    } catch {
+      setNoteSaveStatus((current) => ({ ...current, [index]: "error" }));
+    }
   }
 
   async function copyThankYou() {
@@ -1096,7 +1114,10 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
               {openQuestion === index && (
                 <div className="mt-3 grid gap-3">
                   <p className="text-sm leading-6 text-slate-600">{question.guidance}</p>
-                  <textarea className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" rows="2" placeholder="Optional answer notes" value={draftNotes[index] ?? notes[index] ?? ""} onChange={(event) => saveNote(index, event.target.value)} onBlur={() => persistNote(index)} />
+                  <div className="grid gap-1">
+                    <textarea className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" rows="2" placeholder="Optional answer notes" value={draftNotes[index] ?? notes[index] ?? ""} onChange={(event) => saveNote(index, event.target.value)} onBlur={() => persistNote(index)} />
+                    {noteSaveStatus[index] && <NoteSaveStatus status={noteSaveStatus[index]} />}
+                  </div>
                   <Button variant={practiced.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => togglePracticed(index)}>{practiced.has(index) ? "Practiced" : "Mark practiced"}</Button>
                 </div>
               )}
@@ -1154,6 +1175,20 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       </PrepSection>
     </section>
   );
+}
+
+function NoteSaveStatus({ status }) {
+  const label = {
+    saving: "Saving...",
+    saved: "Saved",
+    error: "Could not save",
+  }[status];
+  const tone = {
+    saving: "text-brand-700",
+    saved: "text-emerald-700",
+    error: "text-rose-700",
+  }[status];
+  return <p className={`text-xs font-semibold transition ${tone}`}>{label}</p>;
 }
 
 function PrepSection({ title, children }) {
