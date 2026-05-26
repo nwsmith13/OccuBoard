@@ -7,6 +7,7 @@ import { getSupabaseClient, hasSupabaseConfig } from "./supabase.js";
 const keys = {
   profile: "occuboard.profile",
   jobs: "occuboard.jobs",
+  jobFollowUpOverrides: "occuboard.jobFollowUpOverrides",
   activityLogs: "occuboard.activityLogs",
   jobActivityLogs: "occuboard.jobActivityLogs",
   jobContacts: "occuboard.jobContacts",
@@ -137,7 +138,7 @@ export async function fetchWorkspace(user) {
 
     return {
       profile,
-      jobs: jobsResult.data ?? [],
+      jobs: applyJobFollowUpOverrides(jobsResult.data ?? []),
       activityLogs: logsResult.data ?? [],
       jobActivityLogs,
       jobContacts,
@@ -260,10 +261,12 @@ export async function updateJob(user, id, patch) {
       const retry = await supabase.from("jobs").update(legacyPayload).eq("id", id).eq("user_id", user.id).select("*").single();
       if (retry.error) throw retry.error;
       const enriched = { ...retry.data, ...Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key.startsWith("company_"))) };
+      if (hasFollowUpPatch(payload)) rememberJobFollowUpOverride(id, payload);
       await logActivity(user, "Job", `Updated ${getDisplayJobTitle(enriched)} at ${getDisplayCompanyName(enriched)}`);
       await logJobUpdateActivity(user, previous, enriched, payload);
       return enriched;
     }
+    if (hasFollowUpPatch(payload)) clearJobFollowUpOverride(id);
     await logActivity(user, "Job", `Updated ${getDisplayJobTitle(data)} at ${getDisplayCompanyName(data)}`);
     await logJobUpdateActivity(user, previous, data, payload);
     return data;
@@ -728,6 +731,61 @@ function cleanJobPayload(job) {
   if ("job_title" in payload) cleaned.job_title = getDisplayJobTitle(payload);
   if ("status" in payload) cleaned.status = normalizeApplicationStage(payload.status);
   return cleaned;
+}
+
+function hasFollowUpPatch(payload = {}) {
+  return Object.keys(payload).some((key) => key.startsWith("followup_"));
+}
+
+function getFollowUpPatch(payload = {}) {
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key === "updated_at"));
+}
+
+function rememberJobFollowUpOverride(jobId, payload = {}) {
+  const overrides = readLocal(keys.jobFollowUpOverrides, {});
+  writeLocal(keys.jobFollowUpOverrides, {
+    ...overrides,
+    [jobId]: {
+      ...(overrides[jobId] || {}),
+      ...getFollowUpPatch(payload),
+      updated_at: payload.updated_at || now(),
+    },
+  });
+}
+
+function clearJobFollowUpOverride(jobId) {
+  const overrides = readLocal(keys.jobFollowUpOverrides, {});
+  if (!overrides[jobId]) return;
+  const next = { ...overrides };
+  delete next[jobId];
+  writeLocal(keys.jobFollowUpOverrides, next);
+}
+
+function applyJobFollowUpOverrides(jobs = []) {
+  const overrides = readLocal(keys.jobFollowUpOverrides, {});
+  if (!overrides || !Object.keys(overrides).length) return jobs;
+  return jobs.map((job) => {
+    const override = overrides[job.id];
+    if (!override) return job;
+    const jobUpdatedAt = new Date(job.updated_at || job.created_at || 0);
+    const overrideUpdatedAt = new Date(override.updated_at || 0);
+    if (jobUpdatedAt > overrideUpdatedAt && getServerHasFollowUpState(job, override)) {
+      clearJobFollowUpOverride(job.id);
+      return job;
+    }
+    return { ...job, ...override };
+  });
+}
+
+function getServerHasFollowUpState(job = {}, override = {}) {
+  return ["followup_date", "followup_status", "followup_completed_at", "followup_snoozed_until", "followup_note"].every((key) => {
+    if (!(key in override)) return true;
+    return normalizeComparable(job[key]) === normalizeComparable(override[key]);
+  });
+}
+
+function normalizeComparable(value) {
+  return value || null;
 }
 
 function normalizeFollowUpPayload(job) {
