@@ -8,10 +8,12 @@ import { FitScoreBadge, getFitScoreTone, getLatestFitScore } from "../../compone
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { getCompletenessTone } from "../../lib/completenessTone.js";
 import { formatDate, isThisWeek } from "../../lib/date.js";
-import { getFollowUpStatus, getStageNextStep, normalizeStage } from "../../lib/followUp.js";
+import { getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
+import { getJobAiStatus } from "../../lib/jobAiStatus.js";
 import { getProfileCompleteness } from "../../lib/profile.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
+import { getNextBestAction, getNextBestActionTone } from "../../utils/nextBestAction.js";
 import { JobDetail } from "./JobsPage.jsx";
 
 export function DashboardPage() {
@@ -76,19 +78,21 @@ export function DashboardPage() {
               <button
                 key={`${item.kind}-${item.id}`}
                 type="button"
-                className={`group flex cursor-pointer gap-4 rounded-xl p-5 text-left shadow-sm ring-1 ring-transparent transition-all duration-200 hover:-translate-y-0.5 hover:ring-emerald-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${getFocusTone(item.kind)}`}
+                className={`group flex cursor-pointer gap-4 rounded-xl p-5 text-left shadow-sm ring-1 ring-transparent transition-all duration-200 hover:-translate-y-0.5 hover:ring-emerald-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${getFocusTone(item.nextBestAction?.tone)}`}
                 onClick={() => setSelectedJob({ ...item, initialTab: getFocusInitialTab(item) })}
                 aria-label={`Open ${getDisplayJobTitle(item)} at ${getDisplayCompanyName(item)}`}
               >
-                <span className={`mt-1 h-auto w-2 shrink-0 rounded-full ${getFocusAccent(item.kind)}`} />
+                <span className={`mt-1 h-auto w-2 shrink-0 rounded-full ${getFocusAccent(item.nextBestAction?.tone)}`} />
                 <CompanyLogo companyName={getDisplayCompanyName(item)} companyDomain={item.company_domain} companyLogoUrl={item.company_logo_url} sourceUrl={item.source_url} size="lg" className="mt-0.5" />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <FitScoreBadge score={getLatestFitScore(jobScores, item.id)} compact />
+                    {item.nextBestAction && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getNextBestActionTone(item.nextBestAction.tone)}`}>Next best action</span>}
                     <p className="text-lg font-bold leading-snug">{getDisplayJobTitle(item)}</p>
                   </div>
                   <p className="mt-1 text-sm text-slate-600">{getDisplayCompanyName(item)}</p>
-                  <p className={`mt-3 text-sm font-semibold ${item.kind === "Overdue" ? "text-rose-700" : item.kind === "Upcoming" ? "text-amber-700" : "text-brand-800"}`}>{item.message}</p>
+                  <p className={`mt-3 text-sm font-semibold ${getFocusTextTone(item.nextBestAction?.tone)}`}>{item.nextBestAction?.label || item.message}</p>
+                  {item.nextBestAction?.description && <p className="mt-1 text-sm leading-5 text-slate-600">{item.nextBestAction.description}</p>}
                 </div>
                 <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" size={18} />
               </button>
@@ -258,29 +262,42 @@ function getBestMatchRoles(jobScores, jobs, profile) {
   return [{ label: "Analyze a few jobs", matchLabel: "Best-match insights will appear here." }];
 }
 
-function getFocusTone(kind) {
+function getFocusTone(tone) {
   return {
-    Overdue: "bg-rose-50/80",
-    Upcoming: "bg-amber-50/80",
-    Priority: "bg-emerald-50/80",
-    Recent: "bg-slate-50",
-  }[kind] ?? "bg-slate-50";
+    danger: "bg-rose-50/80",
+    warning: "bg-amber-50/80",
+    success: "bg-emerald-50/80",
+    info: "bg-brand-50/80",
+    neutral: "bg-slate-50",
+  }[tone] ?? "bg-slate-50";
 }
 
-function getFocusAccent(kind) {
+function getFocusAccent(tone) {
   return {
-    Overdue: "bg-rose-400",
-    Upcoming: "bg-amber-400",
-    Priority: "bg-emerald-400",
-    Recent: "bg-brand-300",
-  }[kind] ?? "bg-brand-300";
+    danger: "bg-rose-400",
+    warning: "bg-amber-400",
+    success: "bg-emerald-400",
+    info: "bg-brand-300",
+    neutral: "bg-slate-300",
+  }[tone] ?? "bg-brand-300";
+}
+
+function getFocusTextTone(tone) {
+  return {
+    danger: "text-rose-700",
+    warning: "text-amber-700",
+    success: "text-emerald-700",
+    info: "text-brand-800",
+    neutral: "text-slate-600",
+  }[tone] ?? "text-brand-800";
 }
 
 function getFocusInitialTab(item) {
-  const followStatus = getFollowUpStatus(item);
-  if (["due", "overdue", "snoozed", "scheduled", "completed"].includes(followStatus)) return "overview";
-  if (item.message === "Review high-fit role") return "fit";
-  if (item.message === "Review and apply" || item.message === "Apply when ready") return "resume";
+  const actionType = item.nextBestAction?.actionType;
+  if (["follow_up_due", "follow_up_overdue", "follow_up_today", "prepare_interview", "move_to_interview"].includes(actionType)) return "overview";
+  if (actionType === "review_high_fit") return "fit";
+  if (["generate_resume", "apply_now"].includes(actionType)) return "resume";
+  if (actionType === "generate_message") return "message";
   return "overview";
 }
 
@@ -318,34 +335,19 @@ function getMomentumSummary({ jobs, resumeVersions, jobScores, messages }) {
 }
 
 function getFocusItems({ jobs, jobScores, resumeVersions, messages }) {
-  const overdue = jobs
-    .filter((job) => getFollowUpStatus(job) === "overdue")
-    .map((job) => ({ ...job, kind: "Overdue", message: "Follow up overdue" }));
-  const dueToday = jobs
-    .filter((job) => getFollowUpStatus(job) === "due")
-    .map((job) => ({ ...job, kind: "Upcoming", message: "Follow up today" }));
-  const readyToApply = jobs
-    .filter((job) => normalizeDashboardStage(job.status) === "Saved")
-    .filter((job) => resumeVersions.some((version) => version.job_id === job.id) && messages.some((message) => message.job_id === job.id))
-    .slice(0, 2)
-    .map((job) => ({ ...job, kind: "Priority", message: getStageNextStep(job, { resumeDrafted: true, messageDrafted: true }) || "Apply when ready" }));
-  const highFit = [...jobScores]
-    .filter((score) => Number(score.score) >= 75)
-    .sort((a, b) => Number(b.score) - Number(a.score))
-    .map((score) => jobs.find((job) => job.id === score.job_id))
-    .filter(Boolean)
-    .map((job) => ({ ...job, kind: "Priority", message: "Review high-fit role" }));
-  const recent = [...jobs]
-    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
-    .slice(0, 3)
-    .map((job) => ({ ...job, kind: "Recent", message: `Recently saved on ${formatDate(job.date_saved)}` }));
-
-  const seen = new Set();
-  return [...overdue, ...dueToday, ...readyToApply, ...highFit, ...recent].filter((job) => {
-    if (seen.has(job.id)) return false;
-    seen.add(job.id);
-    return true;
-  }).slice(0, 5);
+  return jobs
+    .map((job) => {
+      const score = getLatestFitScore(jobScores, job.id);
+      const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
+      const nextBestAction = getNextBestAction(job, { score, aiStatus, messages });
+      return { ...job, kind: nextBestAction.actionType, nextBestAction, score };
+    })
+    .filter((job) => job.nextBestAction.actionType !== "no_action")
+    .sort((a, b) => {
+      if (a.nextBestAction.priority !== b.nextBestAction.priority) return a.nextBestAction.priority - b.nextBestAction.priority;
+      return Number(b.score?.score ?? 0) - Number(a.score?.score ?? 0);
+    })
+    .slice(0, 5);
 }
 
 function formatActivity(item) {

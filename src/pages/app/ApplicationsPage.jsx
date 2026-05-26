@@ -7,10 +7,11 @@ import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBa
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { stages } from "../../data/seedData.js";
 import { todayIso } from "../../lib/date.js";
-import { getFollowUpLabel, getFollowUpStatus, getFollowUpTone, getStageNextStep, normalizeStage } from "../../lib/followUp.js";
+import { getFollowUpLabel, getFollowUpStatus, getFollowUpTone, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
+import { getNextBestAction, getNextBestActionTone } from "../../utils/nextBestAction.js";
 import { JobDetail } from "./JobsPage.jsx";
 
 export function ApplicationsPage() {
@@ -94,7 +95,7 @@ export function ApplicationsPage() {
               </div>
               <div className="grid gap-4">
                 {grouped[stage].map((job) => (
-                  <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} onOpen={() => setSelected(job)} onDragStart={() => setDraggingId(job.id)} />
+                  <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} onOpen={() => setSelected(job)} onDragStart={() => setDraggingId(job.id)} />
                 ))}
                 {!grouped[stage].length && <p className="rounded-lg bg-white/50 px-4 py-3 text-sm text-slate-500">Nothing here yet.</p>}
               </div>
@@ -104,7 +105,7 @@ export function ApplicationsPage() {
       ) : (
         <div className="grid gap-3">
           {jobs.map((job) => (
-            <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} onOpen={() => setSelected(job)} compact onDragStart={() => setDraggingId(job.id)} />
+            <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} onOpen={() => setSelected(job)} compact onDragStart={() => setDraggingId(job.id)} />
           ))}
         </div>
       )}
@@ -136,7 +137,8 @@ function getPipelineStage(status) {
   return normalizeStage(status);
 }
 
-function ApplicationCard({ job, score, status, onOpen, onDragStart, compact = false }) {
+function ApplicationCard({ job, score, status, messages, onOpen, onDragStart, compact = false }) {
+  const nextBestAction = getNextBestAction(job, { score, aiStatus: status, messages });
   return (
     <div
       role="button"
@@ -169,7 +171,14 @@ function ApplicationCard({ job, score, status, onOpen, onDragStart, compact = fa
       </div>
       <KanbanAiStatus status={status} />
       <FollowUpChip job={job} />
-      {getNextAction(job, status) && <p className="mt-2 text-xs font-semibold text-slate-500">{getNextAction(job, status)}</p>}
+      {nextBestAction?.actionType !== "no_action" && (
+        <div className="mt-2">
+          <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getNextBestActionTone(nextBestAction.tone)}`}>
+            Next best action
+          </span>
+          <p className="mt-1 text-xs font-semibold text-slate-600">{nextBestAction.label}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -193,7 +202,7 @@ function PipelineSkeleton() {
 }
 
 export function getNextAction(job, status) {
-  return getStageNextStep(job, status);
+  return getNextBestAction(job, { aiStatus: status }).label;
 }
 
 function FollowUpChip({ job }) {

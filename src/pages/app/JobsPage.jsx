@@ -17,6 +17,7 @@ import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActi
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
 import { getResumeExportHistory } from "../../lib/resumeExport.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
+import { getNextBestAction, getNextBestActionTone } from "../../utils/nextBestAction.js";
 
 const emptyJob = {
   company_name: "",
@@ -277,12 +278,14 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   const jobScoreHistory = jobScores.filter((score) => score.job_id === job.id);
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
   const messageHistory = messages.filter((message) => message.job_id === job.id);
+  const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
   const descriptionPreview = getDescriptionPreview(job.job_description);
   const descriptionIsTruncated = isDescriptionTruncated(job.job_description);
   const timelineEvents = mergeTimelineEvents(
     jobActivityLogs.filter((event) => event.job_id === job.id),
     getDerivedGenerationEvents({ job, scores: jobScoreHistory, resumes: resumeHistory, messages: messageHistory }),
   );
+  const nextBestAction = getNextBestAction(job, { score: latestScore, aiStatus, messages, activityEvents: timelineEvents });
   const completedSteps = {
     fit: Boolean(latestScore),
     resume: Boolean(latestResume),
@@ -299,6 +302,25 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
     setModalJob(nextJob);
     onJobUpdate?.(nextJob);
     return nextJob;
+  }
+
+  async function handleNextBestAction() {
+    if (nextBestAction.actionType === "generate_resume" || nextBestAction.actionType === "apply_now") {
+      setActiveTab("resume");
+      return;
+    }
+    if (nextBestAction.actionType === "generate_message") {
+      setActiveTab("message");
+      return;
+    }
+    if (nextBestAction.actionType === "review_high_fit" || nextBestAction.actionType === "prepare_interview") {
+      setActiveTab("fit");
+      return;
+    }
+    if (nextBestAction.actionType === "move_to_interview") {
+      const updated = await updateJob(user, job.id, { status: "Interview" });
+      if (updated) mergeJobUpdate(updated);
+    }
   }
 
   useEffect(() => {
@@ -404,6 +426,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
               <section>
                 <h3 className="font-bold">Notes</h3>
                 <p className="mt-2 whitespace-pre-wrap rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">{job.notes || "No notes yet."}</p>
+                <NextBestActionCard action={nextBestAction} onAction={handleNextBestAction} />
                 <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} onJobUpdate={mergeJobUpdate} />
                 <div className="sticky bottom-0 -mx-1 mt-6 flex flex-wrap gap-3 border-t border-brand-100 bg-white/95 px-1 py-4 backdrop-blur">
                   <Button onClick={onMove}>Move to Applied</Button>
@@ -443,6 +466,58 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
       </section>
     </div>
   );
+}
+
+function NextBestActionCard({ action, onAction }) {
+  if (!action || action.actionType === "no_action") return null;
+  const Icon = getNextBestActionIcon(action.icon);
+  const ctaLabel = getNextBestActionCtaLabel(action.actionType);
+
+  return (
+    <section className="mt-4 rounded-lg bg-white/80 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex items-start gap-3">
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ring-1 ${getNextBestActionTone(action.tone)}`}>
+          <Icon size={17} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Next Best Action</p>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getNextBestActionTone(action.tone)}`}>Priority {action.priority}</span>
+          </div>
+          <h3 className="mt-1 text-base font-bold text-ink">{action.label}</h3>
+          <p className="mt-1 text-sm leading-5 text-slate-600">{action.description}</p>
+          {ctaLabel && (
+            <Button className="mt-3 min-h-8 px-3 text-xs" variant={action.tone === "danger" || action.tone === "warning" ? "secondary" : "primary"} onClick={onAction} aria-label={`${ctaLabel} for this opportunity`}>
+              {ctaLabel}
+            </Button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function getNextBestActionIcon(icon) {
+  return {
+    bell: Bell,
+    "check-circle": CheckCircle2,
+    document: FileTextIcon,
+    "message-circle": MessageCircle,
+    "arrow-right-circle": ArrowRightCircle,
+    search: Search,
+    sparkles: Sparkles,
+  }[icon] ?? Sparkles;
+}
+
+function getNextBestActionCtaLabel(actionType) {
+  return {
+    generate_resume: "Generate Resume",
+    generate_message: "Generate Message",
+    apply_now: "Review Application",
+    prepare_interview: "Prepare Interview",
+    review_high_fit: "Review Fit",
+    move_to_interview: "Move to Interview",
+  }[actionType];
 }
 
 function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage, onJobUpdate }) {
