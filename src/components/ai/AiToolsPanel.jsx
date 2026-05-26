@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
-import { getLatestForJob, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
+import { getLatestForJob, isCoverLetter, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { ResumeExportPanel } from "../resume/ResumeExportPanel.jsx";
 import { Button } from "../ui/Button.jsx";
@@ -30,9 +30,11 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   const jobScoreHistory = jobScores.filter((score) => score.job_id === job.id);
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
   const messageHistory = messages.filter((message) => message.job_id === job.id && isRecruiterMessage(message));
+  const coverLetterHistory = messages.filter((message) => message.job_id === job.id && isCoverLetter(message));
   const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
   const latestScore = getLatestForJob(jobScores, job.id);
   const latestResume = getLatestForJob(resumeVersions, job.id);
+  const latestCoverLetter = getLatestForJob(coverLetterHistory, job.id);
   const latestMessage = getLatestForJob(messageHistory, job.id);
   const activeAction = ["fit", "resume", "message"].includes(activeTab) ? activeTab : "fit";
 
@@ -101,7 +103,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         )}
         {activeAction === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} />}
         {activeAction === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
-        {activeAction === "message" && <MessageResult message={latestMessage} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+        {activeAction === "message" && <MessageResult message={latestMessage} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
       </section>
     );
   }
@@ -196,7 +198,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         <>
           {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} />}
           {activeTab === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
-          {activeTab === "message" && <MessageResult message={latestMessage} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "message" && <MessageResult message={latestMessage} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
         </>
       )}
@@ -408,11 +410,16 @@ export function ResumeResult({ resume, onGenerate, onRegenerate, onExportComplet
   );
 }
 
-export function MessageResult({ message, contacts = [], selectedContactId = "", onContactChange, onGenerate, onRegenerate, loading, showAction = true }) {
+export function MessageResult({ message, resumeReady = false, coverLetterReady = false, contacts = [], selectedContactId = "", onContactChange, onGenerate, onRegenerate, loading, showAction = true }) {
   const associatedContact = contacts.find((contact) => contact.id === (message?.contact_id || selectedContactId));
+  const readiness = [
+    resumeReady && "Resume ready",
+    coverLetterReady && "Cover letter ready",
+  ].filter(Boolean);
   if (!message) {
     return (
       <div className="grid gap-3">
+        <MessageReadiness readiness={readiness} />
         <ContactSelector contacts={contacts} selectedContactId={selectedContactId} onContactChange={onContactChange} />
         <EmptyAiState title="No recruiter message yet" description="Create a short outreach message you can send to a recruiter or hiring contact." action={showAction && onGenerate ? "Generate Recruiter Message" : ""} onAction={onGenerate} loading={loading} />
       </div>
@@ -428,9 +435,21 @@ export function MessageResult({ message, contacts = [], selectedContactId = "", 
         </div>
         <CopyButton text={message.content} />
       </div>
+      <MessageReadiness readiness={readiness} />
       <ContactSelector contacts={contacts} selectedContactId={selectedContactId} onContactChange={onContactChange} />
       <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm leading-6 text-slate-700">{message.content}</p>
       {onRegenerate && <RegenerateButton label="Regenerate message" onClick={onRegenerate} disabled={Boolean(loading)} />}
+    </div>
+  );
+}
+
+function MessageReadiness({ readiness }) {
+  if (!readiness.length) return null;
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {readiness.map((item) => (
+        <span key={item} className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-brand-700 ring-1 ring-brand-100">{item}</span>
+      ))}
     </div>
   );
 }

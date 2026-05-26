@@ -14,6 +14,7 @@ import {
   deleteJobContact,
   markJobContacted,
   updateJob,
+  updateMessage,
   updateResumeVersion,
 } from "../lib/workspaceApi.js";
 
@@ -81,9 +82,16 @@ export const useWorkspaceStore = create((set, get) => ({
     set(data);
   },
   saveMessage: async (user, job, message) => {
-    await saveMessage(user, job, message);
+    const saved = await saveMessage(user, job, message);
     const data = await fetchWorkspace(user);
     set(data);
+    return saved;
+  },
+  updateMessage: async (user, message, patch) => {
+    const saved = await updateMessage(user, message, patch);
+    const data = await fetchWorkspace(user);
+    set(data);
+    return saved;
   },
   saveJobContact: async (user, job, contact) => {
     const saved = await saveJobContact(user, job, contact);

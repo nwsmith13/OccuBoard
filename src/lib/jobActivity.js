@@ -10,6 +10,12 @@ export function formatActivityLabel(event = {}) {
     resume_exported_pdf: "Resume exported PDF",
     resume_exported_docx: "Resume exported DOCX",
     message_generated: "Message generated",
+    cover_letter_generated: "Cover letter generated",
+    cover_letter_regenerated: "Cover letter regenerated",
+    cover_letter_edited: "Cover letter edited",
+    cover_letter_copied: "Cover letter copied",
+    cover_letter_exported_pdf: "Cover letter exported PDF",
+    cover_letter_exported_docx: "Cover letter exported DOCX",
     followup_message_generated: "Follow-up message generated",
     followup_message_copied: "Follow-up message copied",
     followup_saved: "Follow-up saved",
@@ -39,6 +45,7 @@ export function formatActivityDetails(event = {}) {
   if (event.type === "followup_snoozed") return metadata.until ? `Until ${formatDate(metadata.until)}` : "";
   if (event.type === "followup_completed") return metadata.completedAt ? `Completed ${formatDate(String(metadata.completedAt).slice(0, 10))}` : "";
   if ((event.type === "message_generated" || event.type === "followup_message_generated") && metadata.contactName) return `For ${metadata.contactName}`;
+  if (event.type?.startsWith("cover_letter")) return metadata.fileType ? `${metadata.fileType} download` : metadata.detail || metadata.type || "";
   if (event.type === "followup_message_copied") return metadata.detail || "Ready to send outside OccuBoard";
   if (event.type === "resume_exported_pdf" || event.type === "resume_exported_docx") return metadata.fileType ? `${metadata.fileType} download` : "";
   if (event.type?.startsWith("contact_")) return [metadata.contactName, metadata.company].filter(Boolean).join(" at ");
@@ -67,6 +74,7 @@ export function formatRelativeTime(value) {
 
 export function getActivityColor(type = "") {
   if (type.includes("followup")) return "bg-amber-50 text-amber-700 ring-amber-100";
+  if (type.includes("cover_letter")) return "bg-brand-50 text-brand-800 ring-brand-100";
   if (type.includes("resume")) return "bg-brand-50 text-brand-800 ring-brand-100";
   if (type.includes("message")) return "bg-cyan-50 text-cyan-700 ring-cyan-100";
   if (type.includes("stage") || type.includes("application")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
@@ -80,6 +88,8 @@ export function getActivityIcon(type = "") {
   if (type.includes("followup_snoozed")) return "clock";
   if (type.includes("followup_completed")) return "check-circle";
   if (type.includes("followup")) return "bell";
+  if (type.includes("cover_letter_exported")) return "download";
+  if (type.includes("cover_letter")) return "file-text";
   if (type.includes("resume_exported")) return "download";
   if (type.includes("resume")) return "file-text";
   if (type.includes("message")) return "message-circle";

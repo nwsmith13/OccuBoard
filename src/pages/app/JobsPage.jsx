@@ -12,9 +12,10 @@ import { priorities, remoteTypes, stages } from "../../data/seedData.js";
 import { formatDate, isOverdue, todayIso } from "../../lib/date.js";
 import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, getFollowUpNote, getFollowUpSnoozedUntil, getFollowUpStatus, getFollowUpTone } from "../../lib/followUp.js";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
+import { exportCoverLetterDocx, exportCoverLetterPdf } from "../../lib/coverLetterExport.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
-import { getJobAiStatus, isRecruiterMessage } from "../../lib/jobAiStatus.js";
+import { getJobAiStatus, isCoverLetter, isRecruiterMessage } from "../../lib/jobAiStatus.js";
 import { getResumeExportHistory } from "../../lib/resumeExport.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { getNextBestAction, getNextBestActionTone } from "../../utils/nextBestAction.js";
@@ -264,9 +265,15 @@ function getDisplayStage(status) {
   return status || "Saved";
 }
 
+function getAiToolsTab(activeTab) {
+  if (activeTab === "resume" || activeTab === "export") return "resume";
+  if (activeTab === "message") return "message";
+  return "fit";
+}
+
 export function JobDetail({ job: initialJob, initialTab = "overview", onClose, onEdit, onDelete, onMove, onJobUpdate }) {
   const { user } = useAuth();
-  const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
+  const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, updateMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
   const [job, setModalJob] = useState(initialJob);
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const fitSectionRef = useRef(null);
@@ -277,7 +284,9 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   const latestResume = [...resumeVersions].filter((version) => version.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const allMessageHistory = messages.filter((message) => message.job_id === job.id);
   const recruiterMessageHistory = allMessageHistory.filter(isRecruiterMessage);
+  const coverLetterHistory = allMessageHistory.filter(isCoverLetter);
   const latestMessage = [...recruiterMessageHistory].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+  const latestCoverLetter = [...coverLetterHistory].sort((a, b) => new Date(b.created_at || b.updated_at) - new Date(a.created_at || a.updated_at))[0];
   const jobScoreHistory = jobScores.filter((score) => score.job_id === job.id);
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
   const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
@@ -294,6 +303,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
     fit: Boolean(latestScore),
     resume: Boolean(latestResume),
     message: Boolean(latestMessage),
+    coverLetter: Boolean(latestCoverLetter),
     interview: Boolean(prep),
     export: Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id)),
   };
@@ -320,6 +330,10 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
     }
     if (nextBestAction.actionType === "generate_message") {
       setActiveTab("message");
+      return;
+    }
+    if (nextBestAction.actionType === "generate_cover_letter") {
+      setActiveTab("coverLetter");
       return;
     }
     if (nextBestAction.actionType === "review_high_fit" || nextBestAction.actionType === "prepare_interview") {
@@ -375,7 +389,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
             </div>
           </div>
           <div className="border-t border-brand-100 px-4 py-2 sm:px-5">
-            <AiToolsPanel compact job={job} activeTab={activeTab === "overview" ? "fit" : activeTab === "export" ? "resume" : activeTab} onTabChange={setActiveTab} />
+            <AiToolsPanel compact job={job} activeTab={getAiToolsTab(activeTab)} onTabChange={setActiveTab} />
           </div>
           <WorkflowSteps activeTab={activeTab} completed={completedSteps} score={latestScore} onSelect={setActiveTab} />
         </header>
@@ -489,6 +503,22 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
           {activeTab === "message" && (
             <div className="mx-auto max-w-5xl">
               <AiToolsPanel contentOnly job={job} activeTab="message" onTabChange={setActiveTab} />
+            </div>
+          )}
+          {activeTab === "coverLetter" && (
+            <div className="mx-auto max-w-5xl">
+              <CoverLetterWorkspace
+                job={job}
+                profile={profile}
+                score={latestScore}
+                resume={latestResume}
+                contacts={contacts}
+                coverLetter={latestCoverLetter}
+                user={user}
+                onSave={saveMessage}
+                onUpdate={updateMessage}
+                onLogActivity={logJobActivity}
+              />
             </div>
           )}
           {activeTab === "interview" && (
@@ -725,6 +755,7 @@ function getNextBestActionCtaLabel(actionType) {
     follow_up_today: "Follow up",
     generate_resume: "Generate resume",
     generate_message: "Generate message",
+    generate_cover_letter: "Generate cover letter",
     apply_now: "Mark applied",
     prepare_interview: "Prepare interview",
     review_high_fit: "Review match",
@@ -944,6 +975,151 @@ function useSlowLoading(active) {
     return () => window.clearTimeout(timer);
   }, [active]);
   return show;
+}
+
+function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, user, onSave, onUpdate, onLogActivity }) {
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState("");
+  const [error, setError] = useState("");
+  const [draft, setDraft] = useState(coverLetter?.content ?? "");
+  const [savedState, setSavedState] = useState("");
+  const [copied, setCopied] = useState(false);
+  const showSlowHint = useSlowLoading(loading);
+
+  useEffect(() => {
+    setDraft(coverLetter?.content ?? "");
+    setSavedState("");
+    setCopied(false);
+  }, [coverLetter?.id, coverLetter?.content]);
+
+  async function generateCoverLetter({ regenerate = false } = {}) {
+    if (loading) return;
+    if (!canRunAi(profile)) {
+      setError("Complete your profile and base resume before generating a cover letter.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const contact = contacts[0];
+      const result = await generateAiOutput("coverLetter", profile, job, {
+        fitRecommendation: score?.recommendation,
+        fitSummary: score?.summary,
+        latestResume: resume?.content,
+        contactName: contact?.name || "",
+      });
+      const saved = await onSave(user, job, {
+        type: "Cover Letter",
+        content: result.coverLetterText,
+        coverLetterText: result.coverLetterText,
+      });
+      setDraft(saved?.content || result.coverLetterText || "");
+      if (regenerate) await onLogActivity?.(user, job.id, "cover_letter_regenerated", { detail: "Cover letter regenerated" });
+    } catch (err) {
+      setError(err.message || "Cover letter could not be generated yet.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveEdits() {
+    if (!coverLetter || !draft.trim()) return;
+    setSavedState("saving");
+    try {
+      await onUpdate(user, coverLetter, { content: draft });
+      await onLogActivity?.(user, job.id, "cover_letter_edited", { detail: "Cover letter edits saved" });
+      setSavedState("saved");
+      window.setTimeout(() => setSavedState(""), 2400);
+    } catch {
+      setSavedState("error");
+    }
+  }
+
+  async function copyCoverLetter() {
+    if (!draft.trim()) return;
+    await navigator.clipboard.writeText(draft);
+    await onLogActivity?.(user, job.id, "cover_letter_copied", { detail: "Cover letter copied" });
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  async function exportCoverLetter(type) {
+    if (!draft.trim()) return;
+    setExporting(type);
+    try {
+      if (type === "pdf") await exportCoverLetterPdf({ content: draft, profile, job });
+      if (type === "docx") await exportCoverLetterDocx({ content: draft, profile, job });
+      await onLogActivity?.(user, job.id, type === "pdf" ? "cover_letter_exported_pdf" : "cover_letter_exported_docx", { fileType: type.toUpperCase() });
+    } catch (err) {
+      setError(err.message || "Cover letter export failed.");
+    } finally {
+      setExporting("");
+    }
+  }
+
+  if (!coverLetter) {
+    return (
+      <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Optional</p>
+        <h3 className="mt-2 text-xl font-bold text-ink">No cover letter yet</h3>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Generate a short, tailored cover letter when a role asks for one or when you want a stronger application package.</p>
+        {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
+        <Button className="mt-5" onClick={() => generateCoverLetter()} disabled={loading}>
+          {loading && <Loader2 size={14} className="animate-spin" />}
+          {loading ? "Generating..." : "Generate cover letter"}
+        </Button>
+        {showSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
+      </section>
+    );
+  }
+
+  return (
+    <section className="grid gap-4">
+      <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Cover Letter</p>
+            <h3 className="mt-1 text-xl font-bold text-ink">{getDisplayJobTitle(job)} at {getDisplayCompanyName(job)}</h3>
+            <p className="mt-1 text-sm text-slate-500">Generated {formatDate(coverLetter.created_at?.slice(0, 10))}</p>
+          </div>
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => generateCoverLetter({ regenerate: true })} disabled={loading}>
+            {loading && <Loader2 size={14} className="animate-spin" />}
+            {loading ? "Generating..." : "Regenerate"}
+          </Button>
+        </div>
+        {showSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
+        {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
+      </div>
+
+      <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+        <textarea
+          className="min-h-[420px] w-full rounded-lg border border-brand-100 bg-white p-5 text-sm leading-7 text-slate-800 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setSavedState("");
+          }}
+        />
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button className="min-h-8 px-3 text-xs" onClick={saveEdits} disabled={!draft.trim() || savedState === "saving"}>
+            {savedState === "saving" && <Loader2 size={14} className="animate-spin" />}
+            Save edits
+          </Button>
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={copyCoverLetter} disabled={!draft.trim()}>{copied ? "Copied" : "Copy"}</Button>
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportCoverLetter("pdf")} disabled={!draft.trim() || Boolean(exporting)}>
+            {exporting === "pdf" && <Loader2 size={14} className="animate-spin" />}
+            Export PDF
+          </Button>
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportCoverLetter("docx")} disabled={!draft.trim() || Boolean(exporting)}>
+            {exporting === "docx" && <Loader2 size={14} className="animate-spin" />}
+            Export DOCX
+          </Button>
+          {savedState === "saved" && <span className="text-xs font-semibold text-emerald-700">Saved</span>}
+          {savedState === "error" && <span className="text-xs font-semibold text-rose-700">Could not save</span>}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, user, onSavePrep, onLogActivity }) {
@@ -1260,7 +1436,7 @@ function getDerivedGenerationEvents({ job, scores, resumes, messages }) {
     ...messages.map((message) => ({
       id: `message-${message.id}`,
       job_id: job.id,
-      type: message.type === "Follow-up Message" ? "followup_message_generated" : "message_generated",
+      type: message.type === "Follow-up Message" ? "followup_message_generated" : message.type === "Cover Letter" ? "cover_letter_generated" : "message_generated",
       metadata: { type: message.type },
       created_at: message.created_at,
       derived: true,
@@ -1340,6 +1516,7 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
     ["overview", "Overview"],
     ["fit", "Analysis"],
     ["resume", "Resume"],
+    ["coverLetter", "Cover Letter"],
     ["message", "Message"],
     ["interview", "Interview Prep"],
     ["export", "Export"],
@@ -1347,7 +1524,7 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
   const current = activeTab;
   return (
     <div className="border-t border-brand-100 bg-white/90 px-4 py-3 sm:px-5">
-      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
         {steps.map(([id, label], index) => {
           const selected = current === id;
           const done = completed[id];
@@ -1376,6 +1553,7 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
 
 function getStepCompletionLabel(id, score, done) {
   if (id === "overview") return "";
+  if (id === "coverLetter" && !done) return "Optional";
   if (!done) return "";
   if (id === "fit" && Number.isFinite(Number(score?.score))) return `${Math.round(Number(score.score))}%`;
   return "Ready";

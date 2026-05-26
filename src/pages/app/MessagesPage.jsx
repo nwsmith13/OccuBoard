@@ -7,12 +7,14 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
+import { isRecruiterMessage } from "../../lib/jobAiStatus.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 
 export function MessagesPage() {
   const { user } = useAuth();
   const { jobs, profile, messages, saveMessage } = useWorkspaceStore();
   const [state, setState] = useState({ loading: "", error: "" });
+  const visibleMessages = messages.filter(isRecruiterMessage);
 
   async function regenerate(message) {
     const job = jobs.find((item) => item.id === message.job_id);
@@ -36,7 +38,7 @@ export function MessagesPage() {
         <h2 className="text-xl font-bold">Saved generated messages</h2>
         {state.error && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{state.error}</p>}
         <div className="mt-5 grid gap-4">
-          {messages.map((message) => {
+          {visibleMessages.map((message) => {
             const job = jobs.find((item) => item.id === message.job_id);
             return (
               <div key={message.id} className="rounded-lg border border-brand-100 p-4 shadow-card transition hover:border-brand-200 hover:shadow-soft">
@@ -60,7 +62,7 @@ export function MessagesPage() {
               </div>
             );
           })}
-          {!messages.length && <p className="rounded-lg bg-brand-50 p-4 text-sm text-slate-600">Create recruiter outreach drafts tied to saved jobs.</p>}
+          {!visibleMessages.length && <p className="rounded-lg bg-brand-50 p-4 text-sm text-slate-600">Create recruiter outreach drafts tied to saved jobs.</p>}
         </div>
       </Card>
       <Card>

@@ -3,6 +3,7 @@ export function getJobAiStatus(jobId, jobScores, resumeVersions, messages) {
     analyzed: jobScores.some((score) => score.job_id === jobId),
     resumeDrafted: resumeVersions.some((version) => version.job_id === jobId),
     messageDrafted: messages.some((message) => message.job_id === jobId && isRecruiterMessage(message)),
+    coverLetterDrafted: messages.some((message) => message.job_id === jobId && isCoverLetter(message)),
   };
 }
 
@@ -15,6 +16,10 @@ export function getLatestForJob(items, jobId) {
 export function isRecruiterMessage(message = {}) {
   const type = normalizeMessageType(message.type);
   return type === "Recruiter Message" || type === "Outreach Message";
+}
+
+export function isCoverLetter(message = {}) {
+  return normalizeMessageType(message.type) === "Cover Letter";
 }
 
 export function normalizeMessageType(type) {

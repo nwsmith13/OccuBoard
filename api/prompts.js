@@ -82,6 +82,17 @@ export const messageSchema = {
   },
 };
 
+export const coverLetterSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["coverLetterText", "highlightsUsed", "toneNotes"],
+  properties: {
+    coverLetterText: { type: "string" },
+    highlightsUsed: { type: "array", items: { type: "string" } },
+    toneNotes: { type: "string" },
+  },
+};
+
 export const interviewPrepSchema = {
   type: "object",
   additionalProperties: false,
@@ -138,6 +149,7 @@ export const interviewPrepSchema = {
 export function getSchema(action) {
   if (action === "fit") return fitSchema;
   if (action === "resume") return resumeSchema;
+  if (action === "coverLetter") return coverLetterSchema;
   if (action === "interviewPrep") return interviewPrepSchema;
   return messageSchema;
 }
@@ -258,6 +270,39 @@ Rules:
 - Close with a low-pressure offer to provide more information.
 - A strong style example:
 "Hello - I wanted to follow up on my application for the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}. I remain very interested in the opportunity and believe my background aligns well with the role. Please let me know if there is anything else I can provide."`;
+  }
+
+  if (action === "coverLetter") {
+    return `${context}
+
+Generate one optional tailored cover letter for this opportunity.
+
+Additional context:
+- Tailored resume if available:
+${options.latestResume || "No tailored resume provided."}
+- Contact if available: ${options.contactName || "No contact selected."}
+
+Rules:
+- Write from the applicant/candidate to the company or contact.
+- Must sound like the applicant, not the company, recruiter, or employer.
+- Be specific to the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}.
+- Keep it concise, human, and direct: 3-5 short paragraphs, under about 350 words.
+- Do not use "Dear Hiring Manager" if a contact or company is known.
+- Avoid generic phrasing like "I am writing to express my interest."
+- Avoid dramatic language, "perfect fit", and inflated claims.
+- Do not repeat resume bullets verbatim.
+- Do not invent experience, metrics, tools, certifications, dates, employers, or responsibilities.
+- Ground every claim in the base resume/profile, fit context, job description, or tailored resume.
+- Preferred structure:
+  1. Opening: interest in the role/company.
+  2. Relevant experience bridge.
+  3. Specific value or differentiator.
+  4. Brief closing CTA.
+
+Return:
+- coverLetterText: the complete cover letter text.
+- highlightsUsed: 3-5 truthful strengths or themes used.
+- toneNotes: one short note explaining the tone and positioning.`;
   }
 
   if (action === "interviewPrep") {

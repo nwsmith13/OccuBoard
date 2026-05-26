@@ -393,12 +393,13 @@ export async function updateResumeVersion(user, id, patch) {
 }
 
 export async function saveMessage(user, job, message) {
+  const messageType = message.type === "LinkedIn intro" ? "Recruiter Message" : message.type ?? "Recruiter Message";
   const payload = {
     user_id: user?.id ?? "local-demo-user",
     job_id: job.id,
     contact_id: message.contact_id ?? message.contactId ?? null,
-    type: message.type === "LinkedIn intro" ? "Recruiter Message" : message.type ?? "Recruiter Message",
-    content: message.content,
+    type: messageType,
+    content: message.content ?? message.coverLetterText,
     created_at: now(),
   };
   if (hasSupabaseConfig && user?.id) {
@@ -410,18 +411,54 @@ export async function saveMessage(user, job, message) {
       delete legacyPayload.contact_id;
       const retry = await supabase.from("messages").insert(legacyPayload).select("*").single();
       if (retry.error) throw retry.error;
-      await logActivity(user, "AI", `Generated recruiter message for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
-      await logJobActivity(user, job.id, payload.type === "Follow-up Message" ? "followup_message_generated" : "message_generated", { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
+      await logActivity(user, "AI", getMessageActivityDescription(payload.type, job));
+      await logJobActivity(user, job.id, getMessageActivityType(payload.type), { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
       return { ...retry.data, contact_id: payload.contact_id };
     }
-    await logActivity(user, "AI", `Generated recruiter message for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
-    await logJobActivity(user, job.id, payload.type === "Follow-up Message" ? "followup_message_generated" : "message_generated", { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
+    await logActivity(user, "AI", getMessageActivityDescription(payload.type, job));
+    await logJobActivity(user, job.id, getMessageActivityType(payload.type), { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
     return data;
   }
   const saved = { ...payload, id: crypto.randomUUID() };
   writeLocal(keys.messages, [saved, ...readLocal(keys.messages, seedMessages)]);
-  await logActivity(user, "AI", `Generated recruiter message for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
-  await logJobActivity(user, job.id, payload.type === "Follow-up Message" ? "followup_message_generated" : "message_generated", { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
+  await logActivity(user, "AI", getMessageActivityDescription(payload.type, job));
+  await logJobActivity(user, job.id, getMessageActivityType(payload.type), { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
+  return saved;
+}
+
+function getMessageActivityType(type) {
+  if (type === "Follow-up Message") return "followup_message_generated";
+  if (type === "Cover Letter") return "cover_letter_generated";
+  return "message_generated";
+}
+
+function getMessageActivityDescription(type, job) {
+  if (type === "Follow-up Message") return `Generated follow-up message for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`;
+  if (type === "Cover Letter") return `Generated cover letter for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`;
+  return `Generated recruiter message for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`;
+}
+
+export async function updateMessage(user, message, patch = {}) {
+  if (!message?.id) return null;
+  const payload = {
+    ...patch,
+    content: patch.content ?? message.content,
+  };
+  if (hasSupabaseConfig && user?.id) {
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase.from("messages").update(payload).eq("id", message.id).eq("user_id", user.id).select("*").single();
+    if (error) {
+      if (!isMissingColumnError(error)) throw error;
+      const legacyPayload = { content: payload.content };
+      const retry = await supabase.from("messages").update(legacyPayload).eq("id", message.id).eq("user_id", user.id).select("*").single();
+      if (retry.error) throw retry.error;
+      return { ...message, ...retry.data, ...legacyPayload };
+    }
+    return data;
+  }
+  const items = readLocal(keys.messages, seedMessages);
+  const saved = { ...message, ...payload, updated_at: now() };
+  writeLocal(keys.messages, [saved, ...items.filter((item) => item.id !== message.id)]);
   return saved;
 }
 

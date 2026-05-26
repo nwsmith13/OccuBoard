@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { DEFAULT_MODEL, GLOBAL_AI_RULES, buildPrompt, getSchema } from "./prompts.js";
 
-const supportedActions = ["fit", "resume", "message", "followupMessage", "interviewPrep"];
+const supportedActions = ["fit", "resume", "message", "followupMessage", "coverLetter", "interviewPrep"];
 
 export default async function handler(req, res) {
   setJson(res);

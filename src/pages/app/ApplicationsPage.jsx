@@ -9,7 +9,7 @@ import { stages } from "../../data/seedData.js";
 import { todayIso } from "../../lib/date.js";
 import { getFollowUpLabel, getFollowUpStatus, getFollowUpTone, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
-import { getJobAiStatus } from "../../lib/jobAiStatus.js";
+import { getJobAiStatus, isCoverLetter } from "../../lib/jobAiStatus.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { getNextBestAction } from "../../utils/nextBestAction.js";
 import { JobDetail } from "./JobsPage.jsx";
@@ -139,6 +139,7 @@ function getPipelineStage(status) {
 
 function ApplicationCard({ job, score, status, messages, contacts = [], onOpen, onDragStart, compact = false }) {
   const nextBestAction = getNextBestAction(job, { score, aiStatus: status, messages });
+  const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
   return (
     <div
       role="button"
@@ -165,7 +166,10 @@ function ApplicationCard({ job, score, status, messages, contacts = [], onOpen, 
                 <p className="min-w-0 flex-1 overflow-hidden text-base font-bold leading-snug text-ink" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{getDisplayJobTitle(job)}</p>
               </div>
               <p className="mt-1 text-sm font-medium text-slate-500">{getDisplayCompanyName(job)} <span className="text-slate-300">/</span> {getPipelineStage(job.status)}</p>
-              {contacts.length > 0 && <p className="mt-1 text-[11px] font-bold text-brand-700">{contacts.length} contact{contacts.length === 1 ? "" : "s"}</p>}
+              <div className="mt-1 flex flex-wrap gap-2">
+                {contacts.length > 0 && <p className="text-[11px] font-bold text-brand-700">{contacts.length} contact{contacts.length === 1 ? "" : "s"}</p>}
+                {hasCoverLetter && <p className="text-[11px] font-bold text-cyan-700">Cover letter</p>}
+              </div>
             </div>
           </div>
         </div>

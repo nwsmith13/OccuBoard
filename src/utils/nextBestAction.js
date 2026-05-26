@@ -31,11 +31,18 @@ const actionDefaults = {
     icon: "document",
   },
   generate_message: {
-    label: "Draft follow-up",
-    description: "Draft a short message so your outreach is ready.",
+    label: "Draft recruiter message",
+    description: "Draft a short outreach note after your application materials are ready.",
     tone: "info",
     priority: 3,
     icon: "message-circle",
+  },
+  generate_cover_letter: {
+    label: "Generate cover letter",
+    description: "This role may benefit from a short tailored cover letter.",
+    tone: "info",
+    priority: 3,
+    icon: "document",
   },
   prepare_interview: {
     label: "Prepare for interview",
@@ -74,7 +81,9 @@ export function getNextBestAction(job = {}, options = {}) {
   const aiStatus = options.aiStatus ?? {};
   const hasResume = Boolean(options.hasResume ?? aiStatus.resumeDrafted);
   const hasMessage = Boolean(options.hasMessage ?? aiStatus.messageDrafted);
+  const hasCoverLetter = Boolean(options.hasCoverLetter ?? aiStatus.coverLetterDrafted ?? options.messages?.some((message) => message.job_id === job.id && message.type === "Cover Letter"));
   const hasFollowUpMessage = Boolean(options.hasFollowUpMessage ?? options.messages?.some((message) => message.job_id === job.id && message.type === "Follow-up Message"));
+  const shouldSuggestCoverLetter = shouldRecommendCoverLetter(job, scoreValue);
 
   if (stage === "Closed") {
     return buildAction("no_action", { description: "Outcome recorded. No next step is needed." });
@@ -89,6 +98,14 @@ export function getNextBestAction(job = {}, options = {}) {
 
   if (stage === "Saved") {
     if (!hasResume) return buildAction("generate_resume");
+    if (!hasCoverLetter && shouldSuggestCoverLetter) {
+      return buildAction("generate_cover_letter", {
+        description: asksForCoverLetter(job.job_description)
+          ? "The job description asks for a cover letter. Draft a concise version before outreach."
+          : "This strong, client-facing role may benefit from a short tailored cover letter.",
+        priority: 3,
+      });
+    }
     if (!hasMessage) return buildAction("generate_message", { label: "Draft recruiter message", description: "Create a short outreach note to pair with your tailored resume." });
     if (scoreValue >= 85) return buildAction("apply_now");
     if (scoreValue >= 75 && isStaleHighFit(job, options)) return buildAction("review_high_fit");
@@ -104,6 +121,21 @@ export function getNextBestAction(job = {}, options = {}) {
   if (scoreValue >= 75 && isStaleHighFit(job, options)) return buildAction("review_high_fit");
 
   return buildAction("no_action");
+}
+
+function asksForCoverLetter(description = "") {
+  return /\bcover\s+letter\b|\bletter\s+of\s+interest\b|\bstatement\s+of\s+interest\b/i.test(description);
+}
+
+function shouldRecommendCoverLetter(job = {}, scoreValue = 0) {
+  if (asksForCoverLetter(job.job_description)) return true;
+  if (scoreValue < 85) return false;
+  return isProfessionalOrClientFacingRole(job);
+}
+
+function isProfessionalOrClientFacingRole(job = {}) {
+  const text = `${job.job_title || ""} ${job.job_description || ""}`.toLowerCase();
+  return /\b(manager|management|director|lead|consultant|solutions?|client|customer|success|account|implementation|onboarding|stakeholder|enterprise|professional services|project owner|program)\b/i.test(text);
 }
 
 export function getNextBestActionTone(tone) {
