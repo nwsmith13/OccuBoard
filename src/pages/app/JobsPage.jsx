@@ -1,4 +1,4 @@
-import { ArrowRightCircle, Bell, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
+import { ArrowRightCircle, Bell, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AiToolsPanel, CopyButton } from "../../components/ai/AiToolsPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
@@ -492,7 +492,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
           )}
           {activeTab === "interview" && (
             <div className="mx-auto max-w-5xl">
-              <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} onSavePrep={saveInterviewPrep} onSaveMessage={saveMessage} onLogActivity={logJobActivity} />
+              <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} onSavePrep={saveInterviewPrep} onLogActivity={logJobActivity} />
             </div>
           )}
         </div>
@@ -742,6 +742,7 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const [nextFollowUpOpen, setNextFollowUpOpen] = useState(false);
+  const showFollowUpSlowHint = useSlowLoading(generatingMessage);
   const followUpDateRef = useRef(null);
   const latestFollowUpMessage = [...messages]
     .filter((item) => item.job_id === job.id && item.type === "Follow-up Message")
@@ -817,6 +818,7 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
   }
 
   async function generateFollowUpMessage() {
+    if (generatingMessage) return;
     setMessageError("");
     if (!canRunAi(profile)) {
       setMessageError("Complete your profile target roles and base resume before generating a follow-up message.");
@@ -878,11 +880,13 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Button variant={["due", "overdue"].includes(status) ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={generateFollowUpMessage} disabled={generatingMessage}>
+          {generatingMessage && <Loader2 size={14} className="animate-spin" />}
           {generatingMessage ? "Generating..." : "Generate follow-up message"}
         </Button>
         <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={saveFollowUp} disabled={Boolean(saving)}>Save follow-up</Button>
         {!latestFollowUpMessage && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markCompleted} disabled={Boolean(saving || completedAt)}>Mark followed up</Button>}
       </div>
+      {showFollowUpSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Snooze</span>
@@ -928,16 +932,41 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
   );
 }
 
-function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, user, onSavePrep, onSaveMessage, onLogActivity }) {
+function useSlowLoading(active) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!active) {
+      setShow(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setShow(true), 3200);
+    return () => window.clearTimeout(timer);
+  }, [active]);
+  return show;
+}
+
+function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, user, onSavePrep, onLogActivity }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [openQuestion, setOpenQuestion] = useState("");
   const [openStory, setOpenStory] = useState("");
+  const [draftNotes, setDraftNotes] = useState(() => prep?.answer_notes ?? {});
+  const [thankYouDraft, setThankYouDraft] = useState(() => prep?.content?.thankYouMessage ?? "");
+  const [thankYouCopied, setThankYouCopied] = useState(false);
+  const [thankYouSaved, setThankYouSaved] = useState(false);
+  const [interviewCompleted, setInterviewCompleted] = useState(false);
+  const showPrepSlowHint = useSlowLoading(loading);
   const content = prep?.content;
   const practiced = new Set(prep?.practiced_questions ?? []);
   const notes = prep?.answer_notes ?? {};
 
+  useEffect(() => {
+    setDraftNotes(prep?.answer_notes ?? {});
+    setThankYouDraft(prep?.content?.thankYouMessage ?? "");
+  }, [prep?.id, prep?.updated_at, prep?.content?.thankYouMessage, prep?.answer_notes]);
+
   async function generatePrep() {
+    if (loading) return;
     if (!canRunAi(profile)) {
       setError("Complete your profile and base resume before generating interview prep.");
       return;
@@ -952,6 +981,8 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
         contacts: contacts.map((contact) => ({ name: contact.name, title: contact.title, source: contact.source })),
       });
       await onSavePrep(user, job, { ...prep, content: result });
+      setThankYouDraft(result.thankYouMessage || "");
+      setDraftNotes(prep?.answer_notes ?? {});
     } catch (err) {
       setError(err.message || "Interview prep could not be generated yet.");
     } finally {
@@ -961,7 +992,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
 
   async function updatePrepPatch(patch) {
     if (!prep) return;
-    await onSavePrep(user, job, { ...prep, ...patch, content, skipActivity: true });
+    await onSavePrep(user, job, { ...prep, ...patch, content: patch.content ?? content, skipActivity: true });
   }
 
   function togglePracticed(index) {
@@ -972,17 +1003,31 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   }
 
   function saveNote(index, value) {
-    updatePrepPatch({ answer_notes: { ...notes, [index]: value } });
+    setDraftNotes((current) => ({ ...current, [index]: value }));
   }
 
-  async function saveThankYou() {
-    if (!content?.thankYouMessage) return;
-    await onSaveMessage(user, job, { type: "Follow-up Message", content: content.thankYouMessage });
+  function persistNote(index) {
+    updatePrepPatch({ answer_notes: { ...notes, [index]: draftNotes[index] || "" } });
+  }
+
+  async function copyThankYou() {
+    if (!thankYouDraft.trim()) return;
+    await navigator.clipboard.writeText(thankYouDraft);
+    setThankYouCopied(true);
+    window.setTimeout(() => setThankYouCopied(false), 2200);
+  }
+
+  async function saveThankYouEdits() {
+    if (!content || !thankYouDraft.trim()) return;
+    await updatePrepPatch({ content: { ...content, thankYouMessage: thankYouDraft } });
     await onLogActivity?.(user, job.id, "interview_thank_you_generated", { detail: "Saved interview thank-you message" });
+    setThankYouSaved(true);
+    window.setTimeout(() => setThankYouSaved(false), 2600);
   }
 
   async function markInterviewComplete() {
     await onLogActivity?.(user, job.id, "interview_completed", { detail: "Interview marked complete" });
+    setInterviewCompleted(true);
   }
 
   if (!content) {
@@ -992,7 +1037,11 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
         <h3 className="mt-2 text-xl font-bold text-ink">Build a calm prep workspace for this interview.</h3>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Generate focus areas, likely questions, talking points, STAR stories, and a thank-you message grounded in this role and your resume.</p>
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
-        <Button className="mt-5" onClick={generatePrep} disabled={loading}>{loading ? "Generating..." : "Generate interview prep"}</Button>
+        <Button className="mt-5" onClick={generatePrep} disabled={loading}>
+          {loading && <Loader2 size={14} className="animate-spin" />}
+          {loading ? "Preparing..." : "Generate interview prep"}
+        </Button>
+        {showPrepSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
       </section>
     );
   }
@@ -1006,8 +1055,12 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
             <h3 className="mt-1 text-xl font-bold text-ink">{getDisplayJobTitle(job)}</h3>
             <p className="mt-1 text-sm font-semibold text-brand-800">{getDisplayCompanyName(job)}</p>
           </div>
-          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={generatePrep} disabled={loading}>{loading ? "Regenerating..." : "Regenerate prep"}</Button>
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={generatePrep} disabled={loading}>
+            {loading && <Loader2 size={14} className="animate-spin" />}
+            {loading ? "Preparing..." : "Regenerate prep"}
+          </Button>
         </div>
+        {showPrepSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Detail label="Fit score" value={score ? `${Math.round(Number(score.score))}%` : "Not analyzed"} />
           <Detail label="Stage" value={getDisplayStage(job.status)} />
@@ -1043,7 +1096,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
               {openQuestion === index && (
                 <div className="mt-3 grid gap-3">
                   <p className="text-sm leading-6 text-slate-600">{question.guidance}</p>
-                  <textarea className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" rows="2" placeholder="Optional answer notes" value={notes[index] || ""} onChange={(event) => saveNote(index, event.target.value)} />
+                  <textarea className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" rows="2" placeholder="Optional answer notes" value={draftNotes[index] ?? notes[index] ?? ""} onChange={(event) => saveNote(index, event.target.value)} onBlur={() => persistNote(index)} />
                   <Button variant={practiced.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => togglePracticed(index)}>{practiced.has(index) ? "Practiced" : "Mark practiced"}</Button>
                 </div>
               )}
@@ -1087,10 +1140,16 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       </PrepSection>
 
       <PrepSection title="Post-Interview Follow-up">
-        <p className="whitespace-pre-wrap rounded-lg bg-white p-3 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">{content.thankYouMessage}</p>
+        {(thankYouCopied || thankYouSaved || interviewCompleted) && (
+          <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+            {interviewCompleted ? "Interview marked completed" : thankYouCopied ? "Thank-you message copied" : "Thank-you message saved"}
+          </p>
+        )}
+        <textarea className="min-h-32 w-full rounded-lg border border-brand-100 bg-white p-3 text-sm leading-6 text-slate-700 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={thankYouDraft} onChange={(event) => setThankYouDraft(event.target.value)} />
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button className="min-h-8 px-3 text-xs" onClick={saveThankYou}>Save thank-you message</Button>
-          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markInterviewComplete}>Log interview completed</Button>
+          <Button className="min-h-8 px-3 text-xs" onClick={copyThankYou}>{thankYouCopied ? "Copied" : "Copy thank-you message"}</Button>
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={saveThankYouEdits}>Save edits</Button>
+          <Button variant={interviewCompleted ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={markInterviewComplete} disabled={interviewCompleted}>{interviewCompleted ? "Interview completed" : "Log interview completed"}</Button>
         </div>
       </PrepSection>
     </section>

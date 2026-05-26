@@ -27,16 +27,23 @@ export function getFollowUpNote(job = {}) {
 
 export function getFollowUpStatus(job = {}) {
   const completedAt = getFollowUpCompletedAt(job);
-  if (completedAt) return followUpStatuses.completed;
+  const followUpDate = getFollowUpDate(job);
+  if (completedAt && !hasFutureFollowUpAfterCompletion(followUpDate, completedAt)) return followUpStatuses.completed;
 
   const snoozedUntil = getFollowUpSnoozedUntil(job);
   if (snoozedUntil && snoozedUntil > todayIso()) return followUpStatuses.snoozed;
 
-  const followUpDate = getFollowUpDate(job);
   if (!followUpDate) return followUpStatuses.none;
   if (followUpDate === todayIso()) return followUpStatuses.due;
   if (followUpDate < todayIso()) return followUpStatuses.overdue;
   return followUpStatuses.scheduled;
+}
+
+function hasFutureFollowUpAfterCompletion(followUpDate, completedAt) {
+  if (!followUpDate) return false;
+  if (followUpDate <= todayIso()) return false;
+  const completedDate = String(completedAt).slice(0, 10);
+  return !completedDate || followUpDate > completedDate;
 }
 
 export function getFollowUpLabel(job = {}) {

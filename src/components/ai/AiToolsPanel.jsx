@@ -1,4 +1,4 @@
-import { Clipboard, RefreshCcw, Sparkles } from "lucide-react";
+import { Clipboard, Loader2, RefreshCcw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -25,6 +25,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   const [intensity, setIntensity] = useState("Balanced");
   const [manualIntensity, setManualIntensity] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState("");
+  const showSlowHint = useSlowLoading(Boolean(aiState.loading));
   const loadingRef = useRef(null);
   const jobScoreHistory = jobScores.filter((score) => score.job_id === job.id);
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
@@ -78,6 +79,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
     return (
       <section className="grid gap-4">
         {aiState.loading && <div ref={loadingRef}><AiSkeleton action={aiState.loading} /></div>}
+        {showSlowHint && <LoadingHint />}
         {aiState.error && <MissingOrError message={aiState.error} />}
         {aiState.latest?.action === "fit" && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">
@@ -170,6 +172,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         </div>
       )}
       {aiState.loading && <div ref={loadingRef}><AiSkeleton action={aiState.loading} /></div>}
+      {showSlowHint && <LoadingHint />}
       {aiState.error && <MissingOrError message={aiState.error} />}
       {aiState.latest?.action === "fit" && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">
@@ -206,6 +209,31 @@ function getEffectiveIntensity(action, intensity, manualIntensity, latestScore) 
   return intensity;
 }
 
+function useSlowLoading(active) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!active) {
+      setShow(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setShow(true), 3200);
+    return () => window.clearTimeout(timer);
+  }, [active]);
+  return show;
+}
+
+function LoadingHint() {
+  return <p className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>;
+}
+
+function getLoadingLabel(action) {
+  return {
+    fit: "Analyzing...",
+    resume: "Tailoring...",
+    message: "Generating...",
+  }[action] ?? "Working...";
+}
+
 function getIntensityDescription(value) {
   return {
     Conservative: "Minimal rewriting. Preserve original structure.",
@@ -222,7 +250,8 @@ function AiAction({ label, fullLabel, action, existing, activeTab, loading, onRu
   return (
     <div className={`min-w-0 transition ${loading && !active ? "opacity-50" : ""}`}>
       <Button variant={selected ? "primary" : existing ? "secondary" : "primary"} className={`min-h-8 w-full px-3 text-xs sm:text-sm ${selected ? "shadow-soft" : ""}`} onClick={existing ? onView : () => onRun(action)} disabled={disabled}>
-        {active ? "Working..." : text}
+        {active && <Loader2 size={14} className="animate-spin" />}
+        {active ? getLoadingLabel(action) : text}
       </Button>
     </div>
   );
@@ -247,7 +276,8 @@ function CompactGuidedAction({ activeAction, latestScore, latestResume, latestMe
         }}
         disabled={Boolean(loading)}
       >
-        {loading === activeAction ? "Working..." : primary.label}
+        {loading === activeAction && <Loader2 size={14} className="animate-spin" />}
+        {loading === activeAction ? getLoadingLabel(activeAction) : primary.label}
       </Button>
       <div className="flex flex-wrap gap-1">
         {[
@@ -473,11 +503,17 @@ function HistoryItem({ item, index, total }) {
 }
 
 function EmptyAiState({ title, description, action, onAction, loading }) {
+  const active = Boolean(loading);
   return (
     <div className="rounded-lg border border-brand-100 bg-brand-50 p-5">
       <h4 className="font-bold text-brand-900">{title}</h4>
       <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-      {onAction && action && <Button className="mt-4 shadow-soft" onClick={onAction} disabled={Boolean(loading)}>{action}</Button>}
+      {onAction && action && (
+        <Button className="mt-4 shadow-soft" onClick={onAction} disabled={active}>
+          {active && <Loader2 size={14} className="animate-spin" />}
+          {active ? getLoadingLabel(loading) : action}
+        </Button>
+      )}
     </div>
   );
 }
@@ -495,7 +531,8 @@ function MissingOrError({ message }) {
 function RegenerateButton({ label, onClick, disabled }) {
   return (
     <Button variant="ghost" className="mt-4 min-h-8 px-2 text-xs" onClick={onClick} disabled={disabled}>
-      <RefreshCcw size={14} /> {label}
+      {disabled ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
+      {disabled ? "Regenerating..." : label}
     </Button>
   );
 }
