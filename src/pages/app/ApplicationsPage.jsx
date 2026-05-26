@@ -1,6 +1,6 @@
 import { CheckCircle2, Rows3, SquareKanban } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
@@ -17,6 +17,9 @@ import { JobDetail } from "./JobsPage.jsx";
 export function ApplicationsPage() {
   const { user } = useAuth();
   const { jobs, jobScores, resumeVersions, messages, jobContacts, loading, error, updateJob, deleteJob } = useWorkspaceStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [draggingId, setDraggingId] = useState(null);
   const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState("cards");
@@ -26,6 +29,24 @@ export function ApplicationsPage() {
     () => Object.fromEntries(stages.map((stage) => [stage, jobs.filter((item) => getPipelineStage(item.status) === stage)])),
     [jobs],
   );
+
+  useEffect(() => {
+    const openJobId = location.state?.openJobId || searchParams.get("jobId");
+    if (!openJobId || !jobs.length) return;
+    const job = jobs.find((item) => item.id === openJobId);
+    if (job) {
+      setSelected({
+        ...job,
+        initialTab: location.state?.openJobTab || location.state?.initialTab || searchParams.get("tab") || "overview",
+        initialFocus: location.state?.focus || searchParams.get("focus") || "",
+        initialContactId: location.state?.contactId || searchParams.get("contactId") || "",
+      });
+    } else {
+      setSuccess("That opportunity could not be found.");
+      window.setTimeout(() => setSuccess(""), 2600);
+    }
+    navigate(location.pathname, { replace: true, state: null });
+  }, [jobs, location.pathname, location.state, navigate, searchParams]);
 
   async function moveApplication(stage) {
     if (!draggingId) return;
@@ -113,6 +134,9 @@ export function ApplicationsPage() {
       {selected && (
         <JobDetail
           job={selected}
+          initialTab={selected.initialTab}
+          initialFocus={selected.initialFocus}
+          initialContactId={selected.initialContactId}
           onClose={() => setSelected(null)}
           onEdit={() => setSelected(null)}
           onDelete={async () => { await deleteJob(user, selected.id); setSelected(null); }}

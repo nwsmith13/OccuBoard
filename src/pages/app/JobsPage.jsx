@@ -272,12 +272,13 @@ function getAiToolsTab(activeTab) {
   return "fit";
 }
 
-export function JobDetail({ job: initialJob, initialTab = "overview", onClose, onEdit, onDelete, onMove, onJobUpdate }) {
+export function JobDetail({ job: initialJob, initialTab = "overview", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onMove, onJobUpdate }) {
   const { user } = useAuth();
   const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, updateMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
   const [job, setModalJob] = useState(initialJob);
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const fitSectionRef = useRef(null);
+  const contactsSectionRef = useRef(null);
   const followUpSectionRef = useRef(null);
   const [exportedResumeIds, setExportedResumeIds] = useState(() => new Set(getResumeExportHistory().map((item) => item.resumeId).filter(Boolean)));
   const [showDescription, setShowDescription] = useState(false);
@@ -365,6 +366,13 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
       window.setTimeout(() => fitSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
     }
   }, [activeTab, latestScore]);
+
+  useEffect(() => {
+    if (activeTab !== "overview" || !initialFocus) return;
+    const target = initialFocus === "contacts" ? contactsSectionRef : initialFocus === "followup" ? followUpSectionRef : null;
+    if (!target) return;
+    window.setTimeout(() => target.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 180);
+  }, [activeTab, initialFocus, initialContactId]);
 
   return (
     <div className="fixed inset-0 z-50 bg-ink/35 p-0 sm:p-4" onMouseDown={onClose}>
@@ -466,7 +474,9 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
                 </section>
               </section>
 
-              <ContactsCard job={job} contacts={contacts} user={user} onSave={saveJobContact} onDelete={deleteJobContact} onMarkContacted={markJobContacted} />
+              <div ref={contactsSectionRef}>
+                <ContactsCard job={job} contacts={contacts} user={user} onSave={saveJobContact} onDelete={deleteJobContact} onMarkContacted={markJobContacted} />
+              </div>
 
               <section ref={followUpSectionRef} className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Follow-up</p>

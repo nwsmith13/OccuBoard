@@ -185,7 +185,21 @@ function buildCommandItems({ jobs, jobScores, resumeVersions, messages, jobConta
     navigate(path, state ? { state } : undefined);
     close();
   };
-  const openJob = (job, initialTab = "overview") => go("/app/applications", { openJobId: job.id, initialTab });
+  const openJob = (job, openJobTab = "overview", options = {}) => {
+    const params = [
+      ["jobId", job.id],
+      ["tab", openJobTab],
+      options.focus && ["focus", options.focus],
+      options.contactId && ["contactId", options.contactId],
+    ].filter(Boolean).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join("&");
+    go(`/app/applications?${params}`, {
+      openJobId: job.id,
+      openJobTab,
+      initialTab: openJobTab,
+      focus: options.focus || "",
+      contactId: options.contactId || "",
+    });
+  };
 
   navigationItems.forEach((item) => items.push({
     ...item,
@@ -245,18 +259,18 @@ function buildCommandItems({ jobs, jobScores, resumeVersions, messages, jobConta
         badge: getFollowUpLabel(job),
         icon: getCommandIcon(label),
         searchable: `${label} ${aliases} ${title} ${company} ${stage}`,
-        run: () => openJob(job, tab),
+        run: () => openJob(job, tab, label.toLowerCase().includes("follow-up") ? { focus: "followup" } : {}),
       });
     });
 
     if (stage !== "Applied") {
-      items.push(stageCommand(job, "Move to Applied", "Applied", updateJob, user, close));
+      items.push(stageCommand(job, "Move to Applied", "Applied", updateJob, user, openJob));
     }
     if (stage !== "Interview") {
-      items.push(stageCommand(job, "Move to Interview", "Interview", updateJob, user, close));
+      items.push(stageCommand(job, "Move to Interview", "Interview", updateJob, user, openJob));
     }
     if (stage !== "Closed") {
-      items.push(stageCommand(job, "Move to Closed", "Closed", updateJob, user, close));
+      items.push(stageCommand(job, "Move to Closed", "Closed", updateJob, user, openJob));
     }
     if (["due", "overdue", "scheduled", "snoozed"].includes(getFollowUpStatus(job))) {
       items.push({
@@ -269,13 +283,29 @@ function buildCommandItems({ jobs, jobScores, resumeVersions, messages, jobConta
         searchable: `mark followed up complete follow up ${title} ${company}`,
         run: async () => {
           await updateJob(user, job.id, { followup_status: "completed", followup_completed_at: new Date().toISOString(), followup_snoozed_until: null });
-          close();
+          openJob(job, "overview", { focus: "followup" });
         },
       });
     }
   });
 
-  jobContacts.forEach((contact) => items.push({
+  jobContacts.forEach((contact) => {
+    const job = jobs.find((item) => item.id === contact.job_id);
+    if (!job) return;
+    items.push({
+      id: `contact-${contact.id}`,
+      group: "Contacts",
+      title: contact.name || contact.email || "Contact",
+      subtitle: `Contact - ${contact.company || getDisplayCompanyName(job)} - ${getDisplayJobTitle(job)}${contact.email ? ` - ${contact.email}` : ""}`,
+      badge: contact.source,
+      icon: UserRound,
+      searchable: `${contact.name} ${contact.company} ${contact.email} ${contact.linkedin_url} ${contact.source} ${getDisplayJobTitle(job)} ${getDisplayCompanyName(job)}`,
+      run: () => openJob(job, "overview", { focus: "contacts", contactId: contact.id }),
+    });
+  });
+
+  const includeLegacyContactResults = false;
+  if (includeLegacyContactResults) jobContacts.forEach((contact) => items.push({
     id: `contact-${contact.id}`,
     group: "Contacts",
     title: contact.name || contact.email || "Contact",
@@ -339,7 +369,7 @@ function buildCommandItems({ jobs, jobScores, resumeVersions, messages, jobConta
   return items;
 }
 
-function stageCommand(job, title, stage, updateJob, user, close) {
+function stageCommand(job, title, stage, updateJob, user, openJob) {
   return {
     id: `job-${job.id}-${stage}`,
     group: "Commands",
@@ -350,7 +380,7 @@ function stageCommand(job, title, stage, updateJob, user, close) {
     searchable: `${title} ${stage} ${getDisplayJobTitle(job)} ${getDisplayCompanyName(job)}`,
     run: async () => {
       await updateJob(user, job.id, { status: stage, applied_date: stage === "Applied" ? job.applied_date || new Date().toISOString().slice(0, 10) : job.applied_date || null });
-      close();
+      openJob({ ...job, status: stage }, "overview");
     },
   };
 }
