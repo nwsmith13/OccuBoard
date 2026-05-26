@@ -300,6 +300,7 @@ export function NewJobsPage() {
             closeModal();
           }}
           onMove={() => moveToApplied(savedJob)}
+          onJobUpdate={(updated) => setSavedJob(updated)}
         />
       )}
     </div>

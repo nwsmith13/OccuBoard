@@ -107,6 +107,8 @@ export const seedActivityLogs = [
   },
 ];
 
+export const seedJobActivityLogs = [];
+
 export const seedResumeVersions = [
   {
     id: "resume-1",

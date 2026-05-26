@@ -1,4 +1,4 @@
-import { CheckCircle2, Edit3, ExternalLink, MapPin, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowRightCircle, Bell, CheckCircle2, ChevronDown, ChevronRight, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AiToolsPanel, CopyButton, GenerationHistory } from "../../components/ai/AiToolsPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
@@ -13,6 +13,7 @@ import { formatDate, isOverdue, todayIso } from "../../lib/date.js";
 import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, getFollowUpNote, getFollowUpSnoozedUntil, getFollowUpStatus, getFollowUpTone } from "../../lib/followUp.js";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
+import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
 import { getResumeExportHistory } from "../../lib/resumeExport.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -225,6 +226,7 @@ export function JobsPage() {
           onEdit={() => editJob(selected)}
           onDelete={async () => { await deleteJob(user, selected.id); setSelected(null); }}
           onMove={() => moveToApplied(selected)}
+          onJobUpdate={(updated) => setSelected(updated)}
         />
       )}
     </div>
@@ -261,9 +263,10 @@ function getDisplayStage(status) {
   return status || "Saved";
 }
 
-export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDelete, onMove }) {
+export function JobDetail({ job: initialJob, initialTab = "overview", onClose, onEdit, onDelete, onMove, onJobUpdate }) {
   const { user } = useAuth();
-  const { profile, jobScores, resumeVersions, messages, updateJob, saveMessage } = useWorkspaceStore();
+  const { profile, jobScores, resumeVersions, messages, jobActivityLogs, updateJob, saveMessage } = useWorkspaceStore();
+  const [job, setModalJob] = useState(initialJob);
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const fitSectionRef = useRef(null);
   const [exportedResumeIds, setExportedResumeIds] = useState(() => new Set(getResumeExportHistory().map((item) => item.resumeId).filter(Boolean)));
@@ -281,6 +284,17 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
     message: Boolean(latestMessage),
     export: Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id)),
   };
+
+  useEffect(() => {
+    setModalJob(initialJob);
+  }, [initialJob]);
+
+  function mergeJobUpdate(updatedJob) {
+    const nextJob = { ...job, ...updatedJob };
+    setModalJob(nextJob);
+    onJobUpdate?.(nextJob);
+    return nextJob;
+  }
 
   useEffect(() => {
     function onKeyDown(event) {
@@ -333,7 +347,7 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
                   <Detail label="Location" value={`${job.location || "Not listed"} | ${job.remote_type || "Not set"}`} />
                   <Detail label="Salary" value={job.salary_range || "Not listed"} />
                   <Detail label="Date saved" value={formatDate(job.date_saved)} />
-                  <Detail label="Follow-up" value={formatDate(job.followup_date)} />
+                  <Detail label="Follow-up" value={formatDate(getFollowUpDate(job))} />
                 </dl>
 
                 {job.source_url && (
@@ -365,7 +379,8 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
               <section>
                 <h3 className="font-bold">Notes</h3>
                 <p className="mt-2 whitespace-pre-wrap rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">{job.notes || "No notes yet."}</p>
-                <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} />
+                <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} onJobUpdate={mergeJobUpdate} />
+                <JobActivityTimeline events={jobActivityLogs.filter((event) => event.job_id === job.id)} />
                 <div className="sticky bottom-0 -mx-1 mt-6 flex flex-wrap gap-3 border-t border-brand-100 bg-white/95 px-1 py-4 backdrop-blur">
                   <Button onClick={onMove}>Move to Applied</Button>
                   <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>
@@ -409,7 +424,7 @@ export function JobDetail({ job, initialTab = "overview", onClose, onEdit, onDel
   );
 }
 
-function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage }) {
+function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage, onJobUpdate }) {
   const [reminder, setReminder] = useState(job);
   const [date, setDate] = useState(getFollowUpDate(reminder));
   const [note, setNote] = useState(getFollowUpNote(reminder));
@@ -427,6 +442,12 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
   const completedAt = getFollowUpCompletedAt(reminder);
   const snoozedUntil = getFollowUpSnoozedUntil(reminder);
 
+  useEffect(() => {
+    setReminder(job);
+    setDate(getFollowUpDate(job));
+    setNote(getFollowUpNote(job));
+  }, [job]);
+
   async function saveReminder(patch, successMessage) {
     setSaving(successMessage);
     setMessage("");
@@ -436,6 +457,7 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
       setReminder(nextReminder);
       setDate(getFollowUpDate(nextReminder));
       setNote(getFollowUpNote(nextReminder));
+      onJobUpdate?.(nextReminder);
       setMessage(successMessage);
       window.setTimeout(() => setMessage(""), 2600);
     } finally {
@@ -562,6 +584,86 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
       {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{message}</p>}
     </div>
   );
+}
+
+function JobActivityTimeline({ events = [] }) {
+  const [open, setOpen] = useState(true);
+  const sorted = [...events].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const grouped = sorted.reduce((groups, event) => {
+    const key = getActivityGroup(event.created_at);
+    groups[key] = [...(groups[key] || []), event];
+    return groups;
+  }, {});
+  const groupOrder = ["Today", "Yesterday", "This week", "Earlier"].filter((group) => grouped[group]?.length);
+
+  return (
+    <section className="mt-5 rounded-xl bg-white/80 ring-1 ring-brand-100">
+      <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left" onClick={() => setOpen((value) => !value)}>
+        <div>
+          <h3 className="font-bold">Activity Timeline</h3>
+          <p className="mt-0.5 text-xs text-slate-500">{sorted.length ? `${sorted.length} event${sorted.length === 1 ? "" : "s"}` : "No activity yet."}</p>
+        </div>
+        {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+      </button>
+      {open && (
+        <div className="max-h-96 overflow-y-auto border-t border-brand-100 px-3 py-3">
+          {!sorted.length && <p className="rounded-lg bg-brand-50/70 px-3 py-2 text-sm text-slate-600">No activity yet.</p>}
+          {groupOrder.map((group) => (
+            <div key={group} className="mb-4 last:mb-0">
+              <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{group}</p>
+              <div className="relative grid gap-1.5 before:absolute before:bottom-3 before:left-[17px] before:top-3 before:w-px before:bg-brand-100">
+                {grouped[group].map((event) => <TimelineItem key={event.id} event={event} />)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TimelineItem({ event }) {
+  const Icon = getTimelineIcon(event.type);
+  const details = formatActivityDetails(event);
+  const timestamp = formatDateTime(event.created_at);
+  const relative = formatRelativeTime(event.created_at);
+  return (
+    <div className="group relative flex gap-3 rounded-lg px-1.5 py-2 transition hover:bg-brand-50/70">
+      <span className={`relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full ring-1 ${getActivityColor(event.type)}`}>
+        <Icon size={15} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <p className="text-sm font-bold text-ink">{formatActivityLabel(event)}</p>
+          <p className="text-xs text-slate-500">{relative || timestamp}</p>
+        </div>
+        {details && <p className="mt-0.5 text-xs leading-5 text-slate-600">{details}</p>}
+        {relative && <p className="mt-0.5 text-[11px] text-slate-400">{timestamp}</p>}
+      </div>
+    </div>
+  );
+}
+
+function getTimelineIcon(type) {
+  return {
+    "arrow-right-circle": ArrowRightCircle,
+    bell: Bell,
+    "check-circle": CheckCircle2,
+    clock: Clock,
+    download: Download,
+    "file-text": FileTextIcon,
+    "message-circle": MessageCircle,
+    sparkles: Sparkles,
+    upload: Upload,
+    circle: Circle,
+  }[getActivityIcon(type)] ?? Circle;
+}
+
+function formatDateTime(value) {
+  if (!value) return "Not dated";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not dated";
+  return date.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function WorkflowSteps({ activeTab, completed, score, onSelect }) {

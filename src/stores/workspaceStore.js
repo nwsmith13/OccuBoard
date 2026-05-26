@@ -8,6 +8,7 @@ import {
   saveProfile,
   saveResumeVersion,
   saveResumeUpload,
+  logJobActivity,
   updateJob,
   updateResumeVersion,
 } from "../lib/workspaceApi.js";
@@ -16,6 +17,7 @@ export const useWorkspaceStore = create((set, get) => ({
   profile: null,
   jobs: [],
   activityLogs: [],
+  jobActivityLogs: [],
   resumeVersions: [],
   resumeUploads: [],
   jobScores: [],
@@ -81,6 +83,12 @@ export const useWorkspaceStore = create((set, get) => ({
     const saved = await saveResumeUpload(user, file, extractedText);
     const data = await fetchWorkspace(user);
     set(data);
+    return saved;
+  },
+  logJobActivity: async (user, jobId, type, metadata) => {
+    const saved = await logJobActivity(user, jobId, type, metadata);
+    if (!saved) return null;
+    set((state) => ({ jobActivityLogs: [saved, ...state.jobActivityLogs] }));
     return saved;
   },
 }));

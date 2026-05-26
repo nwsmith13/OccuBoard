@@ -186,6 +186,7 @@ export function DashboardPage() {
           onEdit={() => setSelectedJob(null)}
           onDelete={async () => { await deleteJob(user, selectedJob.id); setSelectedJob(null); }}
           onMove={() => moveToApplied(selectedJob)}
+          onJobUpdate={(updated) => setSelectedJob(updated)}
         />
       )}
     </div>

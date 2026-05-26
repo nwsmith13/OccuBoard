@@ -116,6 +116,7 @@ export function ApplicationsPage() {
           onEdit={() => setSelected(null)}
           onDelete={async () => { await deleteJob(user, selected.id); setSelected(null); }}
           onMove={() => moveToApplied(selected)}
+          onJobUpdate={(updated) => setSelected(updated)}
         />
       )}
     </div>

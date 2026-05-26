@@ -143,6 +143,16 @@ create table if not exists public.activity_logs (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.job_activity_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  job_id uuid references public.jobs(id) on delete cascade,
+  type text not null,
+  label text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -179,6 +189,7 @@ alter table public.applications enable row level security;
 alter table public.notes enable row level security;
 alter table public.resume_versions enable row level security;
 alter table public.activity_logs enable row level security;
+alter table public.job_activity_logs enable row level security;
 alter table public.job_scores enable row level security;
 alter table public.messages enable row level security;
 alter table public.resume_uploads enable row level security;
@@ -189,6 +200,7 @@ drop policy if exists "applications are owned by users" on public.applications;
 drop policy if exists "notes are owned by users" on public.notes;
 drop policy if exists "resume versions are owned by users" on public.resume_versions;
 drop policy if exists "activity logs are owned by users" on public.activity_logs;
+drop policy if exists "job activity logs are owned by users" on public.job_activity_logs;
 drop policy if exists "job scores are owned by users" on public.job_scores;
 drop policy if exists "messages are owned by users" on public.messages;
 drop policy if exists "resume uploads are owned by users" on public.resume_uploads;
@@ -210,6 +222,9 @@ create policy "resume versions are owned by users" on public.resume_versions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "activity logs are owned by users" on public.activity_logs
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "job activity logs are owned by users" on public.job_activity_logs
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "job scores are owned by users" on public.job_scores

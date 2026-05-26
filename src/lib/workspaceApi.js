@@ -1,4 +1,4 @@
-import { seedActivityLogs, seedJobScores, seedJobs, seedMessages, seedProfile, seedResumeVersions } from "../data/seedData.js";
+import { seedActivityLogs, seedJobActivityLogs, seedJobScores, seedJobs, seedMessages, seedProfile, seedResumeVersions } from "../data/seedData.js";
 import { deriveCompanyDomain } from "./companyIdentity.js";
 import { getDisplayCompanyName, getDisplayJobTitle, getTailoredResumeTitle } from "./jobDisplay.js";
 import { createEmptyProfile } from "./profile.js";
@@ -8,6 +8,7 @@ const keys = {
   profile: "occuboard.profile",
   jobs: "occuboard.jobs",
   activityLogs: "occuboard.activityLogs",
+  jobActivityLogs: "occuboard.jobActivityLogs",
   resumeVersions: "occuboard.resumeVersions",
   jobScores: "occuboard.jobScores",
   messages: "occuboard.messages",
@@ -61,6 +62,32 @@ async function logActivity(user, type, description) {
   ]);
 }
 
+export async function logJobActivity(user, jobId, type, metadata = {}) {
+  if (!jobId) return null;
+  const payload = {
+    user_id: user?.id ?? "local-demo-user",
+    job_id: jobId,
+    type,
+    label: metadata.label ?? null,
+    metadata,
+    created_at: now(),
+  };
+
+  if (hasSupabaseConfig && user?.id) {
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase.from("job_activity_logs").insert(payload).select("*").single();
+    if (error) {
+      if (isMissingTableError(error) || isMissingColumnError(error)) return null;
+      throw error;
+    }
+    return data;
+  }
+
+  const saved = { ...payload, id: crypto.randomUUID() };
+  writeLocal(keys.jobActivityLogs, [saved, ...readLocal(keys.jobActivityLogs, seedJobActivityLogs)]);
+  return saved;
+}
+
 export async function fetchWorkspace(user) {
   if (hasSupabaseConfig && user?.id) {
     const supabase = await getSupabaseClient();
@@ -81,13 +108,16 @@ export async function fetchWorkspace(user) {
       supabase.from("messages").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     ]);
     const uploadsResult = await supabase.from("resume_uploads").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+    const jobActivityResult = await supabase.from("job_activity_logs").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
 
     const jobScores = isMissingTableError(scoresResult.error) ? [] : scoresResult.data ?? [];
     const messages = isMissingTableError(messagesResult.error) ? [] : messagesResult.data ?? [];
     const resumeUploads = isMissingTableError(uploadsResult.error) ? [] : uploadsResult.data ?? [];
+    const jobActivityLogs = isMissingTableError(jobActivityResult.error) ? [] : jobActivityResult.data ?? [];
     if (scoresResult.error && !isMissingTableError(scoresResult.error)) throw scoresResult.error;
     if (messagesResult.error && !isMissingTableError(messagesResult.error)) throw messagesResult.error;
     if (uploadsResult.error && !isMissingTableError(uploadsResult.error)) throw uploadsResult.error;
+    if (jobActivityResult.error && !isMissingTableError(jobActivityResult.error)) throw jobActivityResult.error;
 
     let profile = profileResult.data;
     if (!profile) {
@@ -99,6 +129,7 @@ export async function fetchWorkspace(user) {
       profile,
       jobs: jobsResult.data ?? [],
       activityLogs: logsResult.data ?? [],
+      jobActivityLogs,
       resumeVersions: resumesResult.data ?? [],
       jobScores,
       messages,
@@ -110,6 +141,7 @@ export async function fetchWorkspace(user) {
     profile: readLocal(keys.profile, seedProfile),
     jobs: readLocal(keys.jobs, seedJobs),
     activityLogs: readLocal(keys.activityLogs, seedActivityLogs),
+    jobActivityLogs: readLocal(keys.jobActivityLogs, seedJobActivityLogs),
     resumeVersions: readLocal(keys.resumeVersions, seedResumeVersions),
     jobScores: readLocal(keys.jobScores, seedJobScores),
     messages: readLocal(keys.messages, seedMessages),
@@ -185,19 +217,23 @@ export async function createJob(user, job) {
       if (retry.error) throw retry.error;
       const enriched = { ...retry.data, company_domain: payload.company_domain, company_logo_url: payload.company_logo_url };
       await logActivity(user, "Job", `Saved ${getDisplayJobTitle(enriched)} at ${getDisplayCompanyName(enriched)}`);
+      await logJobActivity(user, enriched.id, "job_created", { title: getDisplayJobTitle(enriched), company: getDisplayCompanyName(enriched) });
       return enriched;
     }
     await logActivity(user, "Job", `Saved ${getDisplayJobTitle(data)} at ${getDisplayCompanyName(data)}`);
+    await logJobActivity(user, data.id, "job_created", { title: getDisplayJobTitle(data), company: getDisplayCompanyName(data) });
     return data;
   }
   const saved = { ...payload, id: crypto.randomUUID() };
   writeLocal(keys.jobs, [saved, ...readLocal(keys.jobs, seedJobs)]);
   await logActivity(user, "Job", `Saved ${getDisplayJobTitle(saved)} at ${getDisplayCompanyName(saved)}`);
+  await logJobActivity(user, saved.id, "job_created", { title: getDisplayJobTitle(saved), company: getDisplayCompanyName(saved) });
   return saved;
 }
 
 export async function updateJob(user, id, patch) {
   const payload = cleanJobPayload({ ...patch, updated_at: now() });
+  const previous = await getExistingJob(user, id);
   if (payload.status === "Applied" && !payload.applied_date) {
     payload.applied_date = new Date().toISOString().slice(0, 10);
   }
@@ -211,9 +247,11 @@ export async function updateJob(user, id, patch) {
       if (retry.error) throw retry.error;
       const enriched = { ...retry.data, ...Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key.startsWith("company_"))) };
       await logActivity(user, "Job", `Updated ${getDisplayJobTitle(enriched)} at ${getDisplayCompanyName(enriched)}`);
+      await logJobUpdateActivity(user, previous, enriched, payload);
       return enriched;
     }
     await logActivity(user, "Job", `Updated ${getDisplayJobTitle(data)} at ${getDisplayCompanyName(data)}`);
+    await logJobUpdateActivity(user, previous, data, payload);
     return data;
   }
   const jobs = readLocal(keys.jobs, seedJobs);
@@ -221,6 +259,7 @@ export async function updateJob(user, id, patch) {
   writeLocal(keys.jobs, next);
   const saved = next.find((job) => job.id === id);
   await logActivity(user, "Job", `Updated ${getDisplayJobTitle(saved)} at ${getDisplayCompanyName(saved)}`);
+  await logJobUpdateActivity(user, previous, saved, payload);
   return saved;
 }
 
@@ -263,8 +302,9 @@ export async function saveJobScore(user, job, score) {
       delete legacyPayload.tailoring_intensity;
       const retry = await supabase.from("job_scores").insert(legacyPayload).select("*").single();
       if (retry.error) throw retry.error;
-      await logActivity(user, "AI", `Analyzed fit for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
-      return {
+    await logActivity(user, "AI", `Analyzed fit for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
+    await logJobActivity(user, job.id, "analysis_generated", { score: payload.score, recommendation: payload.recommendation });
+    return {
         ...retry.data,
         transferable_strengths: payload.transferable_strengths,
         better_aligned_roles: payload.better_aligned_roles,
@@ -272,11 +312,13 @@ export async function saveJobScore(user, job, score) {
       };
     }
     await logActivity(user, "AI", `Analyzed fit for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
+    await logJobActivity(user, job.id, "analysis_generated", { score: payload.score, recommendation: payload.recommendation });
     return data;
   }
   const saved = { ...payload, id: crypto.randomUUID() };
   writeLocal(keys.jobScores, [saved, ...readLocal(keys.jobScores, seedJobScores)]);
   await logActivity(user, "AI", `Analyzed fit for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
+  await logJobActivity(user, job.id, "analysis_generated", { score: payload.score, recommendation: payload.recommendation });
   return saved;
 }
 
@@ -301,6 +343,7 @@ export async function saveResumeVersion(user, job, draft, metadata = {}) {
       const retry = await supabase.from("resume_versions").insert(legacyPayload).select("*").single();
       if (retry.error) throw retry.error;
       await logActivity(user, "AI", `Generated tailored resume for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
+      await logJobActivity(user, job.id, "resume_generated", { title: payload.title, resumeId: retry.data.id });
       return {
         ...retry.data,
         tailoring_intensity: payload.tailoring_intensity,
@@ -308,11 +351,13 @@ export async function saveResumeVersion(user, job, draft, metadata = {}) {
       };
     }
     await logActivity(user, "AI", `Generated tailored resume for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
+    await logJobActivity(user, job.id, "resume_generated", { title: payload.title, resumeId: data.id });
     return data;
   }
   const saved = { ...payload, id: crypto.randomUUID() };
   writeLocal(keys.resumeVersions, [saved, ...readLocal(keys.resumeVersions, seedResumeVersions)]);
   await logActivity(user, "AI", `Generated tailored resume for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
+  await logJobActivity(user, job.id, "resume_generated", { title: payload.title, resumeId: saved.id });
   return saved;
 }
 
@@ -346,11 +391,13 @@ export async function saveMessage(user, job, message) {
     const { data, error } = await supabase.from("messages").insert(payload).select("*").single();
     if (error) throw error;
     await logActivity(user, "AI", `Generated recruiter message for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
+    await logJobActivity(user, job.id, payload.type === "Follow-up Message" ? "followup_message_generated" : "message_generated", { type: payload.type });
     return data;
   }
   const saved = { ...payload, id: crypto.randomUUID() };
   writeLocal(keys.messages, [saved, ...readLocal(keys.messages, seedMessages)]);
   await logActivity(user, "AI", `Generated recruiter message for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
+  await logJobActivity(user, job.id, payload.type === "Follow-up Message" ? "followup_message_generated" : "message_generated", { type: payload.type });
   return saved;
 }
 
@@ -394,6 +441,43 @@ function saveLocalResumeUpload(user, upload) {
   return saved;
 }
 
+async function getExistingJob(user, id) {
+  if (hasSupabaseConfig && user?.id) {
+    try {
+      const supabase = await getSupabaseClient();
+      const { data } = await supabase.from("jobs").select("*").eq("id", id).eq("user_id", user.id).maybeSingle();
+      return data ?? null;
+    } catch {
+      return null;
+    }
+  }
+  return readLocal(keys.jobs, seedJobs).find((job) => job.id === id) ?? null;
+}
+
+async function logJobUpdateActivity(user, previous, next, payload) {
+  if (!next?.id) return;
+  if ("status" in payload && previous?.status !== next.status) {
+    await logJobActivity(user, next.id, "stage_changed", { from: previous?.status || "Saved", to: next.status });
+    if (next.status === "Applied") await logJobActivity(user, next.id, "application_marked", { stage: "Applied" });
+    if (next.status === "Interview") await logJobActivity(user, next.id, "application_marked", { stage: "Interview" });
+    if (next.status === "Closed") await logJobActivity(user, next.id, "application_marked", { stage: "Closed" });
+    return;
+  }
+  if ("followup_completed_at" in payload && payload.followup_completed_at) {
+    await logJobActivity(user, next.id, "followup_completed", { completedAt: payload.followup_completed_at });
+    return;
+  }
+  if ("followup_snoozed_until" in payload && payload.followup_snoozed_until) {
+    await logJobActivity(user, next.id, "followup_snoozed", { until: payload.followup_snoozed_until });
+    return;
+  }
+  if ("followup_date" in payload || "followup_note" in payload) {
+    await logJobActivity(user, next.id, "followup_saved", { date: next.followup_date, note: next.followup_note });
+    return;
+  }
+  await logJobActivity(user, next.id, "job_edited", { title: getDisplayJobTitle(next), company: getDisplayCompanyName(next) });
+}
+
 function normalizeJob(user, job) {
   const createdAt = now();
   const companyDomain = deriveCompanyDomain(job);
@@ -424,6 +508,7 @@ function normalizeJob(user, job) {
 }
 
 function cleanJobPayload(job) {
+  const normalizedJob = normalizeFollowUpPayload(job);
   const allowed = [
     "user_id",
     "company_name",
@@ -448,7 +533,7 @@ function cleanJobPayload(job) {
     "created_at",
     "updated_at",
   ];
-  const payload = Object.fromEntries(allowed.filter((key) => key in job).map((key) => [key, job[key]]));
+  const payload = Object.fromEntries(allowed.filter((key) => key in normalizedJob).map((key) => [key, normalizedJob[key]]));
   const cleaned = { ...payload };
   if ("applied_date" in payload) cleaned.applied_date = payload.applied_date || null;
   if ("followup_date" in payload) cleaned.followup_date = payload.followup_date || null;
@@ -461,6 +546,16 @@ function cleanJobPayload(job) {
   if ("job_title" in payload) cleaned.job_title = getDisplayJobTitle(payload);
   if ("status" in payload) cleaned.status = normalizeApplicationStage(payload.status);
   return cleaned;
+}
+
+function normalizeFollowUpPayload(job) {
+  const normalized = { ...job };
+  if ("followUpDate" in normalized && !("followup_date" in normalized)) normalized.followup_date = normalized.followUpDate;
+  if ("followUpStatus" in normalized && !("followup_status" in normalized)) normalized.followup_status = normalized.followUpStatus;
+  if ("followUpCompletedAt" in normalized && !("followup_completed_at" in normalized)) normalized.followup_completed_at = normalized.followUpCompletedAt;
+  if ("followUpSnoozedUntil" in normalized && !("followup_snoozed_until" in normalized)) normalized.followup_snoozed_until = normalized.followUpSnoozedUntil;
+  if ("followUpNote" in normalized && !("followup_note" in normalized)) normalized.followup_note = normalized.followUpNote;
+  return normalized;
 }
 
 function getLegacyJobPayload(payload) {

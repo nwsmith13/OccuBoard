@@ -1,5 +1,6 @@
 import { Download, Eye, FileText, Printer } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useAuth } from "../../contexts/AuthContext.jsx";
 import {
   exportResumeDocx,
   exportResumePdf,
@@ -7,6 +8,7 @@ import {
   openResumePrintPreview,
   parseResumeForExport,
 } from "../../lib/resumeExport.js";
+import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { Button } from "../ui/Button.jsx";
 
 const exportColors = {
@@ -19,6 +21,8 @@ const exportColors = {
 };
 
 export function ResumeExportPanel({ resume, content, profile, job, compact = false, showHistory = !compact, showPreviewDefault = true, historyResumeId, onExportComplete }) {
+  const { user } = useAuth();
+  const { logJobActivity } = useWorkspaceStore();
   const [includeWhyThisFits, setIncludeWhyThisFits] = useState(false);
   const [showPreview, setShowPreview] = useState(showPreviewDefault);
   const [exportStyle, setExportStyle] = useState("Professional");
@@ -43,6 +47,7 @@ export function ResumeExportPanel({ resume, content, profile, job, compact = fal
     try {
       if (type === "PDF") await exportResumePdf({ content: resumeContent, profile, job, resume, includeWhyThisFits, accentColor: exportAccentColor });
       if (type === "DOCX") await exportResumeDocx({ content: resumeContent, profile, job, resume, includeWhyThisFits, accentColor: exportAccentColor });
+      await logJobActivity(user, job?.id || resume?.job_id, type === "PDF" ? "resume_exported_pdf" : "resume_exported_docx", { resumeId: resume?.id, fileType: type });
       setHistory(getResumeExportHistory());
       onExportComplete?.(resume);
       setSuccess(`Resume ready to send. ${type} export successful.`);
