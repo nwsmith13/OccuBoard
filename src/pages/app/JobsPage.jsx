@@ -379,24 +379,38 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
           {activeTab === "overview" && (
-            <div className="grid gap-6">
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-              <div className="grid gap-5">
-                <dl className="grid gap-3 sm:grid-cols-2">
+            <div className="mx-auto grid max-w-5xl gap-5">
+              <NextBestActionCard action={nextBestAction} onAction={handleNextBestAction} />
+
+              <section className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Opportunity Details</p>
+                    <h3 className="mt-1 text-lg font-bold text-ink">Role snapshot</h3>
+                  </div>
+                  {job.source_url && (
+                    <a className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-900" href={job.source_url} target="_blank" rel="noreferrer">
+                      Open source link <ExternalLink size={15} />
+                    </a>
+                  )}
+                </div>
+
+                <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <Detail label="Location" value={`${job.location || "Not listed"} | ${job.remote_type || "Not set"}`} />
                   <Detail label="Salary" value={job.salary_range || "Not listed"} />
                   <Detail label="Date saved" value={formatDate(job.date_saved)} />
+                  <Detail label="Stage" value={getDisplayStage(job.status)} />
+                  <Detail label="Fit score" value={latestScore ? `${Math.round(Number(latestScore.score))}%` : "Not analyzed"} />
                   <Detail label="Follow-up" value={formatDate(getFollowUpDate(job))} />
                 </dl>
 
-                {job.source_url && (
-                  <a className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-900" href={job.source_url} target="_blank" rel="noreferrer">
-                    Open source link <ExternalLink size={15} />
-                  </a>
-                )}
+                <section className="mt-5">
+                  <h4 className="font-bold">Notes</h4>
+                  <p className="mt-2 whitespace-pre-wrap rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">{job.notes || "No notes yet."}</p>
+                </section>
 
-                <section>
-                  <h3 className="font-bold">Job description</h3>
+                <section className="mt-5">
+                  <h4 className="font-bold">Job description</h4>
                   <div className="mt-2 overflow-hidden rounded-lg bg-brand-50">
                     {showDescription ? (
                       <div className="max-h-[460px] overflow-y-auto p-4 text-sm leading-6 text-slate-700">
@@ -432,23 +446,21 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
                     )}
                   </div>
                 </section>
+              </section>
+
+              <ContactsCard job={job} contacts={contacts} user={user} onSave={saveJobContact} onDelete={deleteJobContact} onMarkContacted={markJobContacted} />
+
+              <section ref={followUpSectionRef} className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Follow-up</p>
+                <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} onJobUpdate={mergeJobUpdate} />
+              </section>
+
+              <div className="flex flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+                <Button onClick={onMove}>Move to Applied</Button>
+                <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>
+                <Button variant="danger" onClick={onDelete}><Trash2 size={16} /> Delete</Button>
               </div>
 
-              <section>
-                <h3 className="font-bold">Notes</h3>
-                <p className="mt-2 whitespace-pre-wrap rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">{job.notes || "No notes yet."}</p>
-                <NextBestActionCard action={nextBestAction} onAction={handleNextBestAction} />
-                <ContactsCard job={job} contacts={contacts} user={user} onSave={saveJobContact} onDelete={deleteJobContact} onMarkContacted={markJobContacted} />
-                <div ref={followUpSectionRef}>
-                  <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} onJobUpdate={mergeJobUpdate} />
-                </div>
-                <div className="sticky bottom-0 -mx-1 mt-6 flex flex-wrap gap-3 border-t border-brand-100 bg-white/95 px-1 py-4 backdrop-blur">
-                  <Button onClick={onMove}>Move to Applied</Button>
-                  <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>
-                  <Button variant="danger" onClick={onDelete}><Trash2 size={16} /> Delete</Button>
-                </div>
-              </section>
-              </div>
               <JobActivityTimeline events={timelineEvents} />
             </div>
           )}
@@ -488,7 +500,7 @@ function NextBestActionCard({ action, onAction }) {
   const ctaLabel = getNextBestActionCtaLabel(action.actionType);
 
   return (
-    <section className="mt-4 rounded-lg bg-white/80 p-4 shadow-sm ring-1 ring-brand-100">
+    <section className="rounded-lg bg-white/80 p-4 shadow-sm ring-1 ring-brand-100">
       <div className="flex items-start gap-3">
         <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ring-1 ${getNextBestActionTone(action.tone)}`}>
           <Icon size={17} aria-hidden="true" />
@@ -571,7 +583,7 @@ function ContactsCard({ job, contacts, user, onSave, onDelete, onMarkContacted }
   }
 
   return (
-    <section className="mt-4 rounded-lg bg-white/80 p-4 shadow-sm ring-1 ring-brand-100">
+    <section className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="font-bold text-ink">Contacts</h3>
@@ -803,7 +815,7 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
   }
 
   return (
-    <div className="mt-5 rounded-xl bg-brand-50/70 p-4 ring-1 ring-brand-100">
+    <div className="mt-3 rounded-lg bg-brand-50/70 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-bold">Next follow-up</h3>
