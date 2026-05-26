@@ -17,7 +17,7 @@ const actionDefaults = {
     icon: "bell",
   },
   apply_now: {
-    label: "Apply now",
+    label: "Ready to apply",
     description: "This role looks strong and your application assets are ready.",
     tone: "success",
     priority: 2,
@@ -31,7 +31,7 @@ const actionDefaults = {
     icon: "document",
   },
   generate_message: {
-    label: "Generate follow-up message",
+    label: "Draft follow-up",
     description: "Draft a short message so your outreach is ready.",
     tone: "info",
     priority: 3,
@@ -45,7 +45,7 @@ const actionDefaults = {
     icon: "sparkles",
   },
   review_high_fit: {
-    label: "Review high-fit role",
+    label: "Review strong match",
     description: "This strong match has been quiet for a few days. Revisit the next step.",
     tone: "info",
     priority: 4,
@@ -89,10 +89,10 @@ export function getNextBestAction(job = {}, options = {}) {
 
   if (stage === "Saved") {
     if (!hasResume) return buildAction("generate_resume");
-    if (!hasMessage) return buildAction("generate_message", { label: "Generate recruiter message", description: "Create a short outreach note to pair with your tailored resume." });
+    if (!hasMessage) return buildAction("generate_message", { label: "Draft recruiter message", description: "Create a short outreach note to pair with your tailored resume." });
     if (scoreValue >= 85) return buildAction("apply_now");
     if (scoreValue >= 75 && isStaleHighFit(job, options)) return buildAction("review_high_fit");
-    return buildAction("apply_now", { label: "Review and apply", priority: 3, description: "Your materials are ready. Give everything one pass, then apply." });
+    return buildAction("apply_now", { label: "Ready to apply", priority: 3, description: "Your materials are ready. Give everything one pass, then apply." });
   }
 
   if (stage === "Applied") {

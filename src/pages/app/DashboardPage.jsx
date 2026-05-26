@@ -13,7 +13,7 @@ import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
 import { getProfileCompleteness } from "../../lib/profile.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
-import { getNextBestAction, getNextBestActionTone } from "../../utils/nextBestAction.js";
+import { getNextBestAction } from "../../utils/nextBestAction.js";
 import { JobDetail } from "./JobsPage.jsx";
 
 export function DashboardPage() {
@@ -87,7 +87,6 @@ export function DashboardPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <FitScoreBadge score={getLatestFitScore(jobScores, item.id)} compact />
-                    {item.nextBestAction && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getNextBestActionTone(item.nextBestAction.tone)}`}>Next best action</span>}
                     <p className="text-lg font-bold leading-snug">{getDisplayJobTitle(item)}</p>
                   </div>
                   <p className="mt-1 text-sm text-slate-600">{getDisplayCompanyName(item)}</p>

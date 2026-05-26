@@ -270,6 +270,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   const [job, setModalJob] = useState(initialJob);
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const fitSectionRef = useRef(null);
+  const followUpSectionRef = useRef(null);
   const [exportedResumeIds, setExportedResumeIds] = useState(() => new Set(getResumeExportHistory().map((item) => item.resumeId).filter(Boolean)));
   const [showDescription, setShowDescription] = useState(false);
   const latestScore = [...jobScores].filter((score) => score.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
@@ -305,8 +306,12 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   }
 
   async function handleNextBestAction() {
-    if (nextBestAction.actionType === "generate_resume" || nextBestAction.actionType === "apply_now") {
+    if (nextBestAction.actionType === "generate_resume") {
       setActiveTab("resume");
+      return;
+    }
+    if (nextBestAction.actionType === "apply_now") {
+      onMove?.();
       return;
     }
     if (nextBestAction.actionType === "generate_message") {
@@ -315,6 +320,11 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
     }
     if (nextBestAction.actionType === "review_high_fit" || nextBestAction.actionType === "prepare_interview") {
       setActiveTab("fit");
+      return;
+    }
+    if (nextBestAction.actionType === "follow_up_overdue" || nextBestAction.actionType === "follow_up_today") {
+      setActiveTab("overview");
+      window.setTimeout(() => followUpSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 30);
       return;
     }
     if (nextBestAction.actionType === "move_to_interview") {
@@ -427,7 +437,9 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
                 <h3 className="font-bold">Notes</h3>
                 <p className="mt-2 whitespace-pre-wrap rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">{job.notes || "No notes yet."}</p>
                 <NextBestActionCard action={nextBestAction} onAction={handleNextBestAction} />
-                <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} onJobUpdate={mergeJobUpdate} />
+                <div ref={followUpSectionRef}>
+                  <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} onJobUpdate={mergeJobUpdate} />
+                </div>
                 <div className="sticky bottom-0 -mx-1 mt-6 flex flex-wrap gap-3 border-t border-brand-100 bg-white/95 px-1 py-4 backdrop-blur">
                   <Button onClick={onMove}>Move to Applied</Button>
                   <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>
@@ -511,11 +523,13 @@ function getNextBestActionIcon(icon) {
 
 function getNextBestActionCtaLabel(actionType) {
   return {
-    generate_resume: "Generate Resume",
-    generate_message: "Generate Message",
-    apply_now: "Review Application",
-    prepare_interview: "Prepare Interview",
-    review_high_fit: "Review Fit",
+    follow_up_overdue: "Follow up",
+    follow_up_today: "Follow up",
+    generate_resume: "Generate resume",
+    generate_message: "Generate message",
+    apply_now: "Mark applied",
+    prepare_interview: "Prepare interview",
+    review_high_fit: "Review match",
     move_to_interview: "Move to Interview",
   }[actionType];
 }

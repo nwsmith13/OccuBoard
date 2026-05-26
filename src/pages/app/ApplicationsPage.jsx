@@ -11,7 +11,7 @@ import { getFollowUpLabel, getFollowUpStatus, getFollowUpTone, normalizeStage } 
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
-import { getNextBestAction, getNextBestActionTone } from "../../utils/nextBestAction.js";
+import { getNextBestAction } from "../../utils/nextBestAction.js";
 import { JobDetail } from "./JobsPage.jsx";
 
 export function ApplicationsPage() {
@@ -172,15 +172,20 @@ function ApplicationCard({ job, score, status, messages, onOpen, onDragStart, co
       <KanbanAiStatus status={status} />
       <FollowUpChip job={job} />
       {nextBestAction?.actionType !== "no_action" && (
-        <div className="mt-2">
-          <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getNextBestActionTone(nextBestAction.tone)}`}>
-            Next best action
-          </span>
-          <p className="mt-1 text-xs font-semibold text-slate-600">{nextBestAction.label}</p>
-        </div>
+        <p className={`mt-2 truncate text-xs font-semibold ${getActionLineTone(nextBestAction.tone)}`}>{nextBestAction.label}</p>
       )}
     </div>
   );
+}
+
+function getActionLineTone(tone) {
+  return {
+    danger: "text-rose-700",
+    warning: "text-amber-700",
+    success: "text-emerald-700",
+    info: "text-brand-700",
+    neutral: "text-slate-500",
+  }[tone] ?? "text-slate-500";
 }
 
 function PipelineSkeleton() {
