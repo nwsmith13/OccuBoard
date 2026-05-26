@@ -278,6 +278,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
   const messageHistory = messages.filter((message) => message.job_id === job.id);
   const descriptionPreview = getDescriptionPreview(job.job_description);
+  const descriptionIsTruncated = isDescriptionTruncated(job.job_description);
   const timelineEvents = mergeTimelineEvents(
     jobActivityLogs.filter((event) => event.job_id === job.id),
     getDerivedGenerationEvents({ job, scores: jobScoreHistory, resumes: resumeHistory, messages: messageHistory }),
@@ -362,17 +363,39 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
                 )}
 
                 <section>
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="font-bold">Job description</h3>
-                    <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => setShowDescription((value) => !value)} disabled={!job.job_description}>
-                      {showDescription ? "Show less" : "See more..."}
-                    </Button>
-                  </div>
+                  <h3 className="font-bold">Job description</h3>
                   <div className="mt-2 overflow-hidden rounded-lg bg-brand-50">
                     {showDescription ? (
-                      <p className="max-h-[460px] overflow-y-auto whitespace-pre-wrap p-4 text-sm leading-6 text-slate-700">{job.job_description || "No description saved."}</p>
+                      <div className="max-h-[460px] overflow-y-auto p-4 text-sm leading-6 text-slate-700">
+                        <p className="whitespace-pre-wrap">{job.job_description || "No description saved."}</p>
+                        {descriptionIsTruncated && (
+                          <button
+                            type="button"
+                            className="mt-2 inline-flex rounded-md px-1 font-semibold text-brand-700 transition hover:bg-white/70 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
+                            onClick={() => setShowDescription(false)}
+                            aria-expanded={showDescription}
+                          >
+                            Show less
+                          </button>
+                        )}
+                      </div>
                     ) : (
-                      <p className="whitespace-pre-wrap p-4 text-sm leading-6 text-slate-700">{descriptionPreview || "No description saved."}</p>
+                      <p className="whitespace-pre-wrap p-4 text-sm leading-6 text-slate-700">
+                        {descriptionPreview || "No description saved."}
+                        {descriptionIsTruncated && (
+                          <>
+                            {" "}
+                            <button
+                              type="button"
+                              className="inline-flex rounded-md px-1 font-semibold text-brand-700 transition hover:bg-white/70 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
+                              onClick={() => setShowDescription(true)}
+                              aria-expanded={showDescription}
+                            >
+                              See more...
+                            </button>
+                          </>
+                        )}
+                      </p>
                     )}
                   </div>
                 </section>
@@ -764,10 +787,16 @@ function getStepScoreTone(score) {
   return "bg-rose-100 text-rose-700";
 }
 
+const descriptionPreviewLength = 520;
+
+function isDescriptionTruncated(description = "") {
+  return description.trim().length > descriptionPreviewLength;
+}
+
 function getDescriptionPreview(description = "") {
   const trimmed = description.trim();
-  if (trimmed.length <= 520) return trimmed;
-  return `${trimmed.slice(0, 520).trim()}...`;
+  if (trimmed.length <= descriptionPreviewLength) return trimmed;
+  return trimmed.slice(0, descriptionPreviewLength).trimEnd();
 }
 
 function detectSalaryRange(text = "") {
