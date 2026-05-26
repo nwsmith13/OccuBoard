@@ -1,8 +1,9 @@
-import { BarChart3, FileStack, FileText, LayoutDashboard, LogOut, Menu, PlusCircle, Settings, X } from "lucide-react";
+import { BarChart3, Command, FileStack, FileText, LayoutDashboard, LogOut, Menu, PlusCircle, Settings, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
+import { CommandPalette } from "../command/CommandPalette.jsx";
 import { Button } from "../ui/Button.jsx";
 import { Logo } from "./Logo.jsx";
 
@@ -18,6 +19,7 @@ const navItems = [
 export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const { signOut, user, isConfigured } = useAuth();
   const { loadWorkspace, profile } = useWorkspaceStore();
   const location = useLocation();
@@ -26,6 +28,17 @@ export function AppLayout() {
   useEffect(() => {
     loadWorkspace(user);
   }, [loadWorkspace, user]);
+
+  useEffect(() => {
+    function onKeyDown(event) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const sidebar = (
     <aside className={`${collapsed ? "w-20" : "w-72"} flex h-full flex-col border-r border-slate-200 bg-white/95 transition-all lg:sticky lg:top-0 lg:h-screen`}>
@@ -81,7 +94,7 @@ export function AppLayout() {
       <div className="hidden min-h-screen lg:flex">
         {sidebar}
         <main className="min-w-0 flex-1">
-          <Header title={current?.label ?? "Dashboard"} onMenu={() => setMobileOpen(true)} />
+          <Header title={current?.label ?? "Dashboard"} onMenu={() => setMobileOpen(true)} onCommand={() => setCommandOpen(true)} />
           <div className="mx-auto max-w-7xl px-6 py-6">
             <Outlet />
           </div>
@@ -89,7 +102,7 @@ export function AppLayout() {
       </div>
 
       <div className="lg:hidden">
-        <Header title={current?.label ?? "Dashboard"} onMenu={() => setMobileOpen(true)} />
+        <Header title={current?.label ?? "Dashboard"} onMenu={() => setMobileOpen(true)} onCommand={() => setCommandOpen(true)} />
         {mobileOpen && (
           <div className="fixed inset-0 z-40 bg-ink/30">
             <div className="h-full max-w-80 bg-white shadow-soft">
@@ -106,11 +119,12 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>
   );
 }
 
-function Header({ title, onMenu }) {
+function Header({ title, onMenu, onCommand }) {
   return (
     <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur lg:px-6">
       <div className="flex items-center gap-3">
@@ -122,9 +136,21 @@ function Header({ title, onMenu }) {
           <h1 className="text-lg font-bold text-ink">{title}</h1>
         </div>
       </div>
-      <Link to="/app/new-jobs" className="hidden sm:block">
-        <Button variant="secondary">Analyze a Job</Button>
-      </Link>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="hidden min-h-10 items-center gap-3 rounded-lg border border-brand-100 bg-white px-3 text-sm font-semibold text-slate-500 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-800 sm:inline-flex"
+          onClick={onCommand}
+          aria-label="Open search or command palette"
+        >
+          <Command size={16} className="text-brand-700" />
+          <span>Search or command...</span>
+          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-500">Ctrl K</span>
+        </button>
+        <Link to="/app/new-jobs" className="hidden sm:block">
+          <Button variant="secondary">Analyze a Job</Button>
+        </Link>
+      </div>
     </header>
   );
 }
