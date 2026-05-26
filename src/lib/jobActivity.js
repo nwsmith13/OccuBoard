@@ -11,6 +11,7 @@ export function formatActivityLabel(event = {}) {
     resume_exported_docx: "Resume exported DOCX",
     message_generated: "Message generated",
     followup_message_generated: "Follow-up message generated",
+    followup_message_copied: "Follow-up message copied",
     followup_saved: "Follow-up saved",
     followup_completed: "Follow-up completed",
     followup_snoozed: "Follow-up snoozed",
@@ -35,6 +36,7 @@ export function formatActivityDetails(event = {}) {
   if (event.type === "followup_snoozed") return metadata.until ? `Until ${formatDate(metadata.until)}` : "";
   if (event.type === "followup_completed") return metadata.completedAt ? `Completed ${formatDate(String(metadata.completedAt).slice(0, 10))}` : "";
   if ((event.type === "message_generated" || event.type === "followup_message_generated") && metadata.contactName) return `For ${metadata.contactName}`;
+  if (event.type === "followup_message_copied") return metadata.detail || "Ready to send outside OccuBoard";
   if (event.type === "resume_exported_pdf" || event.type === "resume_exported_docx") return metadata.fileType ? `${metadata.fileType} download` : "";
   if (event.type?.startsWith("contact_")) return [metadata.contactName, metadata.company].filter(Boolean).join(" at ");
   return metadata.detail || metadata.title || metadata.company || "";

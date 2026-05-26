@@ -266,7 +266,7 @@ function getDisplayStage(status) {
 
 export function JobDetail({ job: initialJob, initialTab = "overview", onClose, onEdit, onDelete, onMove, onJobUpdate }) {
   const { user } = useAuth();
-  const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, updateJob, saveMessage, saveJobContact, deleteJobContact, markJobContacted } = useWorkspaceStore();
+  const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, updateJob, saveMessage, saveJobContact, deleteJobContact, markJobContacted, logJobActivity } = useWorkspaceStore();
   const [job, setModalJob] = useState(initialJob);
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const fitSectionRef = useRef(null);
@@ -452,7 +452,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", onClose, o
 
               <section ref={followUpSectionRef} className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Follow-up</p>
-                <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} onJobUpdate={mergeJobUpdate} />
+                <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} logJobActivity={logJobActivity} onJobUpdate={mergeJobUpdate} />
               </section>
 
               <div className="flex flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
@@ -724,7 +724,7 @@ function getNextBestActionCtaLabel(actionType) {
   }[actionType];
 }
 
-function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage, onJobUpdate }) {
+function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage, logJobActivity, onJobUpdate }) {
   const [reminder, setReminder] = useState(job);
   const [date, setDate] = useState(getFollowUpDate(reminder));
   const [note, setNote] = useState(getFollowUpNote(reminder));
@@ -733,6 +733,9 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
   const [generatingMessage, setGeneratingMessage] = useState(false);
   const [messageError, setMessageError] = useState("");
   const [message, setMessage] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [nextFollowUpOpen, setNextFollowUpOpen] = useState(false);
+  const followUpDateRef = useRef(null);
   const latestFollowUpMessage = [...messages]
     .filter((item) => item.job_id === job.id && item.type === "Follow-up Message")
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
@@ -782,6 +785,25 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
     saveReminder({ followup_status: "completed", followup_completed_at: new Date().toISOString(), followup_snoozed_until: null }, "Follow-up marked complete.");
   }
 
+  async function copyFollowUpMessage() {
+    if (!latestFollowUpMessage?.content) return;
+    await navigator.clipboard.writeText(latestFollowUpMessage.content);
+    setCopied(true);
+    setMessage("Copied");
+    await logJobActivity?.(user, job.id, "followup_message_copied", { detail: "Copied follow-up message" });
+    window.setTimeout(() => {
+      setCopied(false);
+      setMessage("");
+    }, 2200);
+  }
+
+  function setNextFollowUp(days = 7) {
+    setNextFollowUpOpen(true);
+    setDate(addDaysIso(days));
+    setMessage("Choose a date, then save the next follow-up.");
+    window.setTimeout(() => followUpDateRef.current?.focus(), 30);
+  }
+
   function snooze(until) {
     if (!until) return;
     saveReminder({ followup_status: "snoozed", followup_snoozed_until: until, followup_completed_at: null }, `Snoozed until ${formatDate(until)}.`);
@@ -828,6 +850,7 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
         <label className="grid gap-1 text-sm font-semibold text-ink">
           Follow-up date
           <input
+            ref={followUpDateRef}
             type="date"
             value={date || ""}
             onChange={(event) => setDate(event.target.value)}
@@ -851,7 +874,7 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
           {generatingMessage ? "Generating..." : "Generate follow-up message"}
         </Button>
         <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={saveFollowUp} disabled={Boolean(saving)}>Save follow-up</Button>
-        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markCompleted} disabled={Boolean(saving || completedAt)}>Mark followed up</Button>
+        {!latestFollowUpMessage && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markCompleted} disabled={Boolean(saving || completedAt)}>Mark followed up</Button>}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -876,9 +899,21 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
         <div className="mt-3 rounded-lg bg-white/85 p-3 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">
           <div className="flex items-center justify-between gap-3">
             <p className="font-bold text-ink">Latest follow-up message</p>
-            <CopyButton text={latestFollowUpMessage.content} />
           </div>
           <p className="mt-2 whitespace-pre-wrap">{latestFollowUpMessage.content}</p>
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-brand-100 pt-3">
+            <Button className="min-h-8 px-3 text-xs" onClick={copyFollowUpMessage}>{copied ? "Copied" : "Copy message"}</Button>
+            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markCompleted} disabled={Boolean(saving || completedAt)}>Mark followed up</Button>
+            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => setNextFollowUp(7)}>Set next follow-up</Button>
+          </div>
+          {nextFollowUpOpen && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50/80 px-3 py-2">
+              <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Next reminder</span>
+              <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => setNextFollowUp(3)}>3 days</Button>
+              <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => setNextFollowUp(7)}>1 week</Button>
+              <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => setNextFollowUp(14)}>2 weeks</Button>
+            </div>
+          )}
         </div>
       )}
       {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{message}</p>}
