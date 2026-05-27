@@ -44,20 +44,20 @@ export function DashboardPage() {
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
       <main className="grid min-w-0 gap-5">
         {error && <div className="rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
-        <section className="overflow-hidden rounded-xl bg-gradient-to-br from-stone-100 via-white to-emerald-50 px-5 py-4 shadow-card transition hover:shadow-soft sm:px-6">
+        <section className="overflow-hidden rounded-xl bg-gradient-to-br from-stone-100 via-white to-emerald-50 px-5 py-3.5 shadow-card transition duration-[160ms] ease-out hover:shadow-soft sm:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Momentum</p>
               <h2 className="mt-1 text-xl font-bold text-ink">{momentum.headline}</h2>
               <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-600">{momentum.summary}</p>
             </div>
-            <Link to="/app/new-jobs" className="inline-flex shrink-0 self-start rounded-lg bg-white/55 p-0.5 shadow-sm transition hover:bg-white/85 hover:shadow-card">
+            <Link to="/app/new-jobs" className="inline-flex shrink-0 self-start rounded-lg bg-white/55 p-0.5 shadow-sm transition duration-[160ms] ease-out hover:bg-white/85 hover:shadow-card">
               <Button className="min-h-8 px-3.5 py-1.5">Analyze New Job</Button>
             </Link>
           </div>
           <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
             {momentum.items.map((item) => (
-              <div key={item.label} className="rounded-lg bg-white/70 px-3.5 py-2 shadow-sm transition hover:bg-white/90">
+              <div key={item.label} className="rounded-lg bg-white/70 px-3.5 py-2 shadow-sm transition duration-[160ms] ease-out hover:bg-white/90">
                 <p className="text-lg font-black text-slate-900">{item.value}</p>
                 <p className="mt-0.5 text-xs font-semibold leading-5 text-slate-600">{item.label}</p>
               </div>
@@ -65,7 +65,7 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-xl bg-white/95 p-5 shadow-card sm:p-6">
+        <section className="rounded-xl bg-white/95 p-4 shadow-card sm:p-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">Today</p>
@@ -81,7 +81,7 @@ export function DashboardPage() {
               <button
                 key={`${item.kind}-${item.id}`}
                 type="button"
-                className={`group flex cursor-pointer gap-4 rounded-xl p-4 text-left shadow-sm ring-1 ring-transparent transition-all duration-200 hover:-translate-y-0.5 hover:ring-emerald-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${getFocusTone(item.nextBestAction?.tone)}`}
+                className={`group flex cursor-pointer gap-4 rounded-xl p-3.5 text-left shadow-sm ring-1 ring-transparent transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:ring-emerald-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 sm:p-4 ${getFocusTone(item.nextBestAction?.tone)}`}
                 onClick={() => setSelectedJob({ ...item, initialTab: getFocusInitialTab(item) })}
                 aria-label={`Open ${getDisplayJobTitle(item)} at ${getDisplayCompanyName(item)}`}
               >
@@ -92,11 +92,11 @@ export function DashboardPage() {
                     <FitScoreBadge score={getLatestFitScore(jobScores, item.id)} compact />
                     <p className="text-lg font-bold leading-snug">{getDisplayJobTitle(item)}</p>
                   </div>
-                  <p className="mt-1 text-sm text-slate-600">{getDisplayCompanyName(item)}</p>
+                  <p className="mt-1 text-sm font-medium text-slate-700">{getDisplayCompanyName(item)}</p>
                   <p className={`mt-3 text-sm font-semibold ${getFocusTextTone(item.nextBestAction?.tone)}`}>{getFocusActionLabel(item)}</p>
                   {item.nextBestAction?.description && <p className="mt-1 text-sm leading-5 text-slate-600">{item.nextBestAction.description}</p>}
                 </div>
-                <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" size={18} />
+                <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={18} />
               </button>
             ))}
             {!focusItems.length && (
@@ -108,27 +108,28 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-xl bg-white/70 p-4 shadow-sm sm:p-5">
+        <section className="rounded-xl bg-white/70 p-4 shadow-sm">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <h2 className="text-xl font-bold">Best Match Roles</h2>
             <p className="text-sm text-slate-600">A light signal from your profile and analyzed jobs.</p>
           </div>
           <div className="mt-3 grid gap-3 md:grid-cols-3">
             {bestMatchRoles.map((item, index) => (
-              <button key={`${item.label}-${index}`} type="button" className={`rounded-xl p-3.5 text-left shadow-sm ring-1 ring-white/70 transition hover:-translate-y-0.5 hover:bg-white/90 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${item.job ? getBestMatchTone(item.stage) : "bg-white/65"}`} onClick={() => item.job && setSelectedJob({ ...item.job, initialTab: "overview" })}>
+              <button key={`${item.label}-${index}`} type="button" className={`group rounded-xl p-3.5 text-left shadow-sm ring-1 ring-white/70 transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:bg-white/90 hover:ring-brand-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${item.job ? getBestMatchTone(item.stage) : "bg-white/65"}`} onClick={() => item.job && setSelectedJob({ ...item.job, initialTab: "overview" })}>
                 <div className="flex items-center gap-3">
                   {item.job ? <CompanyLogo companyName={item.company} companyDomain={item.job.company_domain} companyLogoUrl={item.job.company_logo_url} sourceUrl={item.job.source_url} size="md" /> : <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-xs font-bold text-brand-800">{index + 1}</span>}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start gap-2">
                       <p className="min-w-0 flex-1 font-bold leading-tight text-brand-900">{item.label}</p>
-                      {item.score && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${getFitScoreTone(item.score.score).className.replace("ring-1 ", "")}`}>{Math.round(Number(item.score.score))}%</span>}
+                      {item.score && <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${getFitScoreTone(item.score.score).className.replace("ring-1 ", "")}`}>{Math.round(Number(item.score.score))}%</span>}
                     </div>
                   </div>
+                  {item.job && <ChevronRight className="shrink-0 text-slate-300 opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={16} />}
                 </div>
                 {item.company && <p className="mt-2 text-sm font-semibold text-slate-800">{item.company}</p>}
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {item.stage && <span className="rounded-full bg-white/75 px-2 py-0.5 text-[11px] font-bold text-slate-600 ring-1 ring-slate-100">{item.stage}</span>}
-                  {item.matchLabel && <span className="text-xs font-semibold text-slate-500">{item.matchLabel}</span>}
+                  {item.stage && <span className="rounded-full bg-white/75 px-2 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100">{item.stage}</span>}
+                  {item.matchLabel && <span className="text-xs font-semibold text-slate-600">{item.matchLabel}</span>}
                 </div>
                 {item.action && <p className="mt-2 truncate text-xs font-bold text-brand-800">{item.action}</p>}
               </button>
@@ -259,10 +260,10 @@ function SearchInsights({ insights, onOpenJob, onOpenStage }) {
             {["Saved", "Applied", "Interview", "Closed"].map((stage) => {
               const count = insights.pipeline.counts[stage] || 0;
               return (
-                <button key={stage} type="button" className="group rounded-lg px-2 py-1 text-left transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenStage(stage)}>
-                  <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-600">
+                <button key={stage} type="button" className="group rounded-lg px-2 py-1 text-left transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:bg-brand-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenStage(stage)} aria-label={`Open ${stage} applications`}>
+                  <div className="mb-1 flex items-center justify-between text-[13px] font-semibold text-slate-700">
                     <span>{stage}</span>
-                    <span>{count}</span>
+                    <span className="inline-flex items-center gap-1">{count}<ChevronRight className="opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-60" size={13} /></span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-100">
                     <div className={`h-2 rounded-full transition-all group-hover:brightness-95 ${getStageBar(stage)}`} style={{ width: `${Math.max(count ? 8 : 0, (count / maxStage) * 100)}%` }} />
@@ -323,9 +324,12 @@ function SearchInsights({ insights, onOpenJob, onOpenStage }) {
             <MiniStat label="Low" value={insights.fit.low} tone="neutral" />
           </div>
           {bestMatch && (
-            <button type="button" className="mt-3 w-full rounded-lg bg-brand-50 px-3 py-2 text-left text-sm transition hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenJob(bestMatch.job, "overview")}>
+            <button type="button" className="group mt-3 flex w-full items-center justify-between gap-3 rounded-lg bg-brand-50 px-3 py-2 text-left text-sm transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:bg-brand-100 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenJob(bestMatch.job, "overview")}>
+              <span className="min-w-0">
               <span className="block font-bold text-brand-900">Best current match: {getDisplayJobTitle(bestMatch.job)}</span>
-              <span className="text-xs font-semibold text-slate-600">{getDisplayCompanyName(bestMatch.job)} {"\u2022"} {Math.round(Number(bestMatch.score.score))}% fit</span>
+              <span className="text-[13px] font-semibold text-slate-700">{getDisplayCompanyName(bestMatch.job)} {"\u2022"} {Math.round(Number(bestMatch.score.score))}% fit</span>
+              </span>
+              <ChevronRight className="shrink-0 text-brand-400 opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={16} />
             </button>
           )}
         </InsightCard>
@@ -333,12 +337,12 @@ function SearchInsights({ insights, onOpenJob, onOpenStage }) {
         <InsightCard title="Company Activity" insight={insights.companies.length ? "The companies showing the most activity in your search." : "Company patterns will appear as you track more roles."}>
           <div className="grid gap-2">
             {insights.companies.map((company) => (
-              <button key={company.company} type="button" className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-left transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenJob(company.job, "overview")}>
+              <button key={company.company} type="button" className="group flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-left transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:bg-brand-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenJob(company.job, "overview")}>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-ink">{company.company}</span>
-                  <span className="text-xs text-slate-500">{formatCompanyActivity(company)}</span>
+                  <span className="text-[13px] leading-5 text-slate-600">{formatCompanyActivity(company)}</span>
                 </span>
-                <span className="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">{company.highestFit ? `${Math.round(company.highestFit)}%` : "New"}</span>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">{company.highestFit ? `${Math.round(company.highestFit)}%` : "New"}<ChevronRight className="opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-70" size={12} /></span>
               </button>
             ))}
             {!insights.companies.length && <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-slate-600">Analyze your first job to start building insights.</p>}
@@ -351,20 +355,20 @@ function SearchInsights({ insights, onOpenJob, onOpenStage }) {
 
 function InsightCard({ title, insight, children }) {
   return (
-    <article className="rounded-xl bg-white/80 p-4 shadow-sm ring-1 ring-brand-100">
+    <article className="rounded-xl bg-white/80 p-3.5 shadow-sm ring-1 ring-brand-100 sm:p-4">
       <h3 className="font-bold text-ink">{title}</h3>
-      <p className="mt-1 min-h-8 text-sm leading-5 text-slate-600">{insight}</p>
+      <p className="mt-1 min-h-8 text-sm leading-5 text-slate-700">{insight}</p>
       <div className="mt-3">{children}</div>
     </article>
   );
 }
 
 function MiniStat({ label, value, tone = "info", onClick }) {
-  const className = `rounded-lg px-3 py-2 text-left ring-1 transition ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" : ""} ${getMiniStatTone(tone)}`;
+  const className = `group rounded-lg px-3 py-2 text-left ring-1 transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" : ""} ${getMiniStatTone(tone)}`;
   const content = (
     <>
       <p className="text-lg font-black">{value}</p>
-      <p className="mt-0.5 text-[11px] font-semibold leading-4 opacity-80">{label}</p>
+      <p className="mt-0.5 text-xs font-semibold leading-4 opacity-85">{label}</p>
     </>
   );
   if (onClick) return <button type="button" className={className} onClick={onClick}>{content}</button>;
