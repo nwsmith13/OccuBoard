@@ -18,6 +18,7 @@ export function formatActivityLabel(event = {}) {
     cover_letter_exported_docx: "Cover letter exported DOCX",
     followup_message_generated: "Follow-up message generated",
     followup_message_copied: "Follow-up message copied",
+    followup_calendar_exported: "Follow-up calendar exported",
     followup_saved: "Follow-up saved",
     followup_completed: "Follow-up completed",
     followup_snoozed: "Follow-up snoozed",
@@ -30,6 +31,8 @@ export function formatActivityLabel(event = {}) {
     contact_deleted: "Contact deleted",
     contact_contacted: "Contact marked contacted",
     interview_prep_generated: "Interview prep generated",
+    interview_details_saved: "Interview details saved",
+    interview_calendar_exported: "Interview calendar exported",
     interview_thank_you_generated: "Thank-you message generated",
     interview_completed: "Interview completed",
     resume_imported: "Resume imported",
@@ -47,6 +50,9 @@ export function formatActivityDetails(event = {}) {
   if ((event.type === "message_generated" || event.type === "followup_message_generated") && metadata.contactName) return `For ${metadata.contactName}`;
   if (event.type?.startsWith("cover_letter")) return metadata.fileType ? `${metadata.fileType} download` : metadata.detail || metadata.type || "";
   if (event.type === "followup_message_copied") return metadata.detail || "Ready to send outside OccuBoard";
+  if (event.type === "followup_calendar_exported") return [metadata.fileType, metadata.date ? formatDate(metadata.date) : ""].filter(Boolean).join(" - ");
+  if (event.type === "interview_details_saved") return [metadata.date ? formatDate(metadata.date) : "", metadata.time, metadata.type].filter(Boolean).join(" - ");
+  if (event.type === "interview_calendar_exported") return [metadata.fileType, metadata.date ? formatDate(metadata.date) : ""].filter(Boolean).join(" - ");
   if (event.type === "resume_exported_pdf" || event.type === "resume_exported_docx") return metadata.fileType ? `${metadata.fileType} download` : "";
   if (event.type?.startsWith("contact_")) return [metadata.contactName, metadata.company].filter(Boolean).join(" at ");
   return metadata.detail || metadata.title || metadata.company || "";

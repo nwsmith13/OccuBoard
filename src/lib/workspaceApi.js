@@ -8,6 +8,7 @@ const keys = {
   profile: "occuboard.profile",
   jobs: "occuboard.jobs",
   jobFollowUpOverrides: "occuboard.jobFollowUpOverrides",
+  jobCalendarOverrides: "occuboard.jobCalendarOverrides",
   activityLogs: "occuboard.activityLogs",
   jobActivityLogs: "occuboard.jobActivityLogs",
   jobContacts: "occuboard.jobContacts",
@@ -138,7 +139,7 @@ export async function fetchWorkspace(user) {
 
     return {
       profile,
-      jobs: applyJobFollowUpOverrides(jobsResult.data ?? []),
+      jobs: applyJobCalendarOverrides(applyJobFollowUpOverrides(jobsResult.data ?? [])),
       activityLogs: logsResult.data ?? [],
       jobActivityLogs,
       jobContacts,
@@ -260,13 +261,15 @@ export async function updateJob(user, id, patch) {
       const legacyPayload = getLegacyJobPayload(payload);
       const retry = await supabase.from("jobs").update(legacyPayload).eq("id", id).eq("user_id", user.id).select("*").single();
       if (retry.error) throw retry.error;
-      const enriched = { ...retry.data, ...Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key.startsWith("company_"))) };
+      const enriched = { ...retry.data, ...Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key.startsWith("company_") || key.startsWith("interview_") || key === "interviewer_contact_id" || key === "calendar_event_added_at")) };
       if (hasFollowUpPatch(payload)) rememberJobFollowUpOverride(id, payload);
+      if (hasCalendarPatch(payload)) rememberJobCalendarOverride(id, payload);
       await logActivity(user, "Job", `Updated ${getDisplayJobTitle(enriched)} at ${getDisplayCompanyName(enriched)}`);
       await logJobUpdateActivity(user, previous, enriched, payload);
       return enriched;
     }
     if (hasFollowUpPatch(payload)) clearJobFollowUpOverride(id);
+    if (hasCalendarPatch(payload)) clearJobCalendarOverride(id);
     await logActivity(user, "Job", `Updated ${getDisplayJobTitle(data)} at ${getDisplayCompanyName(data)}`);
     await logJobUpdateActivity(user, previous, data, payload);
     return data;
@@ -660,6 +663,10 @@ async function logJobUpdateActivity(user, previous, next, payload) {
     await logJobActivity(user, next.id, "followup_saved", { date: next.followup_date, note: next.followup_note });
     return;
   }
+  if ("interview_date" in payload || "interview_time" in payload || "interview_location" in payload || "interview_type" in payload || "interviewer_contact_id" in payload) {
+    await logJobActivity(user, next.id, "interview_details_saved", { date: next.interview_date, time: next.interview_time, type: next.interview_type });
+    return;
+  }
   await logJobActivity(user, next.id, "job_edited", { title: getDisplayJobTitle(next), company: getDisplayCompanyName(next) });
 }
 
@@ -686,6 +693,14 @@ function normalizeJob(user, job) {
     followup_completed_at: job.followup_completed_at || null,
     followup_snoozed_until: job.followup_snoozed_until || null,
     followup_note: job.followup_note || "",
+    interview_date: job.interview_date || null,
+    interview_time: job.interview_time || "09:00",
+    interview_duration: job.interview_duration || 30,
+    interview_location: job.interview_location || "",
+    interview_type: job.interview_type || "Video",
+    interviewer_contact_id: job.interviewer_contact_id || null,
+    calendar_event_added_at: job.calendar_event_added_at || null,
+    followup_calendar_added_at: job.followup_calendar_added_at || null,
     notes: job.notes,
     created_at: createdAt,
     updated_at: createdAt,
@@ -714,6 +729,14 @@ function cleanJobPayload(job) {
     "followup_completed_at",
     "followup_snoozed_until",
     "followup_note",
+    "interview_date",
+    "interview_time",
+    "interview_duration",
+    "interview_location",
+    "interview_type",
+    "interviewer_contact_id",
+    "calendar_event_added_at",
+    "followup_calendar_added_at",
     "notes",
     "created_at",
     "updated_at",
@@ -726,6 +749,14 @@ function cleanJobPayload(job) {
   if ("followup_completed_at" in payload) cleaned.followup_completed_at = payload.followup_completed_at || null;
   if ("followup_snoozed_until" in payload) cleaned.followup_snoozed_until = payload.followup_snoozed_until || null;
   if ("followup_note" in payload) cleaned.followup_note = payload.followup_note || "";
+  if ("interview_date" in payload) cleaned.interview_date = payload.interview_date || null;
+  if ("interview_time" in payload) cleaned.interview_time = payload.interview_time || "09:00";
+  if ("interview_duration" in payload) cleaned.interview_duration = Number(payload.interview_duration || 30);
+  if ("interview_location" in payload) cleaned.interview_location = payload.interview_location || "";
+  if ("interview_type" in payload) cleaned.interview_type = payload.interview_type || "Video";
+  if ("interviewer_contact_id" in payload) cleaned.interviewer_contact_id = payload.interviewer_contact_id || null;
+  if ("calendar_event_added_at" in payload) cleaned.calendar_event_added_at = payload.calendar_event_added_at || null;
+  if ("followup_calendar_added_at" in payload) cleaned.followup_calendar_added_at = payload.followup_calendar_added_at || null;
   if ("date_saved" in payload) cleaned.date_saved = payload.date_saved || new Date().toISOString().slice(0, 10);
   if ("company_name" in payload) cleaned.company_name = getDisplayCompanyName(payload);
   if ("job_title" in payload) cleaned.job_title = getDisplayJobTitle(payload);
@@ -737,8 +768,16 @@ function hasFollowUpPatch(payload = {}) {
   return Object.keys(payload).some((key) => key.startsWith("followup_"));
 }
 
+function hasCalendarPatch(payload = {}) {
+  return Object.keys(payload).some((key) => key.startsWith("interview_") || key === "interviewer_contact_id" || key === "calendar_event_added_at" || key === "followup_calendar_added_at");
+}
+
 function getFollowUpPatch(payload = {}) {
   return Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key === "updated_at"));
+}
+
+function getCalendarPatch(payload = {}) {
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("interview_") || key === "interviewer_contact_id" || key === "calendar_event_added_at" || key === "followup_calendar_added_at" || key === "updated_at"));
 }
 
 function rememberJobFollowUpOverride(jobId, payload = {}) {
@@ -761,6 +800,26 @@ function clearJobFollowUpOverride(jobId) {
   writeLocal(keys.jobFollowUpOverrides, next);
 }
 
+function rememberJobCalendarOverride(jobId, payload = {}) {
+  const overrides = readLocal(keys.jobCalendarOverrides, {});
+  writeLocal(keys.jobCalendarOverrides, {
+    ...overrides,
+    [jobId]: {
+      ...(overrides[jobId] || {}),
+      ...getCalendarPatch(payload),
+      updated_at: payload.updated_at || now(),
+    },
+  });
+}
+
+function clearJobCalendarOverride(jobId) {
+  const overrides = readLocal(keys.jobCalendarOverrides, {});
+  if (!overrides[jobId]) return;
+  const next = { ...overrides };
+  delete next[jobId];
+  writeLocal(keys.jobCalendarOverrides, next);
+}
+
 function applyJobFollowUpOverrides(jobs = []) {
   const overrides = readLocal(keys.jobFollowUpOverrides, {});
   if (!overrides || !Object.keys(overrides).length) return jobs;
@@ -777,8 +836,31 @@ function applyJobFollowUpOverrides(jobs = []) {
   });
 }
 
+function applyJobCalendarOverrides(jobs = []) {
+  const overrides = readLocal(keys.jobCalendarOverrides, {});
+  if (!overrides || !Object.keys(overrides).length) return jobs;
+  return jobs.map((job) => {
+    const override = overrides[job.id];
+    if (!override) return job;
+    const jobUpdatedAt = new Date(job.updated_at || job.created_at || 0);
+    const overrideUpdatedAt = new Date(override.updated_at || 0);
+    if (jobUpdatedAt > overrideUpdatedAt && getServerHasCalendarState(job, override)) {
+      clearJobCalendarOverride(job.id);
+      return job;
+    }
+    return { ...job, ...override };
+  });
+}
+
 function getServerHasFollowUpState(job = {}, override = {}) {
   return ["followup_date", "followup_status", "followup_completed_at", "followup_snoozed_until", "followup_note"].every((key) => {
+    if (!(key in override)) return true;
+    return normalizeComparable(job[key]) === normalizeComparable(override[key]);
+  });
+}
+
+function getServerHasCalendarState(job = {}, override = {}) {
+  return ["interview_date", "interview_time", "interview_duration", "interview_location", "interview_type", "interviewer_contact_id", "calendar_event_added_at", "followup_calendar_added_at"].every((key) => {
     if (!(key in override)) return true;
     return normalizeComparable(job[key]) === normalizeComparable(override[key]);
   });
@@ -795,6 +877,12 @@ function normalizeFollowUpPayload(job) {
   if ("followUpCompletedAt" in normalized && !("followup_completed_at" in normalized)) normalized.followup_completed_at = normalized.followUpCompletedAt;
   if ("followUpSnoozedUntil" in normalized && !("followup_snoozed_until" in normalized)) normalized.followup_snoozed_until = normalized.followUpSnoozedUntil;
   if ("followUpNote" in normalized && !("followup_note" in normalized)) normalized.followup_note = normalized.followUpNote;
+  if ("interviewDate" in normalized && !("interview_date" in normalized)) normalized.interview_date = normalized.interviewDate;
+  if ("interviewTime" in normalized && !("interview_time" in normalized)) normalized.interview_time = normalized.interviewTime;
+  if ("interviewDuration" in normalized && !("interview_duration" in normalized)) normalized.interview_duration = normalized.interviewDuration;
+  if ("interviewLocation" in normalized && !("interview_location" in normalized)) normalized.interview_location = normalized.interviewLocation;
+  if ("interviewType" in normalized && !("interview_type" in normalized)) normalized.interview_type = normalized.interviewType;
+  if ("interviewerContactId" in normalized && !("interviewer_contact_id" in normalized)) normalized.interviewer_contact_id = normalized.interviewerContactId;
   return normalized;
 }
 
@@ -806,6 +894,14 @@ function getLegacyJobPayload(payload) {
   delete legacyPayload.followup_completed_at;
   delete legacyPayload.followup_snoozed_until;
   delete legacyPayload.followup_note;
+  delete legacyPayload.interview_date;
+  delete legacyPayload.interview_time;
+  delete legacyPayload.interview_duration;
+  delete legacyPayload.interview_location;
+  delete legacyPayload.interview_type;
+  delete legacyPayload.interviewer_contact_id;
+  delete legacyPayload.calendar_event_added_at;
+  delete legacyPayload.followup_calendar_added_at;
   return legacyPayload;
 }
 

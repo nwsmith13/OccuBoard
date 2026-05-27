@@ -1,4 +1,4 @@
-import { ArrowRightCircle, Bell, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
+import { ArrowRightCircle, Bell, CalendarDays, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AiToolsPanel, CopyButton } from "../../components/ai/AiToolsPanel.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
@@ -13,6 +13,7 @@ import { priorities, remoteTypes, stages } from "../../data/seedData.js";
 import { formatDate, isOverdue, todayIso } from "../../lib/date.js";
 import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, getFollowUpNote, getFollowUpSnoozedUntil, getFollowUpStatus, getFollowUpTone } from "../../lib/followUp.js";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
+import { buildFollowUpCalendarEvent, buildGoogleCalendarUrl, buildInterviewCalendarEvent, buildOutlookCalendarUrl, downloadIcsEvent } from "../../lib/calendarExport.js";
 import { exportCoverLetterDocx, exportCoverLetterPdf } from "../../lib/coverLetterExport.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
@@ -480,7 +481,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
 
               <section ref={followUpSectionRef} className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Follow-up</p>
-                <FollowUpControls job={job} user={user} profile={profile} messages={messages} updateJob={updateJob} saveMessage={saveMessage} logJobActivity={logJobActivity} onJobUpdate={mergeJobUpdate} />
+                <FollowUpControls job={job} user={user} profile={profile} messages={messages} contacts={contacts} updateJob={updateJob} saveMessage={saveMessage} logJobActivity={logJobActivity} onJobUpdate={mergeJobUpdate} />
               </section>
 
               <div className="flex flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
@@ -556,7 +557,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
           )}
           {activeTab === "interview" && (
             <div className="mx-auto max-w-5xl">
-              <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} onSavePrep={saveInterviewPrep} onLogActivity={logJobActivity} />
+              <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} updateJob={updateJob} onJobUpdate={mergeJobUpdate} onSavePrep={saveInterviewPrep} onLogActivity={logJobActivity} />
             </div>
           )}
         </div>
@@ -796,10 +797,11 @@ function getNextBestActionCtaLabel(actionType) {
   }[actionType];
 }
 
-function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage, logJobActivity, onJobUpdate }) {
+function FollowUpControls({ job, user, profile, messages, contacts = [], updateJob, saveMessage, logJobActivity, onJobUpdate }) {
   const [reminder, setReminder] = useState(job);
   const [date, setDate] = useState(getFollowUpDate(reminder));
   const [note, setNote] = useState(getFollowUpNote(reminder));
+  const [followUpTime, setFollowUpTime] = useState("09:00");
   const [customSnooze, setCustomSnooze] = useState("");
   const [saving, setSaving] = useState("");
   const [generatingMessage, setGeneratingMessage] = useState(false);
@@ -817,6 +819,9 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
   const label = getFollowUpLabel(draftReminder);
   const completedAt = getFollowUpCompletedAt(reminder);
   const snoozedUntil = getFollowUpSnoozedUntil(reminder);
+  const followUpEvent = date ? buildFollowUpCalendarEvent(draftReminder, { date, time: followUpTime, contacts, note, latestFollowUpMessage }) : null;
+  const googleCalendarUrl = followUpEvent ? buildGoogleCalendarUrl(followUpEvent) : "";
+  const outlookCalendarUrl = followUpEvent ? buildOutlookCalendarUrl(followUpEvent) : "";
 
   useEffect(() => {
     setReminder(job);
@@ -910,6 +915,21 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
     }
   }
 
+  async function downloadFollowUpCalendar() {
+    if (!followUpEvent) return;
+    const downloaded = downloadIcsEvent(followUpEvent);
+    if (!downloaded) return;
+    setMessage("Calendar file downloaded.");
+    await logJobActivity?.(user, job.id, "followup_calendar_exported", { fileType: "ICS", date, time: followUpTime });
+    window.setTimeout(() => setMessage(""), 2600);
+  }
+
+  async function openFollowUpCalendar(provider) {
+    setMessage(provider === "outlook" ? "Opening Outlook Calendar..." : "Opening Google Calendar...");
+    await logJobActivity?.(user, job.id, "followup_calendar_exported", { fileType: provider === "outlook" ? "Outlook" : "Google Calendar", date, time: followUpTime });
+    window.setTimeout(() => setMessage(""), 2200);
+  }
+
   return (
     <div className="mt-3 rounded-lg bg-brand-50/70 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -921,16 +941,27 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
       </div>
 
       <div className="mt-4 grid gap-3">
-        <label className="grid gap-1 text-sm font-semibold text-ink">
-          Follow-up date
-          <input
-            ref={followUpDateRef}
-            type="date"
-            value={date || ""}
-            onChange={(event) => setDate(event.target.value)}
-            className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
-          />
-        </label>
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
+          <label className="grid gap-1 text-sm font-semibold text-ink">
+            Follow-up date
+            <input
+              ref={followUpDateRef}
+              type="date"
+              value={date || ""}
+              onChange={(event) => setDate(event.target.value)}
+              className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-semibold text-ink">
+            Reminder time
+            <input
+              type="time"
+              value={followUpTime}
+              onChange={(event) => setFollowUpTime(event.target.value || "09:00")}
+              className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+            />
+          </label>
+        </div>
         <label className="grid gap-1 text-sm font-semibold text-ink">
           Follow-up note
           <textarea
@@ -968,6 +999,43 @@ function FollowUpControls({ job, user, profile, messages, updateJob, saveMessage
           aria-label="Custom snooze date"
           className="min-h-8 rounded-lg border border-brand-100 bg-white px-2 text-xs outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
         />
+      </div>
+      <div className="mt-4 rounded-lg bg-white/75 p-3 ring-1 ring-brand-100">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-sm font-bold text-ink"><CalendarDays size={16} /> Add to calendar</p>
+            <p className="mt-1 text-xs text-slate-500">{date ? "Create a 15-minute reminder from this follow-up date." : "Set a date first to create a calendar reminder."}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {googleCalendarUrl ? (
+              <a
+                className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                href={googleCalendarUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => openFollowUpCalendar("google")}
+              >
+                Google Calendar <ExternalLink size={13} />
+              </a>
+            ) : (
+              <Button variant="secondary" className="min-h-8 px-3 text-xs" disabled>Set a date first</Button>
+            )}
+            {outlookCalendarUrl && (
+              <a
+                className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                href={outlookCalendarUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => openFollowUpCalendar("outlook")}
+              >
+                Outlook <ExternalLink size={13} />
+              </a>
+            )}
+            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={downloadFollowUpCalendar} disabled={!followUpEvent}>
+              <Download size={13} /> Download .ics
+            </Button>
+          </div>
+        </div>
       </div>
       {snoozedUntil && <p className="mt-2 text-xs font-semibold text-slate-500">Currently snoozed until {formatDate(snoozedUntil)}.</p>}
       {messageError && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{messageError}</p>}
@@ -1279,11 +1347,14 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
   );
 }
 
-function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, user, onSavePrep, onLogActivity }) {
+function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, user, updateJob, onJobUpdate, onSavePrep, onLogActivity }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [openQuestion, setOpenQuestion] = useState("");
   const [openStory, setOpenStory] = useState("");
+  const [interviewDetails, setInterviewDetails] = useState(() => getInterviewDetails(job, contacts));
+  const [interviewSaving, setInterviewSaving] = useState(false);
+  const [interviewMessage, setInterviewMessage] = useState("");
   const [draftNotes, setDraftNotes] = useState(() => prep?.answer_notes ?? {});
   const [noteSaveStatus, setNoteSaveStatus] = useState({});
   const [thankYouDraft, setThankYouDraft] = useState(() => prep?.content?.thankYouMessage ?? "");
@@ -1299,6 +1370,10 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     setDraftNotes(prep?.answer_notes ?? {});
     setThankYouDraft(prep?.content?.thankYouMessage ?? "");
   }, [prep?.id, prep?.updated_at, prep?.content?.thankYouMessage, prep?.answer_notes]);
+
+  useEffect(() => {
+    setInterviewDetails(getInterviewDetails(job, contacts));
+  }, [job, contacts]);
 
   async function generatePrep() {
     if (loading) return;
@@ -1381,6 +1456,49 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     setInterviewCompleted(true);
   }
 
+  function updateInterviewDetail(name, value) {
+    setInterviewDetails((current) => ({ ...current, [name]: value }));
+  }
+
+  async function saveInterviewDetails() {
+    if (!updateJob) return;
+    setInterviewSaving(true);
+    setInterviewMessage("");
+    try {
+      const payload = {
+        interview_date: interviewDetails.interview_date || null,
+        interview_time: interviewDetails.interview_time || "09:00",
+        interview_duration: Number(interviewDetails.interview_duration || 30),
+        interview_location: interviewDetails.interview_location || "",
+        interview_type: interviewDetails.interview_type || "Video",
+        interviewer_contact_id: interviewDetails.interviewer_contact_id || null,
+      };
+      const saved = await updateJob(user, job.id, payload);
+      onJobUpdate?.({ ...job, ...payload, ...saved });
+      setInterviewMessage("Interview details saved.");
+    } catch (err) {
+      setInterviewMessage(err.message || "Interview details could not be saved.");
+    } finally {
+      setInterviewSaving(false);
+      window.setTimeout(() => setInterviewMessage(""), 2600);
+    }
+  }
+
+  async function downloadInterviewCalendar() {
+    const event = buildInterviewCalendarEvent(job, { ...interviewDetails, contacts });
+    const downloaded = downloadIcsEvent(event);
+    if (!downloaded) return;
+    setInterviewMessage("Calendar file downloaded.");
+    await onLogActivity?.(user, job.id, "interview_calendar_exported", { fileType: "ICS", date: interviewDetails.interview_date, time: interviewDetails.interview_time });
+    window.setTimeout(() => setInterviewMessage(""), 2600);
+  }
+
+  async function openInterviewCalendar(provider) {
+    setInterviewMessage(provider === "outlook" ? "Opening Outlook Calendar..." : "Opening Google Calendar...");
+    await onLogActivity?.(user, job.id, "interview_calendar_exported", { fileType: provider === "outlook" ? "Outlook" : "Google Calendar", date: interviewDetails.interview_date, time: interviewDetails.interview_time });
+    window.setTimeout(() => setInterviewMessage(""), 2200);
+  }
+
   if (!content) {
     return (
       <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
@@ -1393,6 +1511,42 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           {loading ? "Preparing..." : "Generate interview prep"}
         </Button>
         {showPrepSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
+        <div className="mt-5 rounded-lg bg-brand-50/70 p-4 ring-1 ring-brand-100">
+          <p className="flex items-center gap-2 text-sm font-bold text-ink"><CalendarDays size={16} /> Interview schedule</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="grid gap-1 text-sm font-semibold text-ink">
+              Date
+              <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="date" value={interviewDetails.interview_date} onChange={(event) => updateInterviewDetail("interview_date", event.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-ink">
+              Time
+              <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="time" value={interviewDetails.interview_time} onChange={(event) => updateInterviewDetail("interview_time", event.target.value || "09:00")} />
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-ink">
+              Duration
+              <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={interviewDetails.interview_duration} onChange={(event) => updateInterviewDetail("interview_duration", event.target.value)}>
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">60 minutes</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button className="min-h-8 px-3 text-xs" onClick={saveInterviewDetails} disabled={interviewSaving}>
+              {interviewSaving && <Loader2 size={14} className="animate-spin" />}
+              {interviewSaving ? "Saving..." : "Save interview details"}
+            </Button>
+            {interviewDetails.interview_date ? (
+              <>
+                <a className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" href={buildGoogleCalendarUrl(buildInterviewCalendarEvent(job, { ...interviewDetails, contacts }))} target="_blank" rel="noreferrer" onClick={() => openInterviewCalendar("google")}>Google Calendar <ExternalLink size={13} /></a>
+                <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={downloadInterviewCalendar}><Download size={13} /> Download .ics</Button>
+              </>
+            ) : (
+              <Button variant="secondary" className="min-h-8 px-3 text-xs" disabled>Set a date first</Button>
+            )}
+          </div>
+          {interviewMessage && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{interviewMessage}</p>}
+        </div>
       </section>
     );
   }
@@ -1415,10 +1569,85 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Detail label="Fit score" value={score ? `${Math.round(Number(score.score))}%` : "Not analyzed"} />
           <Detail label="Stage" value={getDisplayStage(job.status)} />
-          <Detail label="Interview date" value="Future support" />
+          <Detail label="Interview date" value={interviewDetails.interview_date ? formatDate(interviewDetails.interview_date) : "Not scheduled"} />
           <Detail label="Preparation level" value={getPrepLevel(content, practiced.size)} />
         </div>
         {contacts[0] && <p className="mt-3 text-sm text-slate-600">Contact: <span className="font-semibold text-slate-800">{contacts[0].name}</span></p>}
+        <div className="mt-5 rounded-lg bg-brand-50/70 p-4 ring-1 ring-brand-100">
+          <p className="flex items-center gap-2 text-sm font-bold text-ink"><CalendarDays size={16} /> Interview schedule</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="grid gap-1 text-sm font-semibold text-ink">
+              Date
+              <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="date" value={interviewDetails.interview_date} onChange={(event) => updateInterviewDetail("interview_date", event.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-ink">
+              Time
+              <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="time" value={interviewDetails.interview_time} onChange={(event) => updateInterviewDetail("interview_time", event.target.value || "09:00")} />
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-ink">
+              Duration
+              <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={interviewDetails.interview_duration} onChange={(event) => updateInterviewDetail("interview_duration", event.target.value)}>
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">60 minutes</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-ink">
+              Type
+              <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={interviewDetails.interview_type} onChange={(event) => updateInterviewDetail("interview_type", event.target.value)}>
+                <option>Phone</option>
+                <option>Video</option>
+                <option>In person</option>
+                <option>Other</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-ink lg:col-span-2">
+              Location or link
+              <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={interviewDetails.interview_location} onChange={(event) => updateInterviewDetail("interview_location", event.target.value)} placeholder="Video link, phone number, or address" />
+            </label>
+            {contacts.length > 0 && (
+              <label className="grid gap-1 text-sm font-semibold text-ink lg:col-span-3">
+                Interviewer/contact
+                <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={interviewDetails.interviewer_contact_id} onChange={(event) => updateInterviewDetail("interviewer_contact_id", event.target.value)}>
+                  <option value="">No contact selected</option>
+                  {contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name || contact.email || "Contact"}</option>)}
+                </select>
+              </label>
+            )}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button className="min-h-8 px-3 text-xs" onClick={saveInterviewDetails} disabled={interviewSaving}>
+              {interviewSaving && <Loader2 size={14} className="animate-spin" />}
+              {interviewSaving ? "Saving..." : "Save interview details"}
+            </Button>
+            {interviewDetails.interview_date ? (
+              <>
+                <a
+                  className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                  href={buildGoogleCalendarUrl(buildInterviewCalendarEvent(job, { ...interviewDetails, contacts }))}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => openInterviewCalendar("google")}
+                >
+                  Google Calendar <ExternalLink size={13} />
+                </a>
+                <a
+                  className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                  href={buildOutlookCalendarUrl(buildInterviewCalendarEvent(job, { ...interviewDetails, contacts }))}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => openInterviewCalendar("outlook")}
+                >
+                  Outlook <ExternalLink size={13} />
+                </a>
+                <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={downloadInterviewCalendar}><Download size={13} /> Download .ics</Button>
+              </>
+            ) : (
+              <Button variant="secondary" className="min-h-8 px-3 text-xs" disabled>Set a date first</Button>
+            )}
+          </div>
+          {interviewMessage && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{interviewMessage}</p>}
+        </div>
       </div>
 
       <PrepSection title="Likely Interview Focus Areas">
@@ -1537,6 +1766,17 @@ function getPrepLevel(content, practicedCount) {
   if (practicedCount >= Math.min(3, content.questions.length)) return "Ready";
   if (content) return "In progress";
   return "Not started";
+}
+
+function getInterviewDetails(job = {}, contacts = []) {
+  return {
+    interview_date: job.interview_date || "",
+    interview_time: job.interview_time || "09:00",
+    interview_duration: String(job.interview_duration || 30),
+    interview_location: job.interview_location || "",
+    interview_type: job.interview_type || "Video",
+    interviewer_contact_id: job.interviewer_contact_id || contacts[0]?.id || "",
+  };
 }
 
 function JobActivityTimeline({ events = [] }) {

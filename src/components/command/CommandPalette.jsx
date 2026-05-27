@@ -1,4 +1,4 @@
-import { ArrowRightCircle, Bell, BriefcaseBusiness, CheckCircle2, FileText, LayoutDashboard, Mail, MessageCircle, Search, Settings, Sparkles, Upload, UserRound, X } from "lucide-react";
+import { ArrowRightCircle, Bell, BriefcaseBusiness, CalendarDays, CheckCircle2, FileText, LayoutDashboard, Mail, MessageCircle, Search, Settings, Sparkles, Upload, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getFollowUpLabel, getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
@@ -34,6 +34,8 @@ const tabCommands = [
   ["export", "Open Export", "Application Materials", "export materials pdf docx"],
   ["overview", "Set follow-up", "Follow-up", "follow up reminder date"],
   ["overview", "Generate follow-up message", "Follow-up", "follow up message"],
+  ["overview", "Add follow-up to calendar", "Follow-up calendar", "calendar reminder ics google outlook follow up"],
+  ["interview", "Add interview to calendar", "Interview calendar", "calendar interview ics google outlook"],
 ];
 
 const groupOrder = ["Jobs", "Contacts", "Materials", "Commands", "Navigation"];
@@ -417,6 +419,7 @@ function normalize(value = "") {
 }
 
 function getCommandIcon(label = "") {
+  if (label.includes("calendar")) return CalendarDays;
   if (label.includes("follow")) return Bell;
   if (label.includes("Message")) return Mail;
   if (label.includes("Interview")) return Sparkles;

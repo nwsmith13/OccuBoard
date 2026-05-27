@@ -92,7 +92,15 @@ export function getNextBestAction(job = {}, options = {}) {
   if (followUpStatus === "overdue") return buildAction("follow_up_overdue");
   if (followUpStatus === "due") return buildAction("follow_up_today");
 
-  if (stage === "Interview") return buildAction("prepare_interview");
+  if (stage === "Interview") {
+    if (isInterviewSoon(job, 48)) {
+      return buildAction("prepare_interview", {
+        description: "Interview coming up soon. Review your focus areas, talking points, and thank-you note.",
+        priority: 1,
+      });
+    }
+    return buildAction("prepare_interview");
+  }
 
   if (stage === "Applied" && !hasResume) return buildAction("generate_resume");
 
@@ -173,4 +181,15 @@ function isStaleHighFit(job, options) {
   if (!latestDate) return false;
   const daysSince = (Date.now() - latestDate.getTime()) / (1000 * 60 * 60 * 24);
   return daysSince >= 3;
+}
+
+function isInterviewSoon(job = {}, hours = 48) {
+  const date = job.interview_date || job.interviewDate;
+  if (!date) return false;
+  const time = job.interview_time || job.interviewTime || "09:00";
+  const [hour = "09", minute = "00"] = String(time).split(":");
+  const interviewAt = new Date(`${date}T${hour.padStart(2, "0")}:${minute.padStart(2, "0")}:00`);
+  if (Number.isNaN(interviewAt.getTime())) return false;
+  const diffHours = (interviewAt.getTime() - Date.now()) / (1000 * 60 * 60);
+  return diffHours >= 0 && diffHours <= hours;
 }
