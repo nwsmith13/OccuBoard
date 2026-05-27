@@ -2,6 +2,7 @@ import { Clipboard, Loader2, RefreshCcw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
 import { getLatestForJob, isCoverLetter, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
@@ -11,6 +12,7 @@ import { Button } from "../ui/Button.jsx";
 
 export function AiToolsPanel({ job, compact = false, contentOnly = false, activeTab = "fit", onTabChange, onExportComplete }) {
   const { user } = useAuth();
+  const toast = useToast();
   const {
     profile,
     jobScores,
@@ -71,9 +73,11 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         await saveMessage(user, job, { ...result, contact_id: selectedContactId || null, contactName: contact?.name || "" });
       }
       setAiState({ loading: "", error: "", latest: { action, result, resumeId: savedResume?.id }, confirm: "" });
+      toast.success(getAiSuccessMessage(action));
       onTabChange?.(action);
     } catch (error) {
       setAiState({ loading: "", latest: null, error: error.message, confirm: "" });
+      toast.error(getAiErrorMessage(action));
     }
   }
 
@@ -631,14 +635,36 @@ function formatDateTime(value) {
 
 export function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
+  const toast = useToast();
   async function copy() {
-    await navigator.clipboard.writeText(text || "");
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+    try {
+      await navigator.clipboard.writeText(text || "");
+      setCopied(true);
+      toast.success("Copied to clipboard.");
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      toast.error("Could not copy text.");
+    }
   }
   return (
     <button type="button" onClick={copy} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-white">
       <Clipboard size={14} /> {copied ? "Copied" : "Copy"}
     </button>
   );
+}
+
+function getAiSuccessMessage(action) {
+  return {
+    fit: "Fit analysis saved.",
+    resume: "Tailored resume saved.",
+    message: "Recruiter message saved.",
+  }[action] || "AI result saved.";
+}
+
+function getAiErrorMessage(action) {
+  return {
+    fit: "Could not analyze fit.",
+    resume: "Could not tailor resume.",
+    message: "Could not generate recruiter message.",
+  }[action] || "Could not generate this yet.";
 }

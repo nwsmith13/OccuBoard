@@ -1,5 +1,5 @@
 import { ArrowRightCircle, Bell, CalendarDays, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiToolsPanel, CopyButton } from "../../components/ai/AiToolsPanel.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
@@ -9,6 +9,7 @@ import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { Field } from "../../components/ui/Field.jsx";
 import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { priorities, remoteTypes, stages } from "../../data/seedData.js";
 import { formatDate, isOverdue, todayIso } from "../../lib/date.js";
 import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, getFollowUpNote, getFollowUpSnoozedUntil, getFollowUpStatus, getFollowUpTone } from "../../lib/followUp.js";
@@ -281,6 +282,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
   const fitSectionRef = useRef(null);
   const contactsSectionRef = useRef(null);
   const followUpSectionRef = useRef(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [exportedResumeIds, setExportedResumeIds] = useState(() => new Set(getResumeExportHistory().map((item) => item.resumeId).filter(Boolean)));
   const [showDescription, setShowDescription] = useState(false);
   const latestScore = [...jobScores].filter((score) => score.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
@@ -322,9 +324,16 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
     return nextJob;
   }
 
+  const requestTabChange = useCallback((nextTab) => {
+    if (nextTab === activeTab) return;
+    if (hasUnsavedChanges && !window.confirm("You have unsaved changes. Leave this section anyway?")) return;
+    setHasUnsavedChanges(false);
+    setActiveTab(nextTab);
+  }, [activeTab, hasUnsavedChanges]);
+
   async function handleNextBestAction() {
     if (nextBestAction.actionType === "generate_resume") {
-      setActiveTab("resume");
+      requestTabChange("resume");
       return;
     }
     if (nextBestAction.actionType === "apply_now") {
@@ -332,19 +341,19 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
       return;
     }
     if (nextBestAction.actionType === "generate_message") {
-      setActiveTab("message");
+      requestTabChange("message");
       return;
     }
     if (nextBestAction.actionType === "generate_cover_letter") {
-      setActiveTab("coverLetter");
+      requestTabChange("coverLetter");
       return;
     }
     if (nextBestAction.actionType === "review_high_fit" || nextBestAction.actionType === "prepare_interview") {
-      setActiveTab(nextBestAction.actionType === "prepare_interview" ? "interview" : "fit");
+      requestTabChange(nextBestAction.actionType === "prepare_interview" ? "interview" : "fit");
       return;
     }
     if (nextBestAction.actionType === "follow_up_overdue" || nextBestAction.actionType === "follow_up_today") {
-      setActiveTab("overview");
+      requestTabChange("overview");
       window.setTimeout(() => followUpSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 30);
       return;
     }
@@ -354,13 +363,29 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
     }
   }
 
+  const requestClose = useCallback(() => {
+    if (hasUnsavedChanges && !window.confirm("You have unsaved changes. Close anyway?")) return;
+    setHasUnsavedChanges(false);
+    onClose();
+  }, [hasUnsavedChanges, onClose]);
+
   useEffect(() => {
     function onKeyDown(event) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") requestClose();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+  }, [requestClose]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return undefined;
+    function onBeforeUnload(event) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   useEffect(() => {
     if (activeTab === "fit" && latestScore) {
@@ -376,7 +401,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
   }, [activeTab, initialFocus, initialContactId]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink/35 p-0 sm:p-4" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 bg-ink/35 p-0 sm:p-4" onMouseDown={requestClose}>
       <section className="mx-auto flex h-[100dvh] max-w-[1200px] flex-col overflow-hidden bg-white shadow-soft sm:h-[calc(100dvh-2rem)] sm:rounded-lg" onMouseDown={(event) => event.stopPropagation()}>
         <header className="sticky top-0 z-20 border-b border-brand-100 bg-white/95 shadow-sm backdrop-blur">
           <div className="px-4 py-3 sm:px-5">
@@ -393,15 +418,15 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
                   <p className="mt-0.5 text-sm font-semibold text-brand-800">{getDisplayCompanyName(job)}</p>
                 </div>
               </div>
-              <button type="button" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50" onClick={onClose} aria-label="Close job details">
+              <button type="button" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50" onClick={requestClose} aria-label="Close job details">
                 <X size={20} />
               </button>
             </div>
           </div>
           <div className="border-t border-brand-100 px-4 py-2 sm:px-5">
-            <AiToolsPanel compact job={job} activeTab={getAiToolsTab(activeTab)} onTabChange={setActiveTab} />
+            <AiToolsPanel compact job={job} activeTab={getAiToolsTab(activeTab)} onTabChange={requestTabChange} />
           </div>
-          <WorkflowSteps activeTab={activeTab} completed={completedSteps} score={latestScore} onSelect={setActiveTab} />
+          <WorkflowSteps activeTab={activeTab} completed={completedSteps} score={latestScore} onSelect={requestTabChange} />
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
@@ -497,7 +522,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
 
           {activeTab === "fit" && (
             <div ref={fitSectionRef} className="mx-auto max-w-5xl scroll-mt-44">
-              <AiToolsPanel contentOnly job={job} activeTab="fit" onTabChange={setActiveTab} />
+              <AiToolsPanel contentOnly job={job} activeTab="fit" onTabChange={requestTabChange} />
             </div>
           )}
           {activeTab === "resume" && (
@@ -506,7 +531,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
                 contentOnly
                 job={job}
                 activeTab="resume"
-                onTabChange={setActiveTab}
+                onTabChange={requestTabChange}
                 onExportComplete={(resume) => {
                   if (resume?.id) setExportedResumeIds((current) => new Set([...current, resume.id]));
                 }}
@@ -526,9 +551,9 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
                 user={user}
                 onSaveCoverLetter={saveMessage}
                 onLogActivity={logJobActivity}
-                onGoToResume={() => setActiveTab("resume")}
-                onGoToCoverLetter={() => setActiveTab("coverLetter")}
-                onGoToMessage={() => setActiveTab("message")}
+                onGoToResume={() => requestTabChange("resume")}
+                onGoToCoverLetter={() => requestTabChange("coverLetter")}
+                onGoToMessage={() => requestTabChange("message")}
                 onExportComplete={(resume) => {
                   if (resume?.id) setExportedResumeIds((current) => new Set([...current, resume.id]));
                 }}
@@ -537,7 +562,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
           )}
           {activeTab === "message" && (
             <div className="mx-auto max-w-5xl">
-              <AiToolsPanel contentOnly job={job} activeTab="message" onTabChange={setActiveTab} />
+              <AiToolsPanel contentOnly job={job} activeTab="message" onTabChange={requestTabChange} />
             </div>
           )}
           {activeTab === "coverLetter" && (
@@ -553,12 +578,13 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
                 onSave={saveMessage}
                 onUpdate={updateMessage}
                 onLogActivity={logJobActivity}
+                onUnsavedChange={setHasUnsavedChanges}
               />
             </div>
           )}
           {activeTab === "interview" && (
             <div className="mx-auto max-w-5xl">
-              <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} updateJob={updateJob} onJobUpdate={mergeJobUpdate} onSavePrep={saveInterviewPrep} onLogActivity={logJobActivity} />
+              <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} updateJob={updateJob} onJobUpdate={mergeJobUpdate} onSavePrep={saveInterviewPrep} onLogActivity={logJobActivity} onUnsavedChange={setHasUnsavedChanges} />
             </div>
           )}
         </div>
@@ -605,6 +631,7 @@ const contactSources = [
 ];
 
 function ContactsCard({ job, contacts, user, onSave, onDelete, onMarkContacted }) {
+  const toast = useToast();
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(() => getEmptyContact(job));
   const [notice, setNotice] = useState("");
@@ -638,21 +665,32 @@ function ContactsCard({ job, contacts, user, onSave, onDelete, onMarkContacted }
   async function save(event) {
     event.preventDefault();
     if (!form.name.trim()) return;
-    await onSave(user, job, form);
-    setNotice(form.id ? "Contact saved." : "Contact added.");
-    setEditing(null);
-    setForm(getEmptyContact(job));
-    window.setTimeout(() => setNotice(""), 2600);
+    try {
+      await onSave(user, job, form);
+      const nextNotice = form.id ? "Contact saved." : "Contact added.";
+      setNotice(nextNotice);
+      toast.success(nextNotice);
+      setEditing(null);
+      setForm(getEmptyContact(job));
+      window.setTimeout(() => setNotice(""), 2600);
+    } catch {
+      toast.error("Could not save contact.");
+    }
   }
 
   async function markContacted(contact) {
-    await onMarkContacted(user, contact);
-    setNotice("Marked contacted");
-    setHighlightedContactId(contact.id);
-    window.setTimeout(() => {
-      setNotice("");
-      setHighlightedContactId("");
-    }, 2600);
+    try {
+      await onMarkContacted(user, contact);
+      setNotice("Marked contacted");
+      toast.success("Marked contacted.");
+      setHighlightedContactId(contact.id);
+      window.setTimeout(() => {
+        setNotice("");
+        setHighlightedContactId("");
+      }, 2600);
+    } catch {
+      toast.error("Could not mark contact contacted.");
+    }
   }
 
   return (
@@ -799,6 +837,7 @@ function getNextBestActionCtaLabel(actionType) {
 }
 
 function FollowUpControls({ job, user, profile, messages, contacts = [], updateJob, saveMessage, logJobActivity, onJobUpdate }) {
+  const toast = useToast();
   const [reminder, setReminder] = useState(job);
   const [date, setDate] = useState(getFollowUpDate(reminder));
   const [note, setNote] = useState(getFollowUpNote(reminder));
@@ -824,6 +863,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
   const followUpEvent = date ? buildFollowUpCalendarEvent(draftReminder, { date, time: followUpTime, contacts, note, latestFollowUpMessage }) : null;
   const googleCalendarUrl = followUpEvent ? buildGoogleCalendarUrl(followUpEvent) : "";
   const outlookCalendarUrl = followUpEvent ? buildOutlookCalendarUrl(followUpEvent) : "";
+  const hasUnsavedFollowUp = (date || "") !== (getFollowUpDate(reminder) || "") || (note || "") !== (getFollowUpNote(reminder) || "");
 
   useEffect(() => {
     setReminder(job);
@@ -834,6 +874,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
   async function saveReminder(patch, successMessage) {
     setSaving(successMessage);
     setMessage("");
+    setMessageError("");
     try {
       const saved = await updateJob(user, job.id, patch);
       const nextReminder = { ...reminder, ...patch, ...saved };
@@ -842,7 +883,12 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
       setNote(getFollowUpNote(nextReminder));
       onJobUpdate?.(nextReminder);
       setMessage(successMessage);
+      toast.success(successMessage);
       window.setTimeout(() => setMessage(""), 2600);
+    } catch (error) {
+      const errorMessage = error.message || "Could not save follow-up changes.";
+      setMessageError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving("");
     }
@@ -867,14 +913,19 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
 
   async function copyFollowUpMessage() {
     if (!latestFollowUpMessage?.content) return;
-    await navigator.clipboard.writeText(latestFollowUpMessage.content);
-    setCopied(true);
-    setMessage("Copied");
-    await logJobActivity?.(user, job.id, "followup_message_copied", { detail: "Copied follow-up message" });
-    window.setTimeout(() => {
-      setCopied(false);
-      setMessage("");
-    }, 2200);
+    try {
+      await navigator.clipboard.writeText(latestFollowUpMessage.content);
+      setCopied(true);
+      setMessage("Copied");
+      toast.success("Copied to clipboard.");
+      await logJobActivity?.(user, job.id, "followup_message_copied", { detail: "Copied follow-up message" });
+      window.setTimeout(() => {
+        setCopied(false);
+        setMessage("");
+      }, 2200);
+    } catch {
+      toast.error("Could not copy message.");
+    }
   }
 
   function setNextFollowUp(days = 7) {
@@ -909,9 +960,12 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
       });
       await saveMessage(user, job, { ...result, type: "Follow-up Message" });
       setMessage("Follow-up message generated.");
+      toast.success("Follow-up message generated.");
       window.setTimeout(() => setMessage(""), 2600);
     } catch (error) {
-      setMessageError(error.message || "We couldn't generate the follow-up message yet.");
+      const errorMessage = error.message || "We couldn't generate the follow-up message yet.";
+      setMessageError(errorMessage);
+      toast.error("Could not generate follow-up message.");
     } finally {
       setGeneratingMessage(false);
     }
@@ -922,12 +976,14 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
     const downloaded = downloadIcsEvent(followUpEvent);
     if (!downloaded) return;
     setMessage("Calendar file downloaded.");
+    toast.success("Calendar file downloaded.");
     await logJobActivity?.(user, job.id, "followup_calendar_exported", { fileType: "ICS", date, time: followUpTime });
     window.setTimeout(() => setMessage(""), 2600);
   }
 
   async function openFollowUpCalendar(provider) {
     setMessage(provider === "outlook" ? "Opening Outlook..." : "Opening Google Calendar...");
+    toast.info(provider === "outlook" ? "Opening Outlook..." : "Opening Google Calendar...");
     await logJobActivity?.(user, job.id, "followup_calendar_exported", { fileType: provider === "outlook" ? "Outlook" : "Google Calendar", date, time: followUpTime });
     window.setTimeout(() => setMessage(""), 2200);
   }
@@ -974,6 +1030,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
             className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm leading-6 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
           />
         </label>
+        {hasUnsavedFollowUp && <p className="-mt-1 text-xs font-semibold text-amber-700">Unsaved changes</p>}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -981,7 +1038,10 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
           {generatingMessage && <Loader2 size={14} className="animate-spin" />}
           {generatingMessage ? "Generating..." : "Generate follow-up message"}
         </Button>
-        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={saveFollowUp} disabled={Boolean(saving)}>Save follow-up</Button>
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={saveFollowUp} disabled={Boolean(saving)}>
+          {saving === "Follow-up reminder saved." && <Loader2 size={14} className="animate-spin" />}
+          {saving === "Follow-up reminder saved." ? "Saving..." : "Save follow-up"}
+        </Button>
         {!latestFollowUpMessage && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markCompleted} disabled={Boolean(saving || completedAt)}>Mark followed up</Button>}
       </div>
       {showFollowUpSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
@@ -1084,6 +1144,7 @@ function useSlowLoading(active) {
 }
 
 function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onExportComplete }) {
+  const toast = useToast();
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverExporting, setCoverExporting] = useState("");
   const [coverCopied, setCoverCopied] = useState(false);
@@ -1111,8 +1172,10 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         content: result.coverLetterText,
         coverLetterText: result.coverLetterText,
       });
+      toast.success("Cover letter saved.");
     } catch (err) {
       setError(err.message || "Cover letter could not be generated yet.");
+      toast.error("Could not generate cover letter.");
     } finally {
       setCoverLoading(false);
     }
@@ -1120,10 +1183,15 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
 
   async function copyCoverLetter() {
     if (!coverLetter?.content) return;
-    await navigator.clipboard.writeText(coverLetter.content);
-    await onLogActivity?.(user, job.id, "cover_letter_copied", { detail: "Cover letter copied" });
-    setCoverCopied(true);
-    window.setTimeout(() => setCoverCopied(false), 1800);
+    try {
+      await navigator.clipboard.writeText(coverLetter.content);
+      await onLogActivity?.(user, job.id, "cover_letter_copied", { detail: "Cover letter copied" });
+      toast.success("Copied to clipboard.");
+      setCoverCopied(true);
+      window.setTimeout(() => setCoverCopied(false), 1800);
+    } catch {
+      toast.error("Could not copy cover letter.");
+    }
   }
 
   async function exportCoverLetter(type) {
@@ -1133,8 +1201,10 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
       if (type === "pdf") await exportCoverLetterPdf({ content: coverLetter.content, profile, job });
       if (type === "docx") await exportCoverLetterDocx({ content: coverLetter.content, profile, job });
       await onLogActivity?.(user, job.id, type === "pdf" ? "cover_letter_exported_pdf" : "cover_letter_exported_docx", { fileType: type.toUpperCase() });
+      toast.success(`Cover letter ${type.toUpperCase()} exported.`);
     } catch (err) {
       setError(err.message || "Cover letter export failed.");
+      toast.error("Cover letter export failed.");
     } finally {
       setCoverExporting("");
     }
@@ -1207,20 +1277,29 @@ function MaterialCard({ title, status, description, children }) {
   );
 }
 
-function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, user, onSave, onUpdate, onLogActivity }) {
+function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, user, onSave, onUpdate, onLogActivity, onUnsavedChange }) {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState("");
   const [error, setError] = useState("");
   const [draft, setDraft] = useState(coverLetter?.content ?? "");
+  const [lastSavedDraft, setLastSavedDraft] = useState(coverLetter?.content ?? "");
   const [savedState, setSavedState] = useState("");
   const [copied, setCopied] = useState(false);
   const showSlowHint = useSlowLoading(loading);
+  const isDirty = draft !== lastSavedDraft;
 
   useEffect(() => {
     setDraft(coverLetter?.content ?? "");
+    setLastSavedDraft(coverLetter?.content ?? "");
     setSavedState("");
     setCopied(false);
   }, [coverLetter?.id, coverLetter?.content]);
+
+  useEffect(() => {
+    onUnsavedChange?.(isDirty);
+    return () => onUnsavedChange?.(false);
+  }, [isDirty, onUnsavedChange]);
 
   async function generateCoverLetter({ regenerate = false } = {}) {
     if (loading) return;
@@ -1243,10 +1322,14 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
         content: result.coverLetterText,
         coverLetterText: result.coverLetterText,
       });
-      setDraft(saved?.content || result.coverLetterText || "");
+      const nextContent = saved?.content || result.coverLetterText || "";
+      setDraft(nextContent);
+      setLastSavedDraft(nextContent);
+      toast.success(regenerate ? "Cover letter regenerated." : "Cover letter saved.");
       if (regenerate) await onLogActivity?.(user, job.id, "cover_letter_regenerated", { detail: "Cover letter regenerated" });
     } catch (err) {
       setError(err.message || "Cover letter could not be generated yet.");
+      toast.error("Could not generate cover letter.");
     } finally {
       setLoading(false);
     }
@@ -1258,19 +1341,27 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
     try {
       await onUpdate(user, coverLetter, { content: draft });
       await onLogActivity?.(user, job.id, "cover_letter_edited", { detail: "Cover letter edits saved" });
+      setLastSavedDraft(draft);
       setSavedState("saved");
+      toast.success("Cover letter saved.");
       window.setTimeout(() => setSavedState(""), 2400);
     } catch {
       setSavedState("error");
+      toast.error("Could not save cover letter.");
     }
   }
 
   async function copyCoverLetter() {
     if (!draft.trim()) return;
-    await navigator.clipboard.writeText(draft);
-    await onLogActivity?.(user, job.id, "cover_letter_copied", { detail: "Cover letter copied" });
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    try {
+      await navigator.clipboard.writeText(draft);
+      await onLogActivity?.(user, job.id, "cover_letter_copied", { detail: "Cover letter copied" });
+      setCopied(true);
+      toast.success("Copied to clipboard.");
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast.error("Could not copy cover letter.");
+    }
   }
 
   async function exportCoverLetter(type) {
@@ -1280,8 +1371,10 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
       if (type === "pdf") await exportCoverLetterPdf({ content: draft, profile, job });
       if (type === "docx") await exportCoverLetterDocx({ content: draft, profile, job });
       await onLogActivity?.(user, job.id, type === "pdf" ? "cover_letter_exported_pdf" : "cover_letter_exported_docx", { fileType: type.toUpperCase() });
+      toast.success(`Cover letter ${type.toUpperCase()} exported.`);
     } catch (err) {
       setError(err.message || "Cover letter export failed.");
+      toast.error("Cover letter export failed.");
     } finally {
       setExporting("");
     }
@@ -1327,7 +1420,7 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
           value={draft}
           onChange={(event) => {
             setDraft(event.target.value);
-            setSavedState("");
+            setSavedState("dirty");
           }}
         />
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -1344,6 +1437,8 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
             {exporting === "docx" && <Loader2 size={14} className="animate-spin" />}
             Export DOCX
           </Button>
+          {savedState === "dirty" && <span className="text-xs font-semibold text-amber-700">Unsaved changes</span>}
+          {savedState === "saving" && <span className="text-xs font-semibold text-brand-700">Saving...</span>}
           {savedState === "saved" && <span className="text-xs font-semibold text-emerald-700">Saved</span>}
           {savedState === "error" && <span className="text-xs font-semibold text-rose-700">Could not save</span>}
         </div>
@@ -1352,7 +1447,8 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
   );
 }
 
-function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, user, updateJob, onJobUpdate, onSavePrep, onLogActivity }) {
+function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, user, updateJob, onJobUpdate, onSavePrep, onLogActivity, onUnsavedChange }) {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [openQuestion, setOpenQuestion] = useState("");
@@ -1363,6 +1459,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const [draftNotes, setDraftNotes] = useState(() => prep?.answer_notes ?? {});
   const [noteSaveStatus, setNoteSaveStatus] = useState({});
   const [thankYouDraft, setThankYouDraft] = useState(() => prep?.content?.thankYouMessage ?? "");
+  const [lastSavedThankYou, setLastSavedThankYou] = useState(() => prep?.content?.thankYouMessage ?? "");
   const [thankYouCopied, setThankYouCopied] = useState(false);
   const [thankYouSaved, setThankYouSaved] = useState(false);
   const [interviewCompleted, setInterviewCompleted] = useState(false);
@@ -1374,7 +1471,13 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   useEffect(() => {
     setDraftNotes(prep?.answer_notes ?? {});
     setThankYouDraft(prep?.content?.thankYouMessage ?? "");
+    setLastSavedThankYou(prep?.content?.thankYouMessage ?? "");
   }, [prep?.id, prep?.updated_at, prep?.content?.thankYouMessage, prep?.answer_notes]);
+
+  useEffect(() => {
+    onUnsavedChange?.(thankYouDraft !== lastSavedThankYou);
+    return () => onUnsavedChange?.(false);
+  }, [lastSavedThankYou, onUnsavedChange, thankYouDraft]);
 
   useEffect(() => {
     setInterviewDetails(getInterviewDetails(job, contacts));
@@ -1397,9 +1500,12 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       });
       await onSavePrep(user, job, { ...prep, content: result });
       setThankYouDraft(result.thankYouMessage || "");
+      setLastSavedThankYou(result.thankYouMessage || "");
       setDraftNotes(prep?.answer_notes ?? {});
+      toast.success("Interview prep saved.");
     } catch (err) {
       setError(err.message || "Interview prep could not be generated yet.");
+      toast.error("Could not generate interview prep.");
     } finally {
       setLoading(false);
     }
@@ -1438,27 +1544,44 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       }, 2400);
     } catch {
       setNoteSaveStatus((current) => ({ ...current, [index]: "error" }));
+      toast.error("Could not save practice notes.");
     }
   }
 
   async function copyThankYou() {
     if (!thankYouDraft.trim()) return;
-    await navigator.clipboard.writeText(thankYouDraft);
-    setThankYouCopied(true);
-    window.setTimeout(() => setThankYouCopied(false), 2200);
+    try {
+      await navigator.clipboard.writeText(thankYouDraft);
+      setThankYouCopied(true);
+      toast.success("Copied to clipboard.");
+      window.setTimeout(() => setThankYouCopied(false), 2200);
+    } catch {
+      toast.error("Could not copy thank-you message.");
+    }
   }
 
   async function saveThankYouEdits() {
     if (!content || !thankYouDraft.trim()) return;
-    await updatePrepPatch({ content: { ...content, thankYouMessage: thankYouDraft } });
-    await onLogActivity?.(user, job.id, "interview_thank_you_generated", { detail: "Saved interview thank-you message" });
-    setThankYouSaved(true);
-    window.setTimeout(() => setThankYouSaved(false), 2600);
+    try {
+      await updatePrepPatch({ content: { ...content, thankYouMessage: thankYouDraft } });
+      await onLogActivity?.(user, job.id, "interview_thank_you_generated", { detail: "Saved interview thank-you message" });
+      setLastSavedThankYou(thankYouDraft);
+      setThankYouSaved(true);
+      toast.success("Thank-you message saved.");
+      window.setTimeout(() => setThankYouSaved(false), 2600);
+    } catch {
+      toast.error("Could not save thank-you message.");
+    }
   }
 
   async function markInterviewComplete() {
-    await onLogActivity?.(user, job.id, "interview_completed", { detail: "Interview marked complete" });
-    setInterviewCompleted(true);
+    try {
+      await onLogActivity?.(user, job.id, "interview_completed", { detail: "Interview marked complete" });
+      setInterviewCompleted(true);
+      toast.success("Interview marked completed.");
+    } catch {
+      toast.error("Could not mark interview completed.");
+    }
   }
 
   function updateInterviewDetail(name, value) {
@@ -1481,8 +1604,10 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       const saved = await updateJob(user, job.id, payload);
       onJobUpdate?.({ ...job, ...payload, ...saved });
       setInterviewMessage("Interview details saved.");
+      toast.success("Interview details updated.");
     } catch (err) {
       setInterviewMessage(err.message || "Interview details could not be saved.");
+      toast.error("Could not save interview details.");
     } finally {
       setInterviewSaving(false);
       window.setTimeout(() => setInterviewMessage(""), 2600);
@@ -1494,12 +1619,14 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     const downloaded = downloadIcsEvent(event);
     if (!downloaded) return;
     setInterviewMessage("Calendar file downloaded.");
+    toast.success("Calendar file downloaded.");
     await onLogActivity?.(user, job.id, "interview_calendar_exported", { fileType: "ICS", date: interviewDetails.interview_date, time: interviewDetails.interview_time });
     window.setTimeout(() => setInterviewMessage(""), 2600);
   }
 
   async function openInterviewCalendar(provider) {
     setInterviewMessage(provider === "outlook" ? "Opening Outlook..." : "Opening Google Calendar...");
+    toast.info(provider === "outlook" ? "Opening Outlook..." : "Opening Google Calendar...");
     await onLogActivity?.(user, job.id, "interview_calendar_exported", { fileType: provider === "outlook" ? "Outlook" : "Google Calendar", date: interviewDetails.interview_date, time: interviewDetails.interview_time });
     window.setTimeout(() => setInterviewMessage(""), 2200);
   }
@@ -1645,6 +1772,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           <Button className="min-h-8 px-3 text-xs" onClick={copyThankYou}>{thankYouCopied ? "Copied" : "Copy thank-you message"}</Button>
           <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={saveThankYouEdits}>Save edits</Button>
           <Button variant={interviewCompleted ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={markInterviewComplete} disabled={interviewCompleted}>{interviewCompleted ? "Interview completed" : "Log interview completed"}</Button>
+          {thankYouDraft !== lastSavedThankYou && <span className="self-center text-xs font-semibold text-amber-700">Unsaved changes</span>}
         </div>
       </PrepSection>
     </section>
@@ -1763,7 +1891,7 @@ function getInterviewDetails(job = {}, contacts = []) {
 }
 
 function JobActivityTimeline({ events = [] }) {
-  const sorted = [...events].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const sorted = collapseQuietActivityEvents(events).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const grouped = sorted.reduce((groups, event) => {
     const key = getActivityGroup(event.created_at);
     groups[key] = [...(groups[key] || []), event];
@@ -1792,6 +1920,21 @@ function JobActivityTimeline({ events = [] }) {
       </div>
     </section>
   );
+}
+
+function collapseQuietActivityEvents(events = []) {
+  const quietTypes = new Set(["cover_letter_edited", "job_edited", "interview_thank_you_generated"]);
+  const seen = new Set();
+  return [...events]
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .filter((event) => {
+      if (!quietTypes.has(event.type)) return true;
+      const day = event.created_at ? new Date(event.created_at).toDateString() : "unknown";
+      const key = `${event.job_id}-${event.type}-${day}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function getDerivedGenerationEvents({ job, scores, resumes, messages }) {
