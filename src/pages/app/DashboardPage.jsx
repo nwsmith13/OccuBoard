@@ -17,6 +17,10 @@ import { buildDashboardInsights } from "../../utils/dashboardInsights.js";
 import { getNextBestAction } from "../../utils/nextBestAction.js";
 import { JobDetail } from "./JobsPage.jsx";
 
+const tinyLabelClass = "text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500";
+const metadataTextClass = "text-xs font-semibold leading-5 text-slate-600";
+const helperTextClass = "mt-1 text-[13px] leading-5 text-slate-700";
+
 export function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -44,22 +48,22 @@ export function DashboardPage() {
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
       <main className="grid min-w-0 gap-5">
         {error && <div className="rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
-        <section className="overflow-hidden rounded-xl bg-gradient-to-br from-stone-100 via-white to-emerald-50 px-5 py-3.5 shadow-card transition duration-[160ms] ease-out hover:shadow-soft sm:px-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <section className="overflow-hidden rounded-xl bg-gradient-to-br from-stone-100 via-white to-emerald-50 px-4 py-3 shadow-card transition duration-[160ms] ease-out hover:shadow-soft sm:px-5">
+          <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Momentum</p>
+              <p className={tinyLabelClass}>Momentum</p>
               <h2 className="mt-1 text-xl font-bold text-ink">{momentum.headline}</h2>
-              <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-600">{momentum.summary}</p>
+              <p className={helperTextClass}>{momentum.summary}</p>
             </div>
             <Link to="/app/new-jobs" className="inline-flex shrink-0 self-start rounded-lg bg-white/55 p-0.5 shadow-sm transition duration-[160ms] ease-out hover:bg-white/85 hover:shadow-card">
               <Button className="min-h-8 px-3.5 py-1.5">Analyze New Job</Button>
             </Link>
           </div>
-          <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
+          <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
             {momentum.items.map((item) => (
-              <div key={item.label} className="rounded-lg bg-white/70 px-3.5 py-2 shadow-sm transition duration-[160ms] ease-out hover:bg-white/90">
+              <div key={item.label} className="rounded-lg bg-white/70 px-3 py-1.5 shadow-sm transition duration-[160ms] ease-out hover:bg-white/90">
                 <p className="text-lg font-black text-slate-900">{item.value}</p>
-                <p className="mt-0.5 text-xs font-semibold leading-5 text-slate-600">{item.label}</p>
+                <p className={metadataTextClass}>{item.label}</p>
               </div>
             ))}
           </div>
@@ -74,7 +78,7 @@ export function DashboardPage() {
                 {followUpsDue > 0 && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-100">{followUpsDue} follow-up{followUpsDue === 1 ? "" : "s"} due</span>}
               </div>
             </div>
-            <p className="max-w-md text-sm leading-6 text-slate-600">The next few things worth your attention.</p>
+            <p className="max-w-md text-sm leading-6 text-slate-700">The next few things worth your attention.</p>
           </div>
           <div className="mt-4 grid gap-3.5">
             {focusItems.map((item) => (
@@ -129,9 +133,10 @@ export function DashboardPage() {
                 {item.company && <p className="mt-2 text-sm font-semibold text-slate-800">{item.company}</p>}
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {item.stage && <span className="rounded-full bg-white/75 px-2 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100">{item.stage}</span>}
-                  {item.matchLabel && <span className="text-xs font-semibold text-slate-600">{item.matchLabel}</span>}
+                  {item.matchLabel && <span className={metadataTextClass}>{item.matchLabel}</span>}
                 </div>
                 {item.action && <p className="mt-2 truncate text-xs font-bold text-brand-800">{item.action}</p>}
+                {item.reason && <p className="mt-1 truncate text-[13px] font-medium leading-5 text-slate-700">{item.reason}</p>}
               </button>
             ))}
           </div>
@@ -145,32 +150,32 @@ export function DashboardPage() {
       </main>
 
       <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
-        <Card className="bg-white/75 p-4 shadow-sm">
+        <Card className="bg-white/75 p-3.5 shadow-sm">
           <h2 className="text-lg font-bold">Profile Completeness</h2>
-          <p className="mt-2 text-sm text-slate-600">A stronger profile makes guidance sharper.</p>
-          <div className={`mt-4 rounded-lg p-3 ${completenessTone.panel}`}>
+          <p className={helperTextClass}>A stronger profile makes guidance sharper.</p>
+          <div className={`mt-3 rounded-lg p-2.5 ${completenessTone.panel}`}>
             <div className="flex items-center justify-between gap-3">
               <span className={`text-sm font-bold ${completenessTone.text}`}>{completenessTone.label}</span>
               <span className={`text-sm font-bold ${completenessTone.text}`}>{completeness}%</span>
             </div>
-            <div className={`mt-3 h-2 rounded-full ${completenessTone.track}`}>
+            <div className={`mt-2.5 h-2 rounded-full ${completenessTone.track}`}>
               <div className={`h-2 rounded-full transition-all duration-300 ${completenessTone.bar}`} style={{ width: `${completeness}%` }} />
             </div>
           </div>
         </Card>
 
         <Card className="bg-white/70 p-0 shadow-sm">
-          <button type="button" className="flex w-full items-center justify-between px-4 py-3 text-left" onClick={() => setActivityOpen((value) => !value)}>
-            <span className="text-sm font-bold uppercase tracking-[0.12em] text-slate-500">Recent Activity</span>
+          <button type="button" className="flex w-full items-center justify-between px-3.5 py-2.5 text-left" onClick={() => setActivityOpen((value) => !value)}>
+            <span className={tinyLabelClass}>Recent Activity</span>
             {activityOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
           </button>
           {activityOpen && (
-            <div className="border-t border-slate-100 p-3">
+            <div className="border-t border-slate-100 p-2.5">
               <div className="grid gap-1.5">
                 {visibleActivity.map((item) => {
                   const activity = formatActivity(item);
                   return (
-                    <div key={item.id} className="rounded-lg bg-stone-50/60 px-2.5 py-2 transition hover:bg-stone-50">
+                    <div key={item.id} className="rounded-lg bg-stone-50/60 px-2.5 py-1.5 transition hover:bg-stone-50">
                       <p className="text-sm font-medium leading-5 text-slate-700">
                         {activity.action}
                         {activity.company && (
@@ -180,7 +185,7 @@ export function DashboardPage() {
                           </>
                         )}
                       </p>
-                      <p className="mt-0 text-xs text-slate-500">{formatDate(item.created_at?.slice(0, 10))}</p>
+                      <p className={metadataTextClass}>{formatDate(item.created_at?.slice(0, 10))}</p>
                     </div>
                   );
                 })}
@@ -247,9 +252,9 @@ function SearchInsights({ insights, onOpenJob, onOpenStage }) {
     <section className="rounded-xl bg-white/90 p-4 shadow-card sm:p-5">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">Search Insights</p>
+          <p className={tinyLabelClass}>Search Insights</p>
           <h2 className="mt-1 text-xl font-bold text-ink">Search Insights</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">Your job search progress at a glance.</p>
+          <p className={helperTextClass}>Your job search progress at a glance.</p>
         </div>
         <Link to="/app/applications" className="text-sm font-semibold text-brand-700 hover:text-brand-900">View applications</Link>
       </div>
@@ -261,7 +266,7 @@ function SearchInsights({ insights, onOpenJob, onOpenStage }) {
               const count = insights.pipeline.counts[stage] || 0;
               return (
                 <button key={stage} type="button" className="group rounded-lg px-2 py-1 text-left transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:bg-brand-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenStage(stage)} aria-label={`Open ${stage} applications`}>
-                  <div className="mb-1 flex items-center justify-between text-[13px] font-semibold text-slate-700">
+                  <div className="mb-1 flex items-center justify-between text-[13px] font-semibold leading-5 text-slate-700">
                     <span>{stage}</span>
                     <span className="inline-flex items-center gap-1">{count}<ChevronRight className="opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-60" size={13} /></span>
                   </div>
@@ -292,7 +297,7 @@ function SearchInsights({ insights, onOpenJob, onOpenStage }) {
             <MiniStat label="Scheduled" value={insights.followUps.scheduled} />
             <MiniStat label="Completed" value={insights.followUps.completedThisWeek} tone="success" />
           </div>
-          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">{getFollowUpStatusCopy(insights.followUps)}</p>
+          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[13px] font-semibold leading-5 text-slate-700">{getFollowUpStatusCopy(insights.followUps)}</p>
           {dueJob && (
             <Button variant="secondary" className="mt-3 min-h-8 px-3 text-xs" onClick={() => onOpenJob(dueJob, "overview")}>
               Review follow-ups
@@ -308,7 +313,7 @@ function SearchInsights({ insights, onOpenJob, onOpenStage }) {
             <MiniStat label="Thank-you notes" value={insights.interviews.thankYouSaved} />
             <MiniStat label="Follow-ups due" value={insights.interviews.followUpsDue} tone={insights.interviews.followUpsDue ? "warning" : "neutral"} />
           </div>
-          {insights.interviews.nextInterviewDate && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">Next interview: {formatDate(insights.interviews.nextInterviewDate)}</p>}
+          {insights.interviews.nextInterviewDate && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-[13px] font-bold leading-5 text-emerald-800">Next interview: {formatDate(insights.interviews.nextInterviewDate)}</p>}
           {upcomingInterview && (
             <Button variant="secondary" className="mt-3 min-h-8 px-3 text-xs" onClick={() => onOpenJob(upcomingInterview, "interview")}>
               Open interview prep
@@ -341,6 +346,10 @@ function SearchInsights({ insights, onOpenJob, onOpenStage }) {
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-ink">{company.company}</span>
                   <span className="text-[13px] leading-5 text-slate-600">{formatCompanyActivity(company)}</span>
+                  <span className="mt-1 flex flex-wrap gap-1.5">
+                    {company.stages.map((stage) => <span key={stage} className="rounded-full bg-white/85 px-1.5 py-0.5 text-[11px] font-bold text-slate-600 ring-1 ring-slate-100">{stage}</span>)}
+                    {company.lastActive && <span className="py-0.5 text-[11px] font-semibold text-slate-500">active {formatDate(company.lastActive)}</span>}
+                  </span>
                 </span>
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">{company.highestFit ? `${Math.round(company.highestFit)}%` : "New"}<ChevronRight className="opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-70" size={12} /></span>
               </button>
@@ -357,7 +366,7 @@ function InsightCard({ title, insight, children }) {
   return (
     <article className="rounded-xl bg-white/80 p-3.5 shadow-sm ring-1 ring-brand-100 sm:p-4">
       <h3 className="font-bold text-ink">{title}</h3>
-      <p className="mt-1 min-h-8 text-sm leading-5 text-slate-700">{insight}</p>
+      <p className="mt-1 min-h-8 text-[13px] leading-5 text-slate-700">{insight}</p>
       <div className="mt-3">{children}</div>
     </article>
   );
@@ -427,6 +436,7 @@ function getBestMatchRoles(jobScores, jobs, profile, resumeVersions = [], messag
         job,
         stage: normalizeStage(job.status),
         action: getBestMatchAction(nextBestAction, score),
+        reason: getMatchReason(job, score),
       } : null;
     })
     .filter(Boolean);
@@ -462,6 +472,16 @@ function getBestMatchAction(nextBestAction, score) {
   if (nextBestAction?.actionType && nextBestAction.actionType !== "no_action") return nextBestAction.label;
   if (Number(score?.score ?? 0) >= 85) return "Strong implementation match";
   return "Review match";
+}
+
+function getMatchReason(job, score) {
+  const text = `${job.job_title || ""} ${job.job_description || ""}`.toLowerCase();
+  if (/\bimplementation|onboarding|rollout|deployment|solution design\b/.test(text)) return "Strong implementation overlap";
+  if (/\bcustomer|client|success|account|stakeholder|consultant|support\b/.test(text)) return "Customer-facing SaaS alignment";
+  if (/\bworkflow|process|operations|optimization|automation\b/.test(text)) return "Workflow/process experience match";
+  if (/\bdata mapping|integration|api|erp|crm|migration|reporting\b/.test(text)) return "Data mapping experience match";
+  if (Number(score?.score ?? 0) >= 85) return "High fit with current resume";
+  return "Good alignment with your profile";
 }
 
 function getBestMatchTone(stage) {

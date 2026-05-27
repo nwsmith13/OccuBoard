@@ -121,7 +121,7 @@ function getTopCompanies({ jobs, latestScores }) {
   jobs.forEach((job) => {
     const company = getDisplayCompanyName(job);
     if (!groups.has(company)) {
-      groups.set(company, { company, jobs: [], stages: new Set(), stageCounts: {}, highestFit: 0, bestJob: null });
+      groups.set(company, { company, jobs: [], stages: new Set(), stageCounts: {}, highestFit: 0, bestJob: null, lastActive: "" });
     }
     const group = groups.get(company);
     const score = latestScores.get(job.id);
@@ -130,6 +130,7 @@ function getTopCompanies({ jobs, latestScores }) {
     group.jobs.push(job);
     group.stages.add(stage);
     group.stageCounts[stage] = (group.stageCounts[stage] || 0) + 1;
+    group.lastActive = getLaterDate(group.lastActive, getDatePart(job.updated_at || job.created_at || job.date_saved));
     if (fit >= group.highestFit) {
       group.highestFit = fit;
       group.bestJob = job;
@@ -146,7 +147,14 @@ function getTopCompanies({ jobs, latestScores }) {
       stages: [...group.stages],
       stageCounts: group.stageCounts,
       job: group.bestJob || group.jobs[0],
+      lastActive: group.lastActive,
     }));
+}
+
+function getLaterDate(a, b) {
+  if (!a) return b || "";
+  if (!b) return a;
+  return a > b ? a : b;
 }
 
 function getLatestScores(jobScores) {

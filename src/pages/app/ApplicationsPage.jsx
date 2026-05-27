@@ -103,19 +103,19 @@ export function ApplicationsPage() {
           </Link>
         </div>
       ) : viewMode === "cards" ? (
-          <div className="kanban-scroll grid snap-x grid-flow-col gap-3 overflow-x-auto pb-3 sm:gap-4">
+          <div className="kanban-scroll grid snap-x grid-flow-col gap-2.5 overflow-x-auto pb-3 sm:gap-3">
             {stages.map((stage) => (
               <div
               key={stage}
-              className={`min-h-[220px] w-[min(302px,calc(100vw-2rem))] snap-start rounded-xl p-2.5 shadow-sm ring-1 sm:p-3 ${highlightedStage === stage ? "ring-4 ring-brand-200" : "ring-white/70"} ${getStageColumnTone(stage)}`}
+              className={`min-h-[210px] w-[min(296px,calc(100vw-2rem))] snap-start rounded-xl p-2 shadow-sm ring-1 sm:p-2.5 ${highlightedStage === stage ? "ring-4 ring-brand-200" : "ring-white/70"} ${getStageColumnTone(stage)}`}
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => moveApplication(stage)}
             >
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-2.5 flex items-center justify-between">
                 <h3 className="text-sm font-bold text-slate-700">{stage}</h3>
                 <span className="text-xs font-semibold text-slate-500">{grouped[stage].length}</span>
               </div>
-              <div className="grid gap-3">
+              <div className="grid gap-2.5">
                 {grouped[stage].map((job) => (
                   <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} contacts={jobContacts.filter((contact) => contact.job_id === job.id)} onOpen={() => setSelected(job)} onDragStart={() => setDraggingId(job.id)} />
                 ))}
@@ -179,7 +179,7 @@ function ApplicationCard({ job, score, status, messages, contacts = [], onOpen, 
           onOpen();
         }
       }}
-      className="group cursor-pointer rounded-xl bg-white/95 px-3 py-2.5 text-left shadow-sm ring-1 ring-white/70 transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:ring-brand-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 sm:px-3.5"
+      className="group cursor-pointer rounded-xl bg-white/95 px-2.5 py-2 text-left shadow-sm ring-1 ring-white/70 transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:ring-brand-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 sm:px-3"
     >
       <div className={`flex gap-2 ${compact ? "flex-col sm:flex-row sm:items-center sm:justify-between" : "flex-col"}`}>
         <div className="min-w-0">
@@ -221,14 +221,14 @@ function getActionLineTone(tone) {
 
 function PipelineSkeleton() {
   return (
-    <div className="kanban-scroll grid snap-x grid-flow-col gap-4 overflow-x-auto pb-3 sm:gap-6">
+    <div className="kanban-scroll grid snap-x grid-flow-col gap-2.5 overflow-x-auto pb-3 sm:gap-3">
       {stages.map((stage) => (
-        <div key={stage} className={`min-h-[220px] w-[min(302px,calc(100vw-2rem))] snap-start rounded-xl p-2.5 shadow-sm ring-1 ring-white/70 sm:p-3 ${getStageColumnTone(stage)}`}>
-          <div className="mb-3 flex items-center justify-between">
+        <div key={stage} className={`min-h-[210px] w-[min(296px,calc(100vw-2rem))] snap-start rounded-xl p-2 shadow-sm ring-1 ring-white/70 sm:p-2.5 ${getStageColumnTone(stage)}`}>
+          <div className="mb-2.5 flex items-center justify-between">
             <div className="h-4 w-20 rounded-full bg-white/80" />
             <div className="h-4 w-6 rounded-full bg-white/80" />
           </div>
-          <div className="grid gap-3">
+          <div className="grid gap-2.5">
             {[0, 1].map((item) => <div key={item} className="h-24 rounded-xl bg-white/75 shadow-sm" />)}
           </div>
         </div>
