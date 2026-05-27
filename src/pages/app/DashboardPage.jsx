@@ -1,5 +1,5 @@
-import { CheckCircle2, ChevronDown, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, FileText, MessageCircle, Sparkles, TrendingUp } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
@@ -11,7 +11,10 @@ import { formatDate, isThisWeek } from "../../lib/date.js";
 import { getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
+import { getJobMomentumScore } from "../../lib/jobMomentum.js";
 import { getProfileCompleteness } from "../../lib/profile.js";
+import { generateRecommendations, getRecommendationIcon, getRecommendationMeta, getRecommendationTone } from "../../lib/recommendationEngine.js";
+import { buildSearchPatternInsights } from "../../lib/searchPatternInsights.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { buildDashboardInsights } from "../../utils/dashboardInsights.js";
 import { getNextBestAction } from "../../utils/nextBestAction.js";
@@ -30,9 +33,17 @@ export function DashboardPage() {
   const [selectedJob, setSelectedJob] = useState(null);
   const completeness = getProfileCompleteness(profile);
   const completenessTone = getCompletenessTone(completeness);
-  const focusItems = getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts });
+  const recommendations = useMemo(() => generateRecommendations({
+    jobs,
+    messages,
+    interviews: interviewPrep,
+    generatedAssets: { jobScores, resumeVersions, interviewPrep },
+    activityHistory: jobActivityLogs,
+  }), [interviewPrep, jobActivityLogs, jobScores, jobs, messages, resumeVersions]);
+  const patternInsights = useMemo(() => buildSearchPatternInsights({ jobs, jobScores }), [jobs, jobScores]);
+  const focusItems = getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep });
   const followUpsDue = jobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
-  const bestMatchRoles = getBestMatchRoles(jobScores, jobs, profile, resumeVersions, messages);
+  const bestMatchRoles = getBestMatchRoles(jobScores, jobs, profile, resumeVersions, messages, jobActivityLogs, interviewPrep);
   const momentum = getMomentumSummary({ jobs, resumeVersions, jobScores, messages });
   const insights = buildDashboardInsights({ jobs, jobScores, resumeVersions, messages, jobActivityLogs, interviewPrep });
   const visibleActivity = showAllActivity ? activityLogs : activityLogs.slice(0, 4);
@@ -40,6 +51,15 @@ export function DashboardPage() {
   async function moveToApplied(job) {
     const saved = await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || new Date().toISOString().slice(0, 10) });
     setSelectedJob(saved ? { ...saved, initialTab: "overview" } : null);
+  }
+
+  function openRecommendation(recommendation) {
+    const job = jobs.find((item) => item.id === recommendation.relatedJobId);
+    if (job) {
+      setSelectedJob({ ...job, initialTab: recommendation.actionTab || "overview" });
+      return;
+    }
+    if (recommendation.actionRoute) navigate(recommendation.actionRoute);
   }
 
   if (loading) return <DashboardSkeleton />;
@@ -68,6 +88,8 @@ export function DashboardPage() {
             ))}
           </div>
         </section>
+
+        <TodaysGuidance recommendations={recommendations.slice(0, 5)} onOpen={openRecommendation} />
 
         <section className="rounded-xl bg-white/95 p-4 shadow-card sm:p-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -147,6 +169,8 @@ export function DashboardPage() {
           onOpenJob={(job, initialTab = "overview") => setSelectedJob({ ...job, initialTab })}
           onOpenStage={(stage) => navigate(`/app/applications?stage=${encodeURIComponent(stage)}`)}
         />
+
+        <SmartInsightPanel insights={patternInsights} />
       </main>
 
       <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
@@ -240,6 +264,89 @@ function DashboardSkeleton() {
       </aside>
     </div>
   );
+}
+
+function TodaysGuidance({ recommendations = [], onOpen }) {
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-card sm:p-5">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className={tinyLabelClass}>Guidance</p>
+          <h2 className="mt-1 text-xl font-bold text-ink">Today&apos;s Guidance</h2>
+        </div>
+        <p className="max-w-md text-sm leading-6 text-slate-700">Operational recommendations from your current pipeline.</p>
+      </div>
+      <div className="mt-4 grid gap-3">
+        {recommendations.map((recommendation) => {
+          const Icon = getGuidanceIcon(getRecommendationIcon(recommendation.type));
+          return (
+            <button
+              key={recommendation.id}
+              type="button"
+              className="group flex cursor-pointer gap-3 rounded-xl bg-slate-50/70 p-3 text-left shadow-sm ring-1 ring-transparent transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:bg-white hover:ring-brand-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 sm:p-3.5"
+              onClick={() => onOpen(recommendation)}
+              aria-label={`${recommendation.actionLabel}: ${recommendation.title}`}
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-brand-100">
+                <Icon size={17} aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold capitalize ring-1 ${getRecommendationTone(recommendation.priority)}`}>{recommendation.priority}</span>
+                  <span className="text-xs font-semibold text-slate-500">{getRecommendationMeta(recommendation)}</span>
+                </span>
+                <span className="mt-1 block font-bold leading-snug text-ink">{recommendation.title}</span>
+                <span className="mt-1 block text-sm leading-5 text-slate-600">{recommendation.description}</span>
+                <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-brand-800">
+                  {recommendation.actionLabel}
+                  <ChevronRight className="transition duration-[160ms] ease-out group-hover:translate-x-0.5" size={13} />
+                </span>
+              </span>
+            </button>
+          );
+        })}
+        {!recommendations.length && (
+          <div className="rounded-lg bg-brand-50/70 p-4 text-sm leading-6 text-slate-700">
+            No recommendations need attention right now. Guidance will appear as jobs, follow-ups, and interviews move.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SmartInsightPanel({ insights = [] }) {
+  return (
+    <section className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+      <div>
+        <p className={tinyLabelClass}>Patterns</p>
+        <h2 className="mt-1 text-xl font-bold text-ink">Smart Insight Summaries</h2>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {insights.map((insight) => (
+          <article key={insight.id} className="rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{insight.label}</p>
+            <p className="mt-2 text-base font-black leading-tight text-ink">{insight.value}</p>
+            <p className="mt-2 text-[13px] leading-5 text-slate-700">{insight.description}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function getGuidanceIcon(icon) {
+  return {
+    bell: Bell,
+    calendar: CalendarDays,
+    message: MessageCircle,
+    document: FileText,
+    sparkles: Sparkles,
+    clock: Clock,
+    arrow: ArrowRightCircle,
+    trending: TrendingUp,
+    archive: Archive,
+  }[icon] ?? Sparkles;
 }
 
 function SearchInsights({ insights, onOpenJob, onOpenStage }) {
@@ -419,10 +526,16 @@ function formatCompanyActivity(company) {
   return `${company.count} role${company.count === 1 ? "" : "s"} \u2022 ${stageSummary}${company.highestFit ? ` \u2022 best fit ${Math.round(company.highestFit)}%` : ""}`;
 }
 
-function getBestMatchRoles(jobScores, jobs, profile, resumeVersions = [], messages = []) {
+function getBestMatchRoles(jobScores, jobs, profile, resumeVersions = [], messages = [], jobActivityLogs = [], interviewPrep = []) {
   const strongScores = jobScores.filter((score) => Number(score.score) >= 65);
   const topJobs = [...strongScores]
-    .sort((a, b) => Number(b.score) - Number(a.score))
+    .sort((a, b) => {
+      const aJob = jobs.find((item) => item.id === a.job_id);
+      const bJob = jobs.find((item) => item.id === b.job_id);
+      const aMomentum = aJob ? getJobMomentumScore(aJob, { score: a, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }) : 0;
+      const bMomentum = bJob ? getJobMomentumScore(bJob, { score: b, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }) : 0;
+      return bMomentum - aMomentum || Number(b.score) - Number(a.score);
+    })
     .slice(0, 3)
     .map((score) => {
       const job = jobs.find((item) => item.id === score.job_id);
@@ -437,6 +550,7 @@ function getBestMatchRoles(jobScores, jobs, profile, resumeVersions = [], messag
         stage: normalizeStage(job.status),
         action: getBestMatchAction(nextBestAction, score),
         reason: getMatchReason(job, score),
+        momentum: getJobMomentumScore(job, { score, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }),
       } : null;
     })
     .filter(Boolean);
@@ -529,6 +643,7 @@ function getFocusInitialTab(item) {
   if (["follow_up_due", "follow_up_overdue", "follow_up_today", "move_to_interview"].includes(actionType)) return "overview";
   if (actionType === "review_high_fit") return "fit";
   if (["generate_resume", "apply_now"].includes(actionType)) return "resume";
+  if (actionType === "generate_cover_letter") return "coverLetter";
   if (actionType === "generate_message") return "message";
   return "overview";
 }
@@ -566,19 +681,20 @@ function getMomentumSummary({ jobs, resumeVersions, jobScores, messages }) {
   };
 }
 
-function getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts }) {
+function getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts, jobActivityLogs = [], interviewPrep = [] }) {
   return jobs
     .map((job) => {
       const score = getLatestFitScore(jobScores, job.id);
       const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
       const nextBestAction = getNextBestAction(job, { score, aiStatus, messages });
       const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
-      return { ...job, kind: nextBestAction.actionType, nextBestAction, score, contacts };
+      const momentumScore = getJobMomentumScore(job, { score, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs });
+      return { ...job, kind: nextBestAction.actionType, nextBestAction, score, contacts, momentumScore };
     })
     .filter((job) => job.nextBestAction.actionType !== "no_action")
     .sort((a, b) => {
       if (a.nextBestAction.priority !== b.nextBestAction.priority) return a.nextBestAction.priority - b.nextBestAction.priority;
-      return Number(b.score?.score ?? 0) - Number(a.score?.score ?? 0);
+      return b.momentumScore - a.momentumScore || Number(b.score?.score ?? 0) - Number(a.score?.score ?? 0);
     })
     .slice(0, 5);
 }
