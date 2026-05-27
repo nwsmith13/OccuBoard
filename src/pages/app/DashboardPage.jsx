@@ -1,6 +1,6 @@
 import { CheckCircle2, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
@@ -19,6 +19,7 @@ import { JobDetail } from "./JobsPage.jsx";
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { jobs, profile, activityLogs, jobActivityLogs, resumeVersions, jobScores, messages, jobContacts, interviewPrep, loading, error, updateJob, deleteJob } = useWorkspaceStore();
   const [activityOpen, setActivityOpen] = useState(true);
   const [showAllActivity, setShowAllActivity] = useState(false);
@@ -27,7 +28,7 @@ export function DashboardPage() {
   const completenessTone = getCompletenessTone(completeness);
   const focusItems = getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts });
   const followUpsDue = jobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
-  const bestMatchRoles = getBestMatchRoles(jobScores, jobs, profile);
+  const bestMatchRoles = getBestMatchRoles(jobScores, jobs, profile, resumeVersions, messages);
   const momentum = getMomentumSummary({ jobs, resumeVersions, jobScores, messages });
   const insights = buildDashboardInsights({ jobs, jobScores, resumeVersions, messages, jobActivityLogs, interviewPrep });
   const visibleActivity = showAllActivity ? activityLogs : activityLogs.slice(0, 4);
@@ -40,8 +41,8 @@ export function DashboardPage() {
   if (loading) return <DashboardSkeleton />;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <main className="grid min-w-0 gap-6">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <main className="grid min-w-0 gap-5">
         {error && <div className="rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
         <section className="overflow-hidden rounded-xl bg-gradient-to-br from-stone-100 via-white to-emerald-50 px-5 py-4 shadow-card transition hover:shadow-soft sm:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -64,7 +65,7 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-xl bg-white/95 p-6 shadow-card sm:p-7">
+        <section className="rounded-xl bg-white/95 p-5 shadow-card sm:p-6">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">Today</p>
@@ -75,12 +76,12 @@ export function DashboardPage() {
             </div>
             <p className="max-w-md text-sm leading-6 text-slate-600">The next few things worth your attention.</p>
           </div>
-          <div className="mt-5 grid gap-4">
+          <div className="mt-4 grid gap-3.5">
             {focusItems.map((item) => (
               <button
                 key={`${item.kind}-${item.id}`}
                 type="button"
-                className={`group flex cursor-pointer gap-4 rounded-xl p-5 text-left shadow-sm ring-1 ring-transparent transition-all duration-200 hover:-translate-y-0.5 hover:ring-emerald-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${getFocusTone(item.nextBestAction?.tone)}`}
+                className={`group flex cursor-pointer gap-4 rounded-xl p-4 text-left shadow-sm ring-1 ring-transparent transition-all duration-200 hover:-translate-y-0.5 hover:ring-emerald-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${getFocusTone(item.nextBestAction?.tone)}`}
                 onClick={() => setSelectedJob({ ...item, initialTab: getFocusInitialTab(item) })}
                 aria-label={`Open ${getDisplayJobTitle(item)} at ${getDisplayCompanyName(item)}`}
               >
@@ -107,14 +108,14 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-xl bg-white/70 p-5 shadow-sm">
+        <section className="rounded-xl bg-white/70 p-4 shadow-sm sm:p-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <h2 className="text-xl font-bold">Best Match Roles</h2>
             <p className="text-sm text-slate-600">A light signal from your profile and analyzed jobs.</p>
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
             {bestMatchRoles.map((item, index) => (
-              <div key={`${item.label}-${index}`} className="rounded-xl bg-white/65 p-3.5 shadow-sm transition hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-card">
+              <button key={`${item.label}-${index}`} type="button" className={`rounded-xl p-3.5 text-left shadow-sm ring-1 ring-white/70 transition hover:-translate-y-0.5 hover:bg-white/90 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${item.job ? getBestMatchTone(item.stage) : "bg-white/65"}`} onClick={() => item.job && setSelectedJob({ ...item.job, initialTab: "overview" })}>
                 <div className="flex items-center gap-3">
                   {item.job ? <CompanyLogo companyName={item.company} companyDomain={item.job.company_domain} companyLogoUrl={item.job.company_logo_url} sourceUrl={item.job.source_url} size="md" /> : <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-xs font-bold text-brand-800">{index + 1}</span>}
                   <div className="min-w-0 flex-1">
@@ -124,17 +125,25 @@ export function DashboardPage() {
                     </div>
                   </div>
                 </div>
-                {item.company && <p className="mt-2.5 text-sm font-semibold text-slate-800">{item.company}</p>}
-                {item.matchLabel && <p className="mt-1 text-xs font-semibold text-slate-500">{item.matchLabel}</p>}
-              </div>
+                {item.company && <p className="mt-2 text-sm font-semibold text-slate-800">{item.company}</p>}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {item.stage && <span className="rounded-full bg-white/75 px-2 py-0.5 text-[11px] font-bold text-slate-600 ring-1 ring-slate-100">{item.stage}</span>}
+                  {item.matchLabel && <span className="text-xs font-semibold text-slate-500">{item.matchLabel}</span>}
+                </div>
+                {item.action && <p className="mt-2 truncate text-xs font-bold text-brand-800">{item.action}</p>}
+              </button>
             ))}
           </div>
         </section>
 
-        <SearchInsights insights={insights} onOpenJob={(job, initialTab = "overview") => setSelectedJob({ ...job, initialTab })} />
+        <SearchInsights
+          insights={insights}
+          onOpenJob={(job, initialTab = "overview") => setSelectedJob({ ...job, initialTab })}
+          onOpenStage={(stage) => navigate(`/app/applications?stage=${encodeURIComponent(stage)}`)}
+        />
       </main>
 
-      <aside className="grid gap-5 xl:sticky xl:top-24 xl:self-start">
+      <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
         <Card className="bg-white/75 p-4 shadow-sm">
           <h2 className="text-lg font-bold">Profile Completeness</h2>
           <p className="mt-2 text-sm text-slate-600">A stronger profile makes guidance sharper.</p>
@@ -227,14 +236,14 @@ function DashboardSkeleton() {
   );
 }
 
-function SearchInsights({ insights, onOpenJob }) {
+function SearchInsights({ insights, onOpenJob, onOpenStage }) {
   const dueJob = insights.followUps.overdueJobs[0] || insights.followUps.dueJobs[0];
   const bestMatch = insights.fit.best;
   const upcomingInterview = insights.interviews.upcomingJobs[0];
   const maxStage = Math.max(1, insights.pipeline.total);
 
   return (
-    <section className="rounded-xl bg-white/90 p-5 shadow-card sm:p-6">
+    <section className="rounded-xl bg-white/90 p-4 shadow-card sm:p-5">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">Search Insights</p>
@@ -244,21 +253,21 @@ function SearchInsights({ insights, onOpenJob }) {
         <Link to="/app/applications" className="text-sm font-semibold text-brand-700 hover:text-brand-900">View applications</Link>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid gap-3.5 lg:grid-cols-2">
         <InsightCard title="Pipeline Snapshot" insight={insights.pipeline.insight}>
           <div className="grid gap-2">
             {["Saved", "Applied", "Interview", "Closed"].map((stage) => {
               const count = insights.pipeline.counts[stage] || 0;
               return (
-                <div key={stage}>
+                <button key={stage} type="button" className="group rounded-lg px-2 py-1 text-left transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenStage(stage)}>
                   <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-600">
                     <span>{stage}</span>
                     <span>{count}</span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-100">
-                    <div className={`h-2 rounded-full ${getStageBar(stage)}`} style={{ width: `${Math.max(count ? 8 : 0, (count / maxStage) * 100)}%` }} />
+                    <div className={`h-2 rounded-full transition-all group-hover:brightness-95 ${getStageBar(stage)}`} style={{ width: `${Math.max(count ? 8 : 0, (count / maxStage) * 100)}%` }} />
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -277,11 +286,12 @@ function SearchInsights({ insights, onOpenJob }) {
 
         <InsightCard title="Follow-up Health" insight={insights.followUps.insight}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <MiniStat label="Due today" value={insights.followUps.dueToday} tone="warning" />
-            <MiniStat label="Overdue" value={insights.followUps.overdue} tone="danger" />
+            <MiniStat label="Due today" value={insights.followUps.dueToday} tone="warning" onClick={insights.followUps.dueJobs[0] ? () => onOpenJob(insights.followUps.dueJobs[0], "overview") : undefined} />
+            <MiniStat label="Overdue" value={insights.followUps.overdue} tone="danger" onClick={insights.followUps.overdueJobs[0] ? () => onOpenJob(insights.followUps.overdueJobs[0], "overview") : undefined} />
             <MiniStat label="Scheduled" value={insights.followUps.scheduled} />
             <MiniStat label="Completed" value={insights.followUps.completedThisWeek} tone="success" />
           </div>
+          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">{getFollowUpStatusCopy(insights.followUps)}</p>
           {dueJob && (
             <Button variant="secondary" className="mt-3 min-h-8 px-3 text-xs" onClick={() => onOpenJob(dueJob, "overview")}>
               Review follow-ups
@@ -293,10 +303,11 @@ function SearchInsights({ insights, onOpenJob }) {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <MiniStat label="Scheduled" value={insights.interviews.scheduled} tone="success" />
             <MiniStat label="This week" value={insights.interviews.thisWeek} tone="success" />
-            <MiniStat label="Prep started" value={insights.interviews.prepStarted} />
+            <MiniStat label="Prep ready" value={insights.interviews.prepStarted} />
             <MiniStat label="Thank-you notes" value={insights.interviews.thankYouSaved} />
             <MiniStat label="Follow-ups due" value={insights.interviews.followUpsDue} tone={insights.interviews.followUpsDue ? "warning" : "neutral"} />
           </div>
+          {insights.interviews.nextInterviewDate && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">Next interview: {formatDate(insights.interviews.nextInterviewDate)}</p>}
           {upcomingInterview && (
             <Button variant="secondary" className="mt-3 min-h-8 px-3 text-xs" onClick={() => onOpenJob(upcomingInterview, "interview")}>
               Open interview prep
@@ -314,7 +325,7 @@ function SearchInsights({ insights, onOpenJob }) {
           {bestMatch && (
             <button type="button" className="mt-3 w-full rounded-lg bg-brand-50 px-3 py-2 text-left text-sm transition hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenJob(bestMatch.job, "overview")}>
               <span className="block font-bold text-brand-900">Best current match: {getDisplayJobTitle(bestMatch.job)}</span>
-              <span className="text-xs font-semibold text-slate-600">{getDisplayCompanyName(bestMatch.job)} · {Math.round(Number(bestMatch.score.score))}% fit</span>
+              <span className="text-xs font-semibold text-slate-600">{getDisplayCompanyName(bestMatch.job)} {"\u2022"} {Math.round(Number(bestMatch.score.score))}% fit</span>
             </button>
           )}
         </InsightCard>
@@ -325,7 +336,7 @@ function SearchInsights({ insights, onOpenJob }) {
               <button key={company.company} type="button" className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-left transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenJob(company.job, "overview")}>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-ink">{company.company}</span>
-                  <span className="text-xs text-slate-500">{company.count} role{company.count === 1 ? "" : "s"} · {company.stages.join(", ")}</span>
+                  <span className="text-xs text-slate-500">{formatCompanyActivity(company)}</span>
                 </span>
                 <span className="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">{company.highestFit ? `${Math.round(company.highestFit)}%` : "New"}</span>
               </button>
@@ -342,19 +353,22 @@ function InsightCard({ title, insight, children }) {
   return (
     <article className="rounded-xl bg-white/80 p-4 shadow-sm ring-1 ring-brand-100">
       <h3 className="font-bold text-ink">{title}</h3>
-      <p className="mt-1 min-h-10 text-sm leading-5 text-slate-600">{insight}</p>
-      <div className="mt-4">{children}</div>
+      <p className="mt-1 min-h-8 text-sm leading-5 text-slate-600">{insight}</p>
+      <div className="mt-3">{children}</div>
     </article>
   );
 }
 
-function MiniStat({ label, value, tone = "info" }) {
-  return (
-    <div className={`rounded-lg px-3 py-2 ring-1 ${getMiniStatTone(tone)}`}>
+function MiniStat({ label, value, tone = "info", onClick }) {
+  const className = `rounded-lg px-3 py-2 text-left ring-1 transition ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" : ""} ${getMiniStatTone(tone)}`;
+  const content = (
+    <>
       <p className="text-lg font-black">{value}</p>
       <p className="mt-0.5 text-[11px] font-semibold leading-4 opacity-80">{label}</p>
-    </div>
+    </>
   );
+  if (onClick) return <button type="button" className={className} onClick={onClick}>{content}</button>;
+  return <div className={className}>{content}</div>;
 }
 
 function getMiniStatTone(tone) {
@@ -376,14 +390,40 @@ function getStageBar(stage) {
   }[stage] ?? "bg-brand-300";
 }
 
-function getBestMatchRoles(jobScores, jobs, profile) {
+function getFollowUpStatusCopy(followUps) {
+  const attention = followUps.dueToday + followUps.overdue;
+  if (attention === 1) return "1 follow-up still needs attention.";
+  if (attention > 1) return `${attention} follow-ups still need attention.`;
+  if (followUps.completedThisWeek > 0) return "Strong consistency this week.";
+  return "You're staying current.";
+}
+
+function formatCompanyActivity(company) {
+  const stageParts = ["Interview", "Applied", "Saved", "Closed"]
+    .filter((stage) => company.stageCounts?.[stage])
+    .map((stage) => `${company.stageCounts[stage]} ${stage.toLowerCase()}`);
+  const stageSummary = stageParts.length ? stageParts.join(" \u2022 ") : company.stages.join(", ");
+  return `${company.count} role${company.count === 1 ? "" : "s"} \u2022 ${stageSummary}${company.highestFit ? ` \u2022 best fit ${Math.round(company.highestFit)}%` : ""}`;
+}
+
+function getBestMatchRoles(jobScores, jobs, profile, resumeVersions = [], messages = []) {
   const strongScores = jobScores.filter((score) => Number(score.score) >= 65);
   const topJobs = [...strongScores]
     .sort((a, b) => Number(b.score) - Number(a.score))
     .slice(0, 3)
     .map((score) => {
       const job = jobs.find((item) => item.id === score.job_id);
-      return job ? { label: getDisplayJobTitle(job), company: getDisplayCompanyName(job), matchLabel: getFitScoreTone(score.score).label, score, job } : null;
+      const aiStatus = job ? getJobAiStatus(job.id, jobScores, resumeVersions, messages) : {};
+      const nextBestAction = job ? getNextBestAction(job, { score, aiStatus, messages }) : null;
+      return job ? {
+        label: getDisplayJobTitle(job),
+        company: getDisplayCompanyName(job),
+        matchLabel: getFitScoreTone(score.score).label,
+        score,
+        job,
+        stage: normalizeStage(job.status),
+        action: getBestMatchAction(nextBestAction, score),
+      } : null;
     })
     .filter(Boolean);
   if (topJobs.length) return topJobs;
@@ -412,6 +452,21 @@ function getBestMatchRoles(jobScores, jobs, profile) {
   if (targetRoles.length) return targetRoles;
 
   return [{ label: "Analyze a few jobs", matchLabel: "Best-match insights will appear here." }];
+}
+
+function getBestMatchAction(nextBestAction, score) {
+  if (nextBestAction?.actionType && nextBestAction.actionType !== "no_action") return nextBestAction.label;
+  if (Number(score?.score ?? 0) >= 85) return "Strong implementation match";
+  return "Review match";
+}
+
+function getBestMatchTone(stage) {
+  return {
+    Saved: "bg-cyan-50/70",
+    Applied: "bg-brand-50/70",
+    Interview: "bg-emerald-50/70",
+    Closed: "bg-slate-50",
+  }[stage] ?? "bg-white/65";
 }
 
 function getFocusTone(tone) {
@@ -535,4 +590,5 @@ function extractActivityCompany(description) {
   const forMatch = description.match(/\s+for\s+(.+)$/i);
   return forMatch?.[1]?.trim() ?? "";
 }
+
 

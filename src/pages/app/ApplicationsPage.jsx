@@ -24,6 +24,7 @@ export function ApplicationsPage() {
   const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState("cards");
   const [success, setSuccess] = useState("");
+  const highlightedStage = searchParams.get("stage");
 
   const grouped = useMemo(
     () => Object.fromEntries(stages.map((stage) => [stage, jobs.filter((item) => getPipelineStage(item.status) === stage)])),
@@ -105,8 +106,8 @@ export function ApplicationsPage() {
           <div className="kanban-scroll grid snap-x grid-flow-col gap-4 overflow-x-auto pb-3 sm:gap-6">
             {stages.map((stage) => (
               <div
-                key={stage}
-              className={`min-h-[260px] w-[min(315px,calc(100vw-2rem))] snap-start rounded-xl p-3 shadow-sm ring-1 ring-white/70 sm:p-4 ${getStageColumnTone(stage)}`}
+              key={stage}
+              className={`min-h-[260px] w-[min(315px,calc(100vw-2rem))] snap-start rounded-xl p-3 shadow-sm ring-1 sm:p-4 ${highlightedStage === stage ? "ring-4 ring-brand-200" : "ring-white/70"} ${getStageColumnTone(stage)}`}
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => moveApplication(stage)}
             >

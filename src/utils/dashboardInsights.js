@@ -79,7 +79,7 @@ function getFollowUpCounts(jobs) {
 function getInterviewCounts({ jobs, interviewPrep, jobActivityLogs }) {
   const scheduledJobs = jobs.filter((job) => Boolean(job.interview_date));
   const thisWeekJobs = scheduledJobs.filter((job) => isThisWeek(job.interview_date));
-  const upcomingJobs = scheduledJobs.filter((job) => job.interview_date >= todayIso());
+  const upcomingJobs = scheduledJobs.filter((job) => job.interview_date >= todayIso()).sort((a, b) => String(a.interview_date).localeCompare(String(b.interview_date)));
   const prepStarted = new Set(interviewPrep.map((prep) => prep.job_id)).size;
   const thankYouSaved = jobActivityLogs.filter((event) => event.type === "interview_thank_you_generated" && isThisWeek(getDatePart(event.created_at))).length;
   const interviewFollowUpsDue = jobs.filter((job) => normalizeStage(job.status) === "Interview" && ["due", "overdue"].includes(getFollowUpStatus(job))).length;
@@ -91,6 +91,7 @@ function getInterviewCounts({ jobs, interviewPrep, jobActivityLogs }) {
     thankYouSaved,
     followUpsDue: interviewFollowUpsDue,
     upcomingJobs,
+    nextInterviewDate: upcomingJobs[0]?.interview_date || "",
   };
 }
 
@@ -120,13 +121,19 @@ function getTopCompanies({ jobs, latestScores }) {
   jobs.forEach((job) => {
     const company = getDisplayCompanyName(job);
     if (!groups.has(company)) {
-      groups.set(company, { company, jobs: [], stages: new Set(), highestFit: 0 });
+      groups.set(company, { company, jobs: [], stages: new Set(), stageCounts: {}, highestFit: 0, bestJob: null });
     }
     const group = groups.get(company);
     const score = latestScores.get(job.id);
+    const stage = normalizeStage(job.status);
+    const fit = Number(score?.score ?? 0);
     group.jobs.push(job);
-    group.stages.add(normalizeStage(job.status));
-    group.highestFit = Math.max(group.highestFit, Number(score?.score ?? 0));
+    group.stages.add(stage);
+    group.stageCounts[stage] = (group.stageCounts[stage] || 0) + 1;
+    if (fit >= group.highestFit) {
+      group.highestFit = fit;
+      group.bestJob = job;
+    }
   });
 
   return [...groups.values()]
@@ -137,7 +144,8 @@ function getTopCompanies({ jobs, latestScores }) {
       count: group.jobs.length,
       highestFit: group.highestFit,
       stages: [...group.stages],
-      job: group.jobs[0],
+      stageCounts: group.stageCounts,
+      job: group.bestJob || group.jobs[0],
     }));
 }
 
