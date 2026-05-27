@@ -428,7 +428,8 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
                   <Detail label="Date saved" value={formatDate(job.date_saved)} />
                   <Detail label="Stage" value={getDisplayStage(job.status)} />
                   <Detail label="Fit score" value={latestScore ? `${Math.round(Number(latestScore.score))}%` : "Not analyzed"} />
-                  <Detail label="Follow-up" value={formatDate(getFollowUpDate(job))} />
+                  {job.interview_date && <Detail label="Interview date" value={formatDate(job.interview_date)} />}
+                  {getFollowUpDate(job) && <Detail label="Follow-up" value={formatDate(getFollowUpDate(job))} />}
                 </dl>
 
                 <section className="mt-5">
@@ -809,6 +810,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const [nextFollowUpOpen, setNextFollowUpOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const showFollowUpSlowHint = useSlowLoading(generatingMessage);
   const followUpDateRef = useRef(null);
   const latestFollowUpMessage = [...messages]
@@ -925,7 +927,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
   }
 
   async function openFollowUpCalendar(provider) {
-    setMessage(provider === "outlook" ? "Opening Outlook Calendar..." : "Opening Google Calendar...");
+    setMessage(provider === "outlook" ? "Opening Outlook..." : "Opening Google Calendar...");
     await logJobActivity?.(user, job.id, "followup_calendar_exported", { fileType: provider === "outlook" ? "Outlook" : "Google Calendar", date, time: followUpTime });
     window.setTimeout(() => setMessage(""), 2200);
   }
@@ -1000,13 +1002,15 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
           className="min-h-8 rounded-lg border border-brand-100 bg-white px-2 text-xs outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
         />
       </div>
-      <div className="mt-4 rounded-lg bg-white/75 p-3 ring-1 ring-brand-100">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 text-sm font-bold text-ink"><CalendarDays size={16} /> Add to calendar</p>
-            <p className="mt-1 text-xs text-slate-500">{date ? "Create a 15-minute reminder from this follow-up date." : "Set a date first to create a calendar reminder."}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <div className="mt-4">
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => setCalendarOpen((current) => !current)} disabled={!date} aria-expanded={calendarOpen}>
+          <CalendarDays size={14} /> {calendarOpen ? "Hide calendar options" : "Add to calendar"}
+        </Button>
+        {!date && <p className="mt-2 text-xs font-semibold text-slate-500">Set a date first to create a calendar reminder.</p>}
+        {calendarOpen && date && (
+          <div className="mt-3 rounded-lg bg-white/75 p-3 ring-1 ring-brand-100">
+            <p className="text-xs text-slate-500">Create a 15-minute reminder from this follow-up date.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
             {googleCalendarUrl ? (
               <a
                 className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
@@ -1034,8 +1038,9 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
             <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={downloadFollowUpCalendar} disabled={!followUpEvent}>
               <Download size={13} /> Download .ics
             </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
       {snoozedUntil && <p className="mt-2 text-xs font-semibold text-slate-500">Currently snoozed until {formatDate(snoozedUntil)}.</p>}
       {messageError && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{messageError}</p>}
@@ -1494,58 +1499,39 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   }
 
   async function openInterviewCalendar(provider) {
-    setInterviewMessage(provider === "outlook" ? "Opening Outlook Calendar..." : "Opening Google Calendar...");
+    setInterviewMessage(provider === "outlook" ? "Opening Outlook..." : "Opening Google Calendar...");
     await onLogActivity?.(user, job.id, "interview_calendar_exported", { fileType: provider === "outlook" ? "Outlook" : "Google Calendar", date: interviewDetails.interview_date, time: interviewDetails.interview_time });
     window.setTimeout(() => setInterviewMessage(""), 2200);
   }
 
+  const scheduleCard = (
+    <InterviewScheduleCard
+      job={job}
+      contacts={contacts}
+      details={interviewDetails}
+      message={interviewMessage}
+      saving={interviewSaving}
+      onChange={updateInterviewDetail}
+      onSave={saveInterviewDetails}
+      onDownload={downloadInterviewCalendar}
+      onOpenCalendar={openInterviewCalendar}
+    />
+  );
+
   if (!content) {
     return (
-      <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Prep</p>
-        <h3 className="mt-2 text-xl font-bold text-ink">Build a calm prep workspace for this interview.</h3>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Generate focus areas, likely questions, talking points, STAR stories, and a thank-you message grounded in this role and your resume.</p>
-        {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
-        <Button className="mt-5" onClick={generatePrep} disabled={loading}>
-          {loading && <Loader2 size={14} className="animate-spin" />}
-          {loading ? "Preparing..." : "Generate interview prep"}
-        </Button>
-        {showPrepSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
-        <div className="mt-5 rounded-lg bg-brand-50/70 p-4 ring-1 ring-brand-100">
-          <p className="flex items-center gap-2 text-sm font-bold text-ink"><CalendarDays size={16} /> Interview schedule</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="grid gap-1 text-sm font-semibold text-ink">
-              Date
-              <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="date" value={interviewDetails.interview_date} onChange={(event) => updateInterviewDetail("interview_date", event.target.value)} />
-            </label>
-            <label className="grid gap-1 text-sm font-semibold text-ink">
-              Time
-              <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="time" value={interviewDetails.interview_time} onChange={(event) => updateInterviewDetail("interview_time", event.target.value || "09:00")} />
-            </label>
-            <label className="grid gap-1 text-sm font-semibold text-ink">
-              Duration
-              <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={interviewDetails.interview_duration} onChange={(event) => updateInterviewDetail("interview_duration", event.target.value)}>
-                <option value="30">30 minutes</option>
-                <option value="45">45 minutes</option>
-                <option value="60">60 minutes</option>
-              </select>
-            </label>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button className="min-h-8 px-3 text-xs" onClick={saveInterviewDetails} disabled={interviewSaving}>
-              {interviewSaving && <Loader2 size={14} className="animate-spin" />}
-              {interviewSaving ? "Saving..." : "Save interview details"}
-            </Button>
-            {interviewDetails.interview_date ? (
-              <>
-                <a className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" href={buildGoogleCalendarUrl(buildInterviewCalendarEvent(job, { ...interviewDetails, contacts }))} target="_blank" rel="noreferrer" onClick={() => openInterviewCalendar("google")}>Google Calendar <ExternalLink size={13} /></a>
-                <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={downloadInterviewCalendar}><Download size={13} /> Download .ics</Button>
-              </>
-            ) : (
-              <Button variant="secondary" className="min-h-8 px-3 text-xs" disabled>Set a date first</Button>
-            )}
-          </div>
-          {interviewMessage && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{interviewMessage}</p>}
+      <section className="grid gap-5">
+        {scheduleCard}
+        <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Prep</p>
+          <h3 className="mt-2 text-xl font-bold text-ink">Build a calm prep workspace for this interview.</h3>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Generate focus areas, likely questions, talking points, STAR stories, and a thank-you message grounded in this role and your resume.</p>
+          {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
+          <Button className="mt-5" onClick={generatePrep} disabled={loading}>
+            {loading && <Loader2 size={14} className="animate-spin" />}
+            {loading ? "Preparing..." : "Generate interview prep"}
+          </Button>
+          {showPrepSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
         </div>
       </section>
     );
@@ -1553,6 +1539,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
 
   return (
     <section className="grid gap-5">
+      {scheduleCard}
       <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -1573,81 +1560,6 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           <Detail label="Preparation level" value={getPrepLevel(content, practiced.size)} />
         </div>
         {contacts[0] && <p className="mt-3 text-sm text-slate-600">Contact: <span className="font-semibold text-slate-800">{contacts[0].name}</span></p>}
-        <div className="mt-5 rounded-lg bg-brand-50/70 p-4 ring-1 ring-brand-100">
-          <p className="flex items-center gap-2 text-sm font-bold text-ink"><CalendarDays size={16} /> Interview schedule</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="grid gap-1 text-sm font-semibold text-ink">
-              Date
-              <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="date" value={interviewDetails.interview_date} onChange={(event) => updateInterviewDetail("interview_date", event.target.value)} />
-            </label>
-            <label className="grid gap-1 text-sm font-semibold text-ink">
-              Time
-              <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="time" value={interviewDetails.interview_time} onChange={(event) => updateInterviewDetail("interview_time", event.target.value || "09:00")} />
-            </label>
-            <label className="grid gap-1 text-sm font-semibold text-ink">
-              Duration
-              <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={interviewDetails.interview_duration} onChange={(event) => updateInterviewDetail("interview_duration", event.target.value)}>
-                <option value="30">30 minutes</option>
-                <option value="45">45 minutes</option>
-                <option value="60">60 minutes</option>
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-semibold text-ink">
-              Type
-              <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={interviewDetails.interview_type} onChange={(event) => updateInterviewDetail("interview_type", event.target.value)}>
-                <option>Phone</option>
-                <option>Video</option>
-                <option>In person</option>
-                <option>Other</option>
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-semibold text-ink lg:col-span-2">
-              Location or link
-              <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={interviewDetails.interview_location} onChange={(event) => updateInterviewDetail("interview_location", event.target.value)} placeholder="Video link, phone number, or address" />
-            </label>
-            {contacts.length > 0 && (
-              <label className="grid gap-1 text-sm font-semibold text-ink lg:col-span-3">
-                Interviewer/contact
-                <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={interviewDetails.interviewer_contact_id} onChange={(event) => updateInterviewDetail("interviewer_contact_id", event.target.value)}>
-                  <option value="">No contact selected</option>
-                  {contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name || contact.email || "Contact"}</option>)}
-                </select>
-              </label>
-            )}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button className="min-h-8 px-3 text-xs" onClick={saveInterviewDetails} disabled={interviewSaving}>
-              {interviewSaving && <Loader2 size={14} className="animate-spin" />}
-              {interviewSaving ? "Saving..." : "Save interview details"}
-            </Button>
-            {interviewDetails.interview_date ? (
-              <>
-                <a
-                  className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
-                  href={buildGoogleCalendarUrl(buildInterviewCalendarEvent(job, { ...interviewDetails, contacts }))}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => openInterviewCalendar("google")}
-                >
-                  Google Calendar <ExternalLink size={13} />
-                </a>
-                <a
-                  className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
-                  href={buildOutlookCalendarUrl(buildInterviewCalendarEvent(job, { ...interviewDetails, contacts }))}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => openInterviewCalendar("outlook")}
-                >
-                  Outlook <ExternalLink size={13} />
-                </a>
-                <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={downloadInterviewCalendar}><Download size={13} /> Download .ics</Button>
-              </>
-            ) : (
-              <Button variant="secondary" className="min-h-8 px-3 text-xs" disabled>Set a date first</Button>
-            )}
-          </div>
-          {interviewMessage && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{interviewMessage}</p>}
-        </div>
       </div>
 
       <PrepSection title="Likely Interview Focus Areas">
@@ -1751,6 +1663,77 @@ function NoteSaveStatus({ status }) {
     error: "text-rose-700",
   }[status];
   return <p className={`text-xs font-semibold transition ${tone}`}>{label}</p>;
+}
+
+function InterviewScheduleCard({ job, contacts, details, message, saving, onChange, onSave, onDownload, onOpenCalendar }) {
+  const calendarEvent = details.interview_date ? buildInterviewCalendarEvent(job, { ...details, contacts }) : null;
+  return (
+    <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Schedule</p>
+          <h3 className="mt-1 flex items-center gap-2 text-lg font-bold text-ink"><CalendarDays size={18} /> Schedule and calendar handoff</h3>
+          <p className="mt-1 text-sm text-slate-600">Keep the meeting details close to your prep without needing calendar sync.</p>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <label className="grid gap-1 text-sm font-semibold text-ink">
+          Date
+          <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="date" value={details.interview_date} onChange={(event) => onChange("interview_date", event.target.value)} />
+        </label>
+        <label className="grid gap-1 text-sm font-semibold text-ink">
+          Time
+          <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="time" value={details.interview_time} onChange={(event) => onChange("interview_time", event.target.value || "09:00")} />
+        </label>
+        <label className="grid gap-1 text-sm font-semibold text-ink">
+          Duration
+          <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={details.interview_duration} onChange={(event) => onChange("interview_duration", event.target.value)}>
+            <option value="30">30 minutes</option>
+            <option value="45">45 minutes</option>
+            <option value="60">60 minutes</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm font-semibold text-ink">
+          Type
+          <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={details.interview_type} onChange={(event) => onChange("interview_type", event.target.value)}>
+            <option>Phone</option>
+            <option>Video</option>
+            <option>In person</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm font-semibold text-ink lg:col-span-2">
+          Location or link
+          <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={details.interview_location} onChange={(event) => onChange("interview_location", event.target.value)} placeholder="Video link, phone number, or address" />
+        </label>
+        {contacts.length > 0 && (
+          <label className="grid gap-1 text-sm font-semibold text-ink lg:col-span-3">
+            Interviewer/contact
+            <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={details.interviewer_contact_id} onChange={(event) => onChange("interviewer_contact_id", event.target.value)}>
+              <option value="">No contact selected</option>
+              {contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name || contact.email || "Contact"}</option>)}
+            </select>
+          </label>
+        )}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button className="min-h-8 px-3 text-xs" onClick={onSave} disabled={saving}>
+          {saving && <Loader2 size={14} className="animate-spin" />}
+          {saving ? "Saving..." : "Save interview details"}
+        </Button>
+        {calendarEvent ? (
+          <>
+            <a className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" href={buildGoogleCalendarUrl(calendarEvent)} target="_blank" rel="noreferrer" onClick={() => onOpenCalendar("google")}>Google Calendar <ExternalLink size={13} /></a>
+            <a className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" href={buildOutlookCalendarUrl(calendarEvent)} target="_blank" rel="noreferrer" onClick={() => onOpenCalendar("outlook")}>Outlook <ExternalLink size={13} /></a>
+            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onDownload}><Download size={13} /> Download .ics</Button>
+          </>
+        ) : (
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" disabled>Set a date first</Button>
+        )}
+      </div>
+      {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{message}</p>}
+    </section>
+  );
 }
 
 function PrepSection({ title, children }) {

@@ -95,8 +95,9 @@ export function getNextBestAction(job = {}, options = {}) {
   if (stage === "Interview") {
     if (isInterviewSoon(job, 48)) {
       return buildAction("prepare_interview", {
+        label: "Interview coming up",
         description: "Interview coming up soon. Review your focus areas, talking points, and thank-you note.",
-        priority: 1,
+        priority: 1.5,
       });
     }
     return buildAction("prepare_interview");
