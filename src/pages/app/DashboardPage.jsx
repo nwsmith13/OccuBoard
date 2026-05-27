@@ -13,12 +13,13 @@ import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
 import { getProfileCompleteness } from "../../lib/profile.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
+import { buildDashboardInsights } from "../../utils/dashboardInsights.js";
 import { getNextBestAction } from "../../utils/nextBestAction.js";
 import { JobDetail } from "./JobsPage.jsx";
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { jobs, profile, activityLogs, resumeVersions, jobScores, messages, jobContacts, loading, error, updateJob, deleteJob } = useWorkspaceStore();
+  const { jobs, profile, activityLogs, jobActivityLogs, resumeVersions, jobScores, messages, jobContacts, interviewPrep, loading, error, updateJob, deleteJob } = useWorkspaceStore();
   const [activityOpen, setActivityOpen] = useState(true);
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -28,6 +29,7 @@ export function DashboardPage() {
   const followUpsDue = jobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
   const bestMatchRoles = getBestMatchRoles(jobScores, jobs, profile);
   const momentum = getMomentumSummary({ jobs, resumeVersions, jobScores, messages });
+  const insights = buildDashboardInsights({ jobs, jobScores, resumeVersions, messages, jobActivityLogs, interviewPrep });
   const visibleActivity = showAllActivity ? activityLogs : activityLogs.slice(0, 4);
 
   async function moveToApplied(job) {
@@ -128,6 +130,8 @@ export function DashboardPage() {
             ))}
           </div>
         </section>
+
+        <SearchInsights insights={insights} onOpenJob={(job, initialTab = "overview") => setSelectedJob({ ...job, initialTab })} />
       </main>
 
       <aside className="grid gap-5 xl:sticky xl:top-24 xl:self-start">
@@ -221,6 +225,155 @@ function DashboardSkeleton() {
       </aside>
     </div>
   );
+}
+
+function SearchInsights({ insights, onOpenJob }) {
+  const dueJob = insights.followUps.overdueJobs[0] || insights.followUps.dueJobs[0];
+  const bestMatch = insights.fit.best;
+  const upcomingInterview = insights.interviews.upcomingJobs[0];
+  const maxStage = Math.max(1, insights.pipeline.total);
+
+  return (
+    <section className="rounded-xl bg-white/90 p-5 shadow-card sm:p-6">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-600">Search Insights</p>
+          <h2 className="mt-1 text-xl font-bold text-ink">Search Insights</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Your job search progress at a glance.</p>
+        </div>
+        <Link to="/app/applications" className="text-sm font-semibold text-brand-700 hover:text-brand-900">View applications</Link>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <InsightCard title="Pipeline Snapshot" insight={insights.pipeline.insight}>
+          <div className="grid gap-2">
+            {["Saved", "Applied", "Interview", "Closed"].map((stage) => {
+              const count = insights.pipeline.counts[stage] || 0;
+              return (
+                <div key={stage}>
+                  <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-600">
+                    <span>{stage}</span>
+                    <span>{count}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div className={`h-2 rounded-full ${getStageBar(stage)}`} style={{ width: `${Math.max(count ? 8 : 0, (count / maxStage) * 100)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </InsightCard>
+
+        <InsightCard title="Weekly Activity" insight={insights.weekly.insight}>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <MiniStat label="Jobs analyzed" value={insights.weekly.analyzed} />
+            <MiniStat label="Resumes" value={insights.weekly.resumes} />
+            <MiniStat label="Cover letters" value={insights.weekly.coverLetters} />
+            <MiniStat label="Recruiter messages" value={insights.weekly.recruiterMessages} />
+            <MiniStat label="Follow-up messages" value={insights.weekly.followUpMessages} />
+            <MiniStat label="Exports" value={insights.weekly.exports} />
+          </div>
+        </InsightCard>
+
+        <InsightCard title="Follow-up Health" insight={insights.followUps.insight}>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <MiniStat label="Due today" value={insights.followUps.dueToday} tone="warning" />
+            <MiniStat label="Overdue" value={insights.followUps.overdue} tone="danger" />
+            <MiniStat label="Scheduled" value={insights.followUps.scheduled} />
+            <MiniStat label="Completed" value={insights.followUps.completedThisWeek} tone="success" />
+          </div>
+          {dueJob && (
+            <Button variant="secondary" className="mt-3 min-h-8 px-3 text-xs" onClick={() => onOpenJob(dueJob, "overview")}>
+              Review follow-ups
+            </Button>
+          )}
+        </InsightCard>
+
+        <InsightCard title="Interview Momentum" insight={insights.interviews.insight}>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <MiniStat label="Scheduled" value={insights.interviews.scheduled} tone="success" />
+            <MiniStat label="This week" value={insights.interviews.thisWeek} tone="success" />
+            <MiniStat label="Prep started" value={insights.interviews.prepStarted} />
+            <MiniStat label="Thank-you notes" value={insights.interviews.thankYouSaved} />
+            <MiniStat label="Follow-ups due" value={insights.interviews.followUpsDue} tone={insights.interviews.followUpsDue ? "warning" : "neutral"} />
+          </div>
+          {upcomingInterview && (
+            <Button variant="secondary" className="mt-3 min-h-8 px-3 text-xs" onClick={() => onOpenJob(upcomingInterview, "interview")}>
+              Open interview prep
+            </Button>
+          )}
+        </InsightCard>
+
+        <InsightCard title="Fit Score Insights" insight={insights.fit.insight}>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <MiniStat label="Average fit" value={insights.fit.scoredCount ? `${insights.fit.average}%` : "Not yet"} />
+            <MiniStat label="Strong" value={insights.fit.strong} tone="success" />
+            <MiniStat label="Good" value={insights.fit.good} />
+            <MiniStat label="Low" value={insights.fit.low} tone="neutral" />
+          </div>
+          {bestMatch && (
+            <button type="button" className="mt-3 w-full rounded-lg bg-brand-50 px-3 py-2 text-left text-sm transition hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenJob(bestMatch.job, "overview")}>
+              <span className="block font-bold text-brand-900">Best current match: {getDisplayJobTitle(bestMatch.job)}</span>
+              <span className="text-xs font-semibold text-slate-600">{getDisplayCompanyName(bestMatch.job)} · {Math.round(Number(bestMatch.score.score))}% fit</span>
+            </button>
+          )}
+        </InsightCard>
+
+        <InsightCard title="Company Activity" insight={insights.companies.length ? "The companies showing the most activity in your search." : "Company patterns will appear as you track more roles."}>
+          <div className="grid gap-2">
+            {insights.companies.map((company) => (
+              <button key={company.company} type="button" className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-left transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={() => onOpenJob(company.job, "overview")}>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-bold text-ink">{company.company}</span>
+                  <span className="text-xs text-slate-500">{company.count} role{company.count === 1 ? "" : "s"} · {company.stages.join(", ")}</span>
+                </span>
+                <span className="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">{company.highestFit ? `${Math.round(company.highestFit)}%` : "New"}</span>
+              </button>
+            ))}
+            {!insights.companies.length && <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-slate-600">Analyze your first job to start building insights.</p>}
+          </div>
+        </InsightCard>
+      </div>
+    </section>
+  );
+}
+
+function InsightCard({ title, insight, children }) {
+  return (
+    <article className="rounded-xl bg-white/80 p-4 shadow-sm ring-1 ring-brand-100">
+      <h3 className="font-bold text-ink">{title}</h3>
+      <p className="mt-1 min-h-10 text-sm leading-5 text-slate-600">{insight}</p>
+      <div className="mt-4">{children}</div>
+    </article>
+  );
+}
+
+function MiniStat({ label, value, tone = "info" }) {
+  return (
+    <div className={`rounded-lg px-3 py-2 ring-1 ${getMiniStatTone(tone)}`}>
+      <p className="text-lg font-black">{value}</p>
+      <p className="mt-0.5 text-[11px] font-semibold leading-4 opacity-80">{label}</p>
+    </div>
+  );
+}
+
+function getMiniStatTone(tone) {
+  return {
+    danger: "bg-rose-50 text-rose-700 ring-rose-100",
+    warning: "bg-amber-50 text-amber-800 ring-amber-100",
+    success: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    neutral: "bg-slate-50 text-slate-600 ring-slate-100",
+    info: "bg-brand-50 text-brand-800 ring-brand-100",
+  }[tone] ?? "bg-brand-50 text-brand-800 ring-brand-100";
+}
+
+function getStageBar(stage) {
+  return {
+    Saved: "bg-cyan-300",
+    Applied: "bg-brand-500",
+    Interview: "bg-emerald-400",
+    Closed: "bg-slate-300",
+  }[stage] ?? "bg-brand-300";
 }
 
 function getBestMatchRoles(jobScores, jobs, profile) {
