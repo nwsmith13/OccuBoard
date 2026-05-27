@@ -1,4 +1,5 @@
 import { formatDate, todayIso } from "./date.js";
+import { isArchivedJob } from "./archive.js";
 import { getFollowUpDate, getFollowUpStatus, normalizeStage } from "./followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "./jobDisplay.js";
 import { isCoverLetter, isRecruiterMessage } from "./jobAiStatus.js";
@@ -40,7 +41,7 @@ export function generateRecommendations({
   const latestScores = getLatestScores(jobScores);
   const recommendations = [];
 
-  const jobsToEvaluate = jobs.length ? jobs : followups;
+  const jobsToEvaluate = (jobs.length ? jobs : followups).filter((job) => !isArchivedJob(job));
 
   jobsToEvaluate.forEach((job) => {
     const score = latestScores.get(job.id);
@@ -209,7 +210,7 @@ export function generateRecommendations({
         urgency: "suggested",
         title: "Consider archiving this opportunity.",
         description: stage === "Closed" ? "Outcome is recorded." : "This opportunity has been inactive for a while.",
-        actionLabel: "Review outcome",
+        actionLabel: "Review archive option",
         actionTab: "overview",
         score: Math.max(1, momentumScore - 12),
         reasoningText: stage === "Closed" ? "Closed stage with outcome recorded." : `No activity for ${inactiveDays} days.`,

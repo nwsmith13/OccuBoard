@@ -10,6 +10,9 @@ export function formatActivityLabel(event = {}) {
     resume_exported_pdf: "Resume exported PDF",
     resume_exported_docx: "Resume exported DOCX",
     message_generated: "Message generated",
+    message_regenerated: "Recruiter message regenerated",
+    message_edited: "Recruiter message edited",
+    message_copied: "Recruiter message copied",
     cover_letter_generated: "Cover letter generated",
     cover_letter_regenerated: "Cover letter regenerated",
     cover_letter_edited: "Cover letter edited",
@@ -30,6 +33,8 @@ export function formatActivityLabel(event = {}) {
     contact_edited: "Contact edited",
     contact_deleted: "Contact deleted",
     contact_contacted: "Contact marked contacted",
+    job_archived: "Opportunity archived",
+    job_restored: "Opportunity restored",
     interview_prep_generated: "Interview prep generated",
     interview_details_saved: "Interview details saved",
     interview_calendar_exported: "Interview calendar exported",
@@ -48,6 +53,7 @@ export function formatActivityDetails(event = {}) {
   if (event.type === "followup_snoozed") return metadata.until ? `Until ${formatDate(metadata.until)}` : "";
   if (event.type === "followup_completed") return metadata.completedAt ? `Completed ${formatDate(String(metadata.completedAt).slice(0, 10))}` : "";
   if ((event.type === "message_generated" || event.type === "followup_message_generated") && metadata.contactName) return `For ${metadata.contactName}`;
+  if (event.type === "message_regenerated" || event.type === "message_edited" || event.type === "message_copied") return metadata.detail || "";
   if (event.type?.startsWith("cover_letter")) return metadata.fileType ? `${metadata.fileType} download` : metadata.detail || metadata.type || "";
   if (event.type === "followup_message_copied") return metadata.detail || "Ready to send outside OccuBoard";
   if (event.type === "followup_calendar_exported") return [metadata.fileType, metadata.date ? formatDate(metadata.date) : ""].filter(Boolean).join(" - ");
@@ -55,6 +61,8 @@ export function formatActivityDetails(event = {}) {
   if (event.type === "interview_calendar_exported") return [metadata.fileType, metadata.date ? formatDate(metadata.date) : ""].filter(Boolean).join(" - ");
   if (event.type === "resume_exported_pdf" || event.type === "resume_exported_docx") return metadata.fileType ? `${metadata.fileType} download` : "";
   if (event.type?.startsWith("contact_")) return [metadata.contactName, metadata.company].filter(Boolean).join(" at ");
+  if (event.type === "job_archived") return metadata.reason || "Hidden from active pipeline";
+  if (event.type === "job_restored") return "Returned to active pipeline";
   return metadata.detail || metadata.title || metadata.company || "";
 }
 
@@ -84,6 +92,7 @@ export function getActivityColor(type = "") {
   if (type.includes("resume")) return "bg-brand-50 text-brand-800 ring-brand-100";
   if (type.includes("message")) return "bg-cyan-50 text-cyan-700 ring-cyan-100";
   if (type.includes("stage") || type.includes("application")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  if (type.includes("archived") || type.includes("restored")) return "bg-slate-50 text-slate-600 ring-slate-100";
   if (type.includes("contact")) return "bg-cyan-50 text-cyan-700 ring-cyan-100";
   if (type.includes("interview")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   if (type.includes("analysis")) return "bg-purple-50 text-purple-700 ring-purple-100";
@@ -100,6 +109,7 @@ export function getActivityIcon(type = "") {
   if (type.includes("resume")) return "file-text";
   if (type.includes("message")) return "message-circle";
   if (type.includes("stage") || type.includes("application")) return "arrow-right-circle";
+  if (type.includes("archived") || type.includes("restored")) return "archive";
   if (type.includes("contact")) return "user";
   if (type.includes("interview")) return "sparkles";
   if (type.includes("analysis")) return "sparkles";

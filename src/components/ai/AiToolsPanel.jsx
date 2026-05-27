@@ -22,6 +22,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
     saveJobScore,
     saveResumeVersion,
     saveMessage,
+    updateMessage,
+    logJobActivity,
   } = useWorkspaceStore();
   const [aiState, setAiState] = useState({ loading: "", error: "", latest: null, confirm: "" });
   const [intensity, setIntensity] = useState("Balanced");
@@ -71,6 +73,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       if (action === "message") {
         const contact = contacts.find((item) => item.id === selectedContactId);
         await saveMessage(user, job, { ...result, contact_id: selectedContactId || null, contactName: contact?.name || "" });
+        if (regenerate) await logJobActivity(user, job.id, "message_regenerated", { detail: "Recruiter message regenerated" });
       }
       setAiState({ loading: "", error: "", latest: { action, result, resumeId: savedResume?.id }, confirm: "" });
       toast.success(getAiSuccessMessage(action));
@@ -107,7 +110,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         )}
         {activeAction === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} />}
         {activeAction === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
-        {activeAction === "message" && <MessageResult message={latestMessage} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+          {activeAction === "message" && <MessageResult message={latestMessage} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
       </section>
     );
   }
@@ -202,7 +205,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         <>
           {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} />}
           {activeTab === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
-          {activeTab === "message" && <MessageResult message={latestMessage} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "message" && <MessageResult message={latestMessage} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
         </>
       )}
@@ -414,12 +417,49 @@ export function ResumeResult({ resume, onGenerate, onRegenerate, onExportComplet
   );
 }
 
-export function MessageResult({ message, resumeReady = false, coverLetterReady = false, contacts = [], selectedContactId = "", onContactChange, onGenerate, onRegenerate, loading, showAction = true }) {
+export function MessageResult({ message, resumeReady = false, coverLetterReady = false, contacts = [], selectedContactId = "", onContactChange, onSave, onLogActivity, onGenerate, onRegenerate, loading, showAction = true }) {
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(message?.content || "");
+  const [saveState, setSaveState] = useState("");
   const associatedContact = contacts.find((contact) => contact.id === (message?.contact_id || selectedContactId));
   const readiness = [
     resumeReady && "Resume ready",
     coverLetterReady && "Cover letter ready",
   ].filter(Boolean);
+  useEffect(() => {
+    setDraft(message?.content || "");
+    setEditing(false);
+    setSaveState("");
+  }, [message?.id, message?.content]);
+
+  async function saveEdits() {
+    if (!message || !draft.trim() || !onSave) return;
+    setSaveState("saving");
+    try {
+      await onSave(message, { content: draft, contact_id: selectedContactId || message.contact_id || null });
+      await onLogActivity?.("message_edited", { detail: "Recruiter message edited" });
+      setSaveState("saved");
+      setEditing(false);
+      toast.success("Recruiter message saved.");
+      window.setTimeout(() => setSaveState(""), 2200);
+    } catch {
+      setSaveState("error");
+      toast.error("Could not save recruiter message.");
+    }
+  }
+
+  async function copyMessage() {
+    if (!draft.trim()) return;
+    try {
+      await navigator.clipboard.writeText(draft);
+      await onLogActivity?.("message_copied", { detail: "Recruiter message copied" });
+      toast.success("Copied to clipboard.");
+    } catch {
+      toast.error("Could not copy recruiter message.");
+    }
+  }
+
   if (!message) {
     return (
       <div className="grid gap-3">
@@ -437,12 +477,39 @@ export function MessageResult({ message, resumeReady = false, coverLetterReady =
           <p className="text-xs text-slate-500">Saved {formatDate(message.created_at?.slice(0, 10))}</p>
           {associatedContact && <p className="mt-1 text-xs font-semibold text-brand-700">For: {associatedContact.name}</p>}
         </div>
-        <CopyButton text={message.content} />
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={copyMessage}>Copy</Button>
       </div>
       <MessageReadiness readiness={readiness} />
       <ContactSelector contacts={contacts} selectedContactId={selectedContactId} onContactChange={onContactChange} />
-      <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm leading-6 text-slate-700">{message.content}</p>
-      {onRegenerate && <RegenerateButton label="Regenerate message" onClick={onRegenerate} disabled={Boolean(loading)} />}
+      {editing ? (
+        <textarea
+          className="mt-4 min-h-52 w-full rounded-lg border border-brand-100 bg-white p-4 text-sm leading-6 text-slate-700 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setSaveState("dirty");
+          }}
+        />
+      ) : (
+        <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm leading-6 text-slate-700">{draft}</p>
+      )}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {editing ? (
+          <>
+            <Button className="min-h-8 px-3 text-xs" onClick={saveEdits} disabled={saveState === "saving" || !draft.trim()}>
+              {saveState === "saving" && <Loader2 size={14} className="animate-spin" />}
+              {saveState === "saving" ? "Saving..." : "Save edits"}
+            </Button>
+            <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => { setDraft(message.content || ""); setEditing(false); setSaveState(""); }}>Cancel</Button>
+          </>
+        ) : (
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => setEditing(true)}>Edit message</Button>
+        )}
+        {onRegenerate && <RegenerateButton label="Regenerate message" onClick={onRegenerate} disabled={Boolean(loading)} />}
+        {saveState === "dirty" && <span className="text-xs font-semibold text-amber-700">Unsaved changes</span>}
+        {saveState === "saved" && <span className="text-xs font-semibold text-emerald-700">Saved</span>}
+        {saveState === "error" && <span className="text-xs font-semibold text-rose-700">Could not save</span>}
+      </div>
     </div>
   );
 }

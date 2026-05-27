@@ -5,6 +5,8 @@ import { Button } from "../../components/ui/Button.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
+import { getActiveJobs, getArchivedJobs, isArchivedJob } from "../../lib/archive.js";
 import { stages } from "../../data/seedData.js";
 import { todayIso } from "../../lib/date.js";
 import { getFollowUpLabel, getFollowUpStatus, getFollowUpTone, normalizeStage } from "../../lib/followUp.js";
@@ -16,6 +18,7 @@ import { JobDetail } from "./JobsPage.jsx";
 
 export function ApplicationsPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const { jobs, jobScores, resumeVersions, messages, jobContacts, loading, error, updateJob, deleteJob } = useWorkspaceStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -23,12 +26,16 @@ export function ApplicationsPage() {
   const [draggingId, setDraggingId] = useState(null);
   const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState("cards");
+  const [archiveMode, setArchiveMode] = useState("active");
   const [success, setSuccess] = useState("");
   const highlightedStage = searchParams.get("stage");
+  const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
+  const archivedJobs = useMemo(() => getArchivedJobs(jobs), [jobs]);
+  const visibleJobs = archiveMode === "archived" ? archivedJobs : activeJobs;
 
   const grouped = useMemo(
-    () => Object.fromEntries(stages.map((stage) => [stage, jobs.filter((item) => getPipelineStage(item.status) === stage)])),
-    [jobs],
+    () => Object.fromEntries(stages.map((stage) => [stage, visibleJobs.filter((item) => getPipelineStage(item.status) === stage)])),
+    [visibleJobs],
   );
 
   useEffect(() => {
@@ -51,7 +58,7 @@ export function ApplicationsPage() {
 
   async function moveApplication(stage) {
     if (!draggingId) return;
-    const dragged = jobs.find((job) => job.id === draggingId);
+    const dragged = visibleJobs.find((job) => job.id === draggingId);
     await updateJob(user, draggingId, {
       status: stage,
       applied_date: stage === "Applied" ? dragged?.applied_date || todayIso() : dragged?.applied_date || null,
@@ -67,6 +74,16 @@ export function ApplicationsPage() {
     setSelected(null);
   }
 
+  async function restoreJob(job) {
+    const restored = await updateJob(user, job.id, { archived_at: null, archived_reason: "", archived_by_user: false });
+    setSelected(null);
+    setArchiveMode("active");
+    setSuccess("Opportunity restored.");
+    toast.success("Opportunity restored.");
+    window.setTimeout(() => setSuccess(""), 2600);
+    return restored;
+  }
+
   return (
     <div>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -74,6 +91,7 @@ export function ApplicationsPage() {
           <h2 className="text-2xl font-bold">Opportunity Pipeline</h2>
           <p className="mt-1 text-sm text-slate-600">A calmer view of where each opportunity stands.</p>
         </div>
+        <div className="flex flex-wrap gap-2">
         <div className="flex w-fit rounded-lg bg-slate-100 p-1">
           <button type="button" className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold ${viewMode === "cards" ? "bg-white text-brand-900 shadow-sm" : "text-slate-600"}`} onClick={() => setViewMode("cards")}>
             <SquareKanban size={14} /> Cards
@@ -81,6 +99,11 @@ export function ApplicationsPage() {
           <button type="button" className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold ${viewMode === "list" ? "bg-white text-brand-900 shadow-sm" : "text-slate-600"}`} onClick={() => setViewMode("list")}>
             <Rows3 size={14} /> List
           </button>
+        </div>
+        <div className="flex w-fit rounded-lg bg-slate-100 p-1">
+          <button type="button" className={`rounded-md px-3 py-2 text-xs font-bold ${archiveMode === "active" ? "bg-white text-brand-900 shadow-sm" : "text-slate-600"}`} onClick={() => setArchiveMode("active")}>Active</button>
+          <button type="button" className={`rounded-md px-3 py-2 text-xs font-bold ${archiveMode === "archived" ? "bg-white text-brand-900 shadow-sm" : "text-slate-600"}`} onClick={() => setArchiveMode("archived")}>Archived {archivedJobs.length ? `(${archivedJobs.length})` : ""}</button>
+        </div>
         </div>
       </div>
 
@@ -94,13 +117,15 @@ export function ApplicationsPage() {
 
       {loading ? (
         <PipelineSkeleton />
-      ) : !jobs.length ? (
+      ) : !visibleJobs.length ? (
         <div className="rounded-xl bg-stone-50 p-8 text-center shadow-card">
-          <h3 className="text-xl font-bold text-ink">No applications yet.</h3>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">Analyze a new job to start building your application history.</p>
-          <Link to="/app/new-jobs" className="mt-5 inline-flex">
-            <Button>Analyze New Job</Button>
-          </Link>
+          <h3 className="text-xl font-bold text-ink">{archiveMode === "archived" ? "No archived opportunities." : "No applications yet."}</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">{archiveMode === "archived" ? "Archived roles will appear here when you move them out of the active pipeline." : "Analyze a new job to start building your application history."}</p>
+          {archiveMode === "active" && (
+            <Link to="/app/new-jobs" className="mt-5 inline-flex">
+              <Button>Analyze New Job</Button>
+            </Link>
+          )}
         </div>
       ) : viewMode === "cards" ? (
           <div className="kanban-scroll grid snap-x grid-flow-col gap-2.5 overflow-x-auto pb-3 sm:gap-3">
@@ -117,7 +142,7 @@ export function ApplicationsPage() {
               </div>
               <div className="grid gap-2.5">
                 {grouped[stage].map((job) => (
-                  <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} contacts={jobContacts.filter((contact) => contact.job_id === job.id)} onOpen={() => setSelected(job)} onDragStart={() => setDraggingId(job.id)} />
+                  <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} contacts={jobContacts.filter((contact) => contact.job_id === job.id)} onOpen={() => setSelected(job)} onRestore={isArchivedJob(job) ? () => restoreJob(job) : undefined} onDelete={isArchivedJob(job) ? () => deleteJob(user, job.id) : undefined} onDragStart={() => !isArchivedJob(job) && setDraggingId(job.id)} />
                 ))}
                 {!grouped[stage].length && <p className="rounded-lg bg-white/50 px-3 py-2.5 text-sm text-slate-600">Nothing here yet.</p>}
               </div>
@@ -126,8 +151,8 @@ export function ApplicationsPage() {
         </div>
       ) : (
         <div className="grid gap-3">
-          {jobs.map((job) => (
-            <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} contacts={jobContacts.filter((contact) => contact.job_id === job.id)} onOpen={() => setSelected(job)} compact onDragStart={() => setDraggingId(job.id)} />
+          {visibleJobs.map((job) => (
+            <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} contacts={jobContacts.filter((contact) => contact.job_id === job.id)} onOpen={() => setSelected(job)} onRestore={isArchivedJob(job) ? () => restoreJob(job) : undefined} onDelete={isArchivedJob(job) ? () => deleteJob(user, job.id) : undefined} compact onDragStart={() => !isArchivedJob(job) && setDraggingId(job.id)} />
           ))}
         </div>
       )}
@@ -141,6 +166,10 @@ export function ApplicationsPage() {
           onClose={() => setSelected(null)}
           onEdit={() => setSelected(null)}
           onDelete={async () => { await deleteJob(user, selected.id); setSelected(null); }}
+          onArchive={async (updated) => {
+            setSelected(null);
+            if (isArchivedJob(updated)) setArchiveMode("active");
+          }}
           onMove={() => moveToApplied(selected)}
           onJobUpdate={(updated) => setSelected(updated)}
         />
@@ -162,14 +191,15 @@ function getPipelineStage(status) {
   return normalizeStage(status);
 }
 
-function ApplicationCard({ job, score, status, messages, contacts = [], onOpen, onDragStart, compact = false }) {
+function ApplicationCard({ job, score, status, messages, contacts = [], onOpen, onDragStart, onRestore, onDelete, compact = false }) {
   const nextBestAction = getNextBestAction(job, { score, aiStatus: status, messages });
   const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
+  const archived = isArchivedJob(job);
   return (
     <div
       role="button"
       tabIndex={0}
-      draggable
+      draggable={!archived}
       onDragStart={onDragStart}
       onClick={onOpen}
       aria-label={`Open ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`}
@@ -202,8 +232,14 @@ function ApplicationCard({ job, score, status, messages, contacts = [], onOpen, 
       </div>
       <KanbanAiStatus status={status} />
       <FollowUpChip job={job} />
-      {nextBestAction?.actionType !== "no_action" && (
+      {!archived && nextBestAction?.actionType !== "no_action" && (
         <p className={`mt-2 truncate text-xs font-semibold ${getActionLineTone(nextBestAction.tone)}`}>{nextBestAction.label}</p>
+      )}
+      {archived && (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+          {onRestore && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={(event) => { event.stopPropagation(); onRestore(); }}>Restore</Button>}
+          {onDelete && <Button variant="danger" className="min-h-8 px-3 text-xs" onClick={(event) => { event.stopPropagation(); onDelete(); }}>Delete</Button>}
+        </div>
       )}
     </div>
   );

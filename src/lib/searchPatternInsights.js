@@ -1,4 +1,5 @@
 import { normalizeStage } from "./followUp.js";
+import { getActiveJobs } from "./archive.js";
 import { getDisplayCompanyName } from "./jobDisplay.js";
 
 const keywordGroups = [
@@ -10,6 +11,7 @@ const keywordGroups = [
 ];
 
 export function buildSearchPatternInsights({ jobs = [], jobScores = [] } = {}) {
+  jobs = getActiveJobs(jobs);
   const latestScores = getLatestScores(jobScores);
   const scoredJobs = jobs
     .map((job) => ({ job, score: Number(latestScores.get(job.id)?.score ?? 0) }))

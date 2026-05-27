@@ -1,4 +1,4 @@
-import { ArrowRightCircle, Bell, CalendarDays, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
+import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiToolsPanel, CopyButton } from "../../components/ai/AiToolsPanel.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
@@ -274,8 +274,9 @@ function getAiToolsTab(activeTab) {
   return "fit";
 }
 
-export function JobDetail({ job: initialJob, initialTab = "overview", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onMove, onJobUpdate }) {
+export function JobDetail({ job: initialJob, initialTab = "overview", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onMove, onJobUpdate }) {
   const { user } = useAuth();
+  const toast = useToast();
   const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, updateMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
   const [job, setModalJob] = useState(initialJob);
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
@@ -360,6 +361,24 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
     if (nextBestAction.actionType === "move_to_interview") {
       const updated = await updateJob(user, job.id, { status: "Interview" });
       if (updated) mergeJobUpdate(updated);
+    }
+  }
+
+  async function handleArchive() {
+    const confirmed = window.confirm("Archive this opportunity?\n\nYou can restore it later from archived opportunities.");
+    if (!confirmed) return;
+    try {
+      const archived = await updateJob(user, job.id, {
+        archived_at: new Date().toISOString(),
+        archived_reason: "Archived by user",
+        archived_by_user: true,
+      });
+      const nextJob = mergeJobUpdate(archived);
+      toast.success("Opportunity archived.");
+      onArchive?.(nextJob);
+      onClose();
+    } catch {
+      toast.error("Could not archive opportunity.");
     }
   }
 
@@ -513,6 +532,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
               <div className="flex flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
                 <Button onClick={onMove}>Move to Applied</Button>
                 <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>
+                <Button variant="secondary" onClick={handleArchive}>Archive</Button>
                 <Button variant="danger" onClick={onDelete}><Trash2 size={16} /> Delete</Button>
               </div>
 
@@ -2023,6 +2043,7 @@ function getTimelineIcon(type) {
     sparkles: Sparkles,
     upload: Upload,
     user: User,
+    archive: Archive,
     circle: Circle,
   }[getActivityIcon(type)] ?? Circle;
 }
@@ -2047,7 +2068,7 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
   const current = activeTab;
   return (
     <div className="border-t border-brand-100 bg-white/90 px-4 py-3 sm:px-5">
-      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
+      <div className="kanban-scroll flex gap-2 overflow-x-auto pb-1">
         {steps.map(([id, label], index) => {
           const selected = current === id;
           const done = completed[id];
@@ -2058,14 +2079,14 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
               key={id}
               type="button"
               onClick={() => onSelect(id)}
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold transition ${
+              className={`flex min-w-max shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold transition ${
                 selected ? "bg-brand-700 text-white shadow-card" : done ? "bg-emerald-50 text-emerald-800" : "bg-brand-50 text-slate-600 hover:bg-brand-100"
               }`}
             >
-              <span className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10px] ${selected ? "bg-white/20 text-white" : done ? completionTone : "bg-white text-slate-600"}`}>
+              <span className={`grid h-5 min-w-5 place-items-center whitespace-nowrap rounded-full px-1 text-[10px] ${selected ? "bg-white/20 text-white" : done ? completionTone : "bg-white text-slate-600"}`}>
                 {id === "overview" ? "1" : completion || index + 1}
               </span>
-              {label}
+              <span className="whitespace-nowrap">{label}</span>
             </button>
           );
         })}

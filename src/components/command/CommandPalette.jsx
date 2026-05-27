@@ -1,6 +1,7 @@
 import { ArrowRightCircle, Bell, BriefcaseBusiness, CalendarDays, CheckCircle2, FileText, LayoutDashboard, Mail, MessageCircle, Search, Settings, Sparkles, Upload, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { isArchivedJob } from "../../lib/archive.js";
 import { getFollowUpLabel, getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { isCoverLetter, isRecruiterMessage } from "../../lib/jobAiStatus.js";
@@ -219,7 +220,7 @@ function buildCommandItems({ jobs, jobScores, resumeVersions, messages, jobConta
     run: () => go(item.path),
   }));
 
-  jobs.forEach((job) => {
+  jobs.filter((job) => !isArchivedJob(job)).forEach((job) => {
     const company = getDisplayCompanyName(job);
     const title = getDisplayJobTitle(job);
     const stage = normalizeStage(job.status);
@@ -293,7 +294,7 @@ function buildCommandItems({ jobs, jobScores, resumeVersions, messages, jobConta
 
   jobContacts.forEach((contact) => {
     const job = jobs.find((item) => item.id === contact.job_id);
-    if (!job) return;
+    if (!job || isArchivedJob(job)) return;
     items.push({
       id: `contact-${contact.id}`,
       group: "Contacts",
@@ -324,6 +325,7 @@ function buildCommandItems({ jobs, jobScores, resumeVersions, messages, jobConta
 
   resumeVersions.forEach((resume) => {
     const job = jobs.find((item) => item.id === resume.job_id);
+    if (job && isArchivedJob(job)) return;
     items.push({
       id: `material-resume-${resume.id}`,
       group: "Materials",
@@ -338,6 +340,7 @@ function buildCommandItems({ jobs, jobScores, resumeVersions, messages, jobConta
 
   messages.forEach((message) => {
     const job = jobs.find((item) => item.id === message.job_id);
+    if (job && isArchivedJob(job)) return;
     const isCover = isCoverLetter(message);
     const isRecruiter = isRecruiterMessage(message);
     const tab = isCover ? "coverLetter" : isRecruiter ? "message" : "overview";

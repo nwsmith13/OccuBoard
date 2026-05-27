@@ -6,6 +6,7 @@ import { Card } from "../../components/ui/Card.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { getActiveJobs } from "../../lib/archive.js";
 import { getCompletenessTone } from "../../lib/completenessTone.js";
 import { formatDate, isThisWeek } from "../../lib/date.js";
 import { getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
@@ -31,22 +32,23 @@ export function DashboardPage() {
   const [activityOpen, setActivityOpen] = useState(true);
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
+  const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
   const completeness = getProfileCompleteness(profile);
   const completenessTone = getCompletenessTone(completeness);
   const recommendations = useMemo(() => generateRecommendations({
-    jobs,
+    jobs: activeJobs,
     messages,
     interviews: interviewPrep,
     generatedAssets: { jobScores, resumeVersions, interviewPrep },
     activityHistory: jobActivityLogs,
-  }), [interviewPrep, jobActivityLogs, jobScores, jobs, messages, resumeVersions]);
+  }), [activeJobs, interviewPrep, jobActivityLogs, jobScores, messages, resumeVersions]);
   const visibleRecommendations = useMemo(() => filterRecommendationsForDashboard(recommendations, 5), [recommendations]);
-  const patternInsights = useMemo(() => buildSearchPatternInsights({ jobs, jobScores }), [jobs, jobScores]);
-  const focusItems = getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep });
-  const followUpsDue = jobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
-  const bestMatchRoles = getBestMatchRoles(jobScores, jobs, profile, resumeVersions, messages, jobActivityLogs, interviewPrep);
-  const momentum = getMomentumSummary({ jobs, resumeVersions, jobScores, messages });
-  const insights = buildDashboardInsights({ jobs, jobScores, resumeVersions, messages, jobActivityLogs, interviewPrep });
+  const patternInsights = useMemo(() => buildSearchPatternInsights({ jobs: activeJobs, jobScores }), [activeJobs, jobScores]);
+  const focusItems = getFocusItems({ jobs: activeJobs, jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep });
+  const followUpsDue = activeJobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
+  const bestMatchRoles = getBestMatchRoles(jobScores, activeJobs, profile, resumeVersions, messages, jobActivityLogs, interviewPrep);
+  const momentum = getMomentumSummary({ jobs: activeJobs, resumeVersions, jobScores, messages });
+  const insights = buildDashboardInsights({ jobs: activeJobs, jobScores, resumeVersions, messages, jobActivityLogs, interviewPrep });
   const visibleActivity = showAllActivity ? activityLogs : activityLogs.slice(0, 4);
 
   async function moveToApplied(job) {
@@ -55,7 +57,7 @@ export function DashboardPage() {
   }
 
   function openRecommendation(recommendation) {
-    const job = jobs.find((item) => item.id === recommendation.relatedJobId);
+    const job = activeJobs.find((item) => item.id === recommendation.relatedJobId);
     if (job) {
       setSelectedJob({ ...job, initialTab: recommendation.actionTab || "overview" });
       return;
@@ -235,6 +237,7 @@ export function DashboardPage() {
           onClose={() => setSelectedJob(null)}
           onEdit={() => setSelectedJob(null)}
           onDelete={async () => { await deleteJob(user, selectedJob.id); setSelectedJob(null); }}
+          onArchive={() => setSelectedJob(null)}
           onMove={() => moveToApplied(selectedJob)}
           onJobUpdate={(updated) => setSelectedJob(updated)}
         />

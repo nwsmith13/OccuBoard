@@ -1,4 +1,5 @@
 import { isThisWeek, todayIso } from "../lib/date.js";
+import { getActiveJobs } from "../lib/archive.js";
 import { getFollowUpCompletedAt, getFollowUpStatus, normalizeStage } from "../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../lib/jobDisplay.js";
 import { isCoverLetter, isRecruiterMessage } from "../lib/jobAiStatus.js";
@@ -6,6 +7,7 @@ import { isCoverLetter, isRecruiterMessage } from "../lib/jobAiStatus.js";
 const stages = ["Saved", "Applied", "Interview", "Closed"];
 
 export function buildDashboardInsights({ jobs = [], jobScores = [], resumeVersions = [], messages = [], jobActivityLogs = [], interviewPrep = [] }) {
+  jobs = getActiveJobs(jobs);
   const latestScores = getLatestScores(jobScores);
   const stageCounts = getStageCounts(jobs);
   const weekly = getWeeklyCounts({ jobScores, resumeVersions, messages, jobActivityLogs });
