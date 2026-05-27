@@ -11,9 +11,9 @@ import { formatDate, isThisWeek } from "../../lib/date.js";
 import { getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus } from "../../lib/jobAiStatus.js";
-import { getJobMomentumScore } from "../../lib/jobMomentum.js";
+import { getJobMomentumValue } from "../../lib/jobMomentum.js";
 import { getProfileCompleteness } from "../../lib/profile.js";
-import { generateRecommendations, getRecommendationIcon, getRecommendationMeta, getRecommendationTone } from "../../lib/recommendationEngine.js";
+import { filterRecommendationsForDashboard, generateRecommendations, getRecommendationIcon, getRecommendationMeta, getRecommendationTone } from "../../lib/recommendationEngine.js";
 import { buildSearchPatternInsights } from "../../lib/searchPatternInsights.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { buildDashboardInsights } from "../../utils/dashboardInsights.js";
@@ -40,6 +40,7 @@ export function DashboardPage() {
     generatedAssets: { jobScores, resumeVersions, interviewPrep },
     activityHistory: jobActivityLogs,
   }), [interviewPrep, jobActivityLogs, jobScores, jobs, messages, resumeVersions]);
+  const visibleRecommendations = useMemo(() => filterRecommendationsForDashboard(recommendations, 5), [recommendations]);
   const patternInsights = useMemo(() => buildSearchPatternInsights({ jobs, jobScores }), [jobs, jobScores]);
   const focusItems = getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep });
   const followUpsDue = jobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
@@ -89,7 +90,7 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <TodaysGuidance recommendations={recommendations.slice(0, 5)} onOpen={openRecommendation} />
+        <TodaysGuidance recommendations={visibleRecommendations} onOpen={openRecommendation} />
 
         <section className="rounded-xl bg-white/95 p-4 shadow-card sm:p-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -142,23 +143,26 @@ export function DashboardPage() {
           <div className="mt-3 grid gap-3 md:grid-cols-3">
             {bestMatchRoles.map((item, index) => (
               <button key={`${item.label}-${index}`} type="button" className={`group rounded-xl p-3.5 text-left shadow-sm ring-1 ring-white/70 transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:bg-white/90 hover:ring-brand-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${item.job ? getBestMatchTone(item.stage) : "bg-white/65"}`} onClick={() => item.job && setSelectedJob({ ...item.job, initialTab: "overview" })}>
-                <div className="flex items-center gap-3">
-                  {item.job ? <CompanyLogo companyName={item.company} companyDomain={item.job.company_domain} companyLogoUrl={item.job.company_logo_url} sourceUrl={item.job.source_url} size="md" /> : <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-xs font-bold text-brand-800">{index + 1}</span>}
+                <div className="flex items-start gap-3">
+                  {item.score ? (
+                    <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-sm font-black ${getFitScoreTone(item.score.score).className.replace("ring-1 ", "")}`}>{Math.round(Number(item.score.score))}%</span>
+                  ) : item.job ? (
+                    <CompanyLogo companyName={item.company} companyDomain={item.job.company_domain} companyLogoUrl={item.job.company_logo_url} sourceUrl={item.job.source_url} size="md" />
+                  ) : (
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-xs font-bold text-brand-800">{index + 1}</span>
+                  )}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start gap-2">
-                      <p className="min-w-0 flex-1 font-bold leading-tight text-brand-900">{item.label}</p>
-                      {item.score && <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${getFitScoreTone(item.score.score).className.replace("ring-1 ", "")}`}>{Math.round(Number(item.score.score))}%</span>}
-                    </div>
+                    <p className="font-bold leading-tight text-brand-950">{item.label}</p>
+                    {item.company && <p className="mt-1 text-sm font-semibold text-slate-800">{item.company}</p>}
                   </div>
                   {item.job && <ChevronRight className="shrink-0 text-slate-300 opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={16} />}
                 </div>
-                {item.company && <p className="mt-2 text-sm font-semibold text-slate-800">{item.company}</p>}
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {item.stage && <span className="rounded-full bg-white/75 px-2 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100">{item.stage}</span>}
-                  {item.matchLabel && <span className={metadataTextClass}>{item.matchLabel}</span>}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {item.stage && <span className="rounded-full bg-white/85 px-2 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100">{item.stage}</span>}
+                  {item.matchLabel && <span className="text-xs font-bold text-brand-800">{item.matchLabel}</span>}
                 </div>
-                {item.action && <p className="mt-2 truncate text-xs font-bold text-brand-800">{item.action}</p>}
-                {item.reason && <p className="mt-1 truncate text-[13px] font-medium leading-5 text-slate-700">{item.reason}</p>}
+                {item.reason && <p className="mt-2 text-[13px] font-bold leading-5 text-slate-800">{item.reason}</p>}
+                {item.action && <p className="mt-1 truncate text-xs font-bold text-brand-800">{item.action}</p>}
               </button>
             ))}
           </div>
@@ -297,6 +301,7 @@ function TodaysGuidance({ recommendations = [], onOpen }) {
                 </span>
                 <span className="mt-1 block font-bold leading-snug text-ink">{recommendation.title}</span>
                 <span className="mt-1 block text-sm leading-5 text-slate-600">{recommendation.description}</span>
+                {recommendation.reasoningText && <span className="mt-2 block text-[13px] font-semibold leading-5 text-slate-700">{recommendation.reasoningText}</span>}
                 <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-brand-800">
                   {recommendation.actionLabel}
                   <ChevronRight className="transition duration-[160ms] ease-out group-hover:translate-x-0.5" size={13} />
@@ -328,6 +333,7 @@ function SmartInsightPanel({ insights = [] }) {
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{insight.label}</p>
             <p className="mt-2 text-base font-black leading-tight text-ink">{insight.value}</p>
             <p className="mt-2 text-[13px] leading-5 text-slate-700">{insight.description}</p>
+            {insight.meta && <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">{insight.meta}</p>}
           </article>
         ))}
       </div>
@@ -532,8 +538,8 @@ function getBestMatchRoles(jobScores, jobs, profile, resumeVersions = [], messag
     .sort((a, b) => {
       const aJob = jobs.find((item) => item.id === a.job_id);
       const bJob = jobs.find((item) => item.id === b.job_id);
-      const aMomentum = aJob ? getJobMomentumScore(aJob, { score: a, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }) : 0;
-      const bMomentum = bJob ? getJobMomentumScore(bJob, { score: b, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }) : 0;
+      const aMomentum = aJob ? getJobMomentumValue(aJob, { score: a, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }) : 0;
+      const bMomentum = bJob ? getJobMomentumValue(bJob, { score: b, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }) : 0;
       return bMomentum - aMomentum || Number(b.score) - Number(a.score);
     })
     .slice(0, 3)
@@ -548,9 +554,9 @@ function getBestMatchRoles(jobScores, jobs, profile, resumeVersions = [], messag
         score,
         job,
         stage: normalizeStage(job.status),
-        action: getBestMatchAction(nextBestAction, score),
+        action: getBestMatchAction(nextBestAction, score, job),
         reason: getMatchReason(job, score),
-        momentum: getJobMomentumScore(job, { score, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }),
+        momentum: getJobMomentumValue(job, { score, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }),
       } : null;
     })
     .filter(Boolean);
@@ -582,10 +588,25 @@ function getBestMatchRoles(jobScores, jobs, profile, resumeVersions = [], messag
   return [{ label: "Analyze a few jobs", matchLabel: "Best-match insights will appear here." }];
 }
 
-function getBestMatchAction(nextBestAction, score) {
+function getBestMatchAction(nextBestAction, score, job) {
+  const interviewLabel = getInterviewTimingLabel(job);
+  if (interviewLabel) return interviewLabel;
   if (nextBestAction?.actionType && nextBestAction.actionType !== "no_action") return nextBestAction.label;
   if (Number(score?.score ?? 0) >= 85) return "Strong implementation match";
   return "Review match";
+}
+
+function getInterviewTimingLabel(job = {}) {
+  if (!job.interview_date) return "";
+  const today = new Date();
+  const date = new Date(`${job.interview_date}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diffDays = Math.round((date.getTime() - todayStart.getTime()) / 86400000);
+  if (diffDays === 0) return "Interview today";
+  if (diffDays === 1) return "Interview tomorrow";
+  if (diffDays > 1 && diffDays <= 14) return `Interview in ${diffDays} days`;
+  return "";
 }
 
 function getMatchReason(job, score) {
@@ -688,7 +709,7 @@ function getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts,
       const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
       const nextBestAction = getNextBestAction(job, { score, aiStatus, messages });
       const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
-      const momentumScore = getJobMomentumScore(job, { score, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs });
+      const momentumScore = getJobMomentumValue(job, { score, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs });
       return { ...job, kind: nextBestAction.actionType, nextBestAction, score, contacts, momentumScore };
     })
     .filter((job) => job.nextBestAction.actionType !== "no_action")

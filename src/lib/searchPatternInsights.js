@@ -27,37 +27,44 @@ export function buildSearchPatternInsights({ jobs = [], jobScores = [] } = {}) {
   const interviewStats = getInterviewConversion(scoredJobs);
   const followUpStats = getFollowUpCompletion(jobs);
   const companyPattern = getCompanyPattern(jobs, latestScores);
+  const analyzedCount = scoredJobs.length;
+  const freshness = analyzedCount ? `Based on ${analyzedCount} analyzed job${analyzedCount === 1 ? "" : "s"} · updated today` : "Current pipeline trends";
 
   return [
     {
       id: "best-category",
       label: "Best-performing role category",
       value: bestGroup ? bestGroup.label : "Not enough data yet",
-      description: bestGroup ? `${bestGroup.matches.length} role${bestGroup.matches.length === 1 ? "" : "s"} average ${bestGroup.average}% fit.` : "Analyze a few roles to identify where fit is strongest.",
+      description: bestGroup ? `Based on ${bestGroup.matches.length} analyzed ${bestGroup.id}-related job${bestGroup.matches.length === 1 ? "" : "s"}.` : "Analyze a few roles to identify where fit is strongest.",
+      meta: freshness,
     },
     {
       id: "recurring-keyword",
       label: "Strongest recurring keyword",
       value: strongestKeyword?.label || "Patterns building",
       description: strongestKeyword ? `Appears in ${strongestKeyword.count} strong match${strongestKeyword.count === 1 ? "" : "es"}.` : "Keyword patterns will become clearer with more analyzed jobs.",
+      meta: analyzedCount ? "Strong matches only" : freshness,
     },
     {
       id: "interview-conversion",
       label: "Interview conversion",
       value: interviewStats.total ? `${interviewStats.percent}%` : "Not started",
       description: interviewStats.total ? `${interviewStats.interviews} of ${interviewStats.total} active scored roles are in interview.` : "Interview-stage roles will appear here.",
+      meta: "Current active pipeline",
     },
     {
       id: "follow-up-completion",
       label: "Follow-up completion rate",
       value: followUpStats.total ? `${followUpStats.percent}%` : "No follow-ups yet",
       description: followUpStats.total ? `${followUpStats.completed} of ${followUpStats.total} tracked follow-ups completed.` : "Set follow-up dates to start tracking consistency.",
+      meta: followUpStats.total ? "Tracked reminders" : "No reminders tracked",
     },
     {
       id: "company-momentum",
       label: "Company momentum",
       value: companyPattern?.company || "Company patterns building",
       description: companyPattern ? `${companyPattern.count} role${companyPattern.count === 1 ? "" : "s"} tracked, best fit ${Math.round(companyPattern.highestFit)}%.` : "The most active company will appear as your pipeline grows.",
+      meta: "Current pipeline trends",
     },
   ];
 }
