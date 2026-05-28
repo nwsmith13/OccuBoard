@@ -1,4 +1,4 @@
-import { ChevronDown, Clipboard, Lightbulb, Loader2, RefreshCcw, Sparkles } from "lucide-react";
+import { CheckCircle2, ChevronDown, Clipboard, Lightbulb, Loader2, RefreshCcw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -6,6 +6,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
 import { getLatestForJob, isCoverLetter, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
+import { buildMitigationPlan, getAppliedMitigationLabels, getAppliedMitigations } from "../../lib/mitigationPlan.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { ResumeExportPanel } from "../resume/ResumeExportPanel.jsx";
 import { Button } from "../ui/Button.jsx";
@@ -61,18 +62,27 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
     window.setTimeout(() => loadingRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 30);
     try {
       const effectiveIntensity = getEffectiveIntensity(action, intensity, manualIntensity, latestScore);
+      const mitigationPlan = buildMitigationPlan(latestScore);
+      const placement = action === "resume" ? "Resume" : action === "message" ? "Recruiter message" : "";
+      const appliedMitigations = getAppliedMitigations(mitigationPlan, placement);
       const result = await generateAiOutput(action, profile, job, {
         tailoringIntensity: effectiveIntensity,
         manualIntensityOverride: manualIntensity,
         fitRecommendation: latestScore?.recommendation,
         fitSummary: latestScore?.summary,
+        mitigationPlan: action === "resume" || action === "message" ? mitigationPlan : null,
+        appliedMitigationLabels: appliedMitigations.map((item) => item.appliedLabel),
       });
       if (action === "fit") await saveJobScore(user, job, { ...result, tailoringIntensity: effectiveIntensity });
       let savedResume = null;
-      if (action === "resume") savedResume = await saveResumeVersion(user, job, result, { tailoringIntensity: effectiveIntensity, recommendation: latestScore?.recommendation });
+      if (action === "resume") {
+        savedResume = await saveResumeVersion(user, job, result, { tailoringIntensity: effectiveIntensity, recommendation: latestScore?.recommendation, appliedMitigations });
+        if (appliedMitigations.length) await logJobActivity(user, job.id, "resume_generated_with_mitigation", { detail: "Resume generated with mitigation strategy", appliedLabels: appliedMitigations.map((item) => item.appliedLabel) });
+      }
       if (action === "message") {
         const contact = contacts.find((item) => item.id === selectedContactId);
-        await saveMessage(user, job, { ...result, contact_id: selectedContactId || null, contactName: contact?.name || "" });
+        await saveMessage(user, job, { ...result, contact_id: selectedContactId || null, contactName: contact?.name || "", appliedMitigations });
+        if (appliedMitigations.length) await logJobActivity(user, job.id, "message_generated_with_mitigation", { detail: "Recruiter message generated with mitigation strategy", appliedLabels: appliedMitigations.map((item) => item.appliedLabel) });
         if (regenerate) await logJobActivity(user, job.id, "message_regenerated", { detail: "Recruiter message regenerated" });
       }
       setAiState({ loading: "", error: "", latest: { action, result, resumeId: savedResume?.id }, confirm: "" });
@@ -369,6 +379,7 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
       <p className="mt-5 rounded-lg bg-white/80 p-4 text-sm font-medium leading-6 text-slate-700">{score.summary}</p>
       <AiList title="Strengths" items={score.strengths} />
       <GapList gaps={score.gaps} gapAssessments={score.gapAssessments || score.gap_assessments} mitigationSuggestions={score.mitigationSuggestions || score.mitigation_suggestions} />
+      <MitigationStrategySummary score={score} />
       <TransferableStrengths items={score.transferable_strengths || score.transferableStrengths} />
       <BetterAlignedRoles items={score.better_aligned_roles || score.betterAlignedRoles} />
       <AiList title="Keywords" items={score.keywords} inline />
@@ -404,6 +415,7 @@ export function ResumeResult({ resume, analysisReady = true, onAnalyze, onGenera
           <p className="mt-2">{whyThisFits}</p>
         </div>
       )}
+      <AppliedMitigationList material={resume} className="mt-4" />
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           className="inline-flex min-h-10 items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
@@ -502,6 +514,7 @@ export function MessageResult({ message, analysisReady = true, resumeReady = fal
       ) : (
         <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm leading-6 text-slate-700">{draft}</p>
       )}
+      <AppliedMitigationList material={message} className="mt-4" />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {editing ? (
           <>
@@ -518,6 +531,49 @@ export function MessageResult({ message, analysisReady = true, resumeReady = fal
         {saveState === "dirty" && <span className="text-xs font-semibold text-amber-700">Unsaved changes</span>}
         {saveState === "saved" && <span className="text-xs font-semibold text-emerald-700">Saved</span>}
         {saveState === "error" && <span className="text-xs font-semibold text-rose-700">Could not save</span>}
+      </div>
+    </div>
+  );
+}
+
+function MitigationStrategySummary({ score }) {
+  const plan = buildMitigationPlan(score);
+  if (!plan.items.length) return null;
+  return (
+    <div className="mt-4 rounded-lg bg-white/85 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-brand-100">
+          <Sparkles size={15} aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-ink">Resume generation strategy</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">OccuBoard will use these findings when generating your application materials.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {plan.items.map((item) => (
+              <span key={item.id} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">
+                {item.appliedLabel}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AppliedMitigationList({ material, items, className = "" }) {
+  const labels = items?.length ? items : getAppliedMitigationLabels(material);
+  if (!labels.length) return null;
+  return (
+    <div className={`rounded-lg bg-white/85 p-3 text-sm ring-1 ring-brand-100 ${className}`}>
+      <p className="font-bold text-ink">Improvements applied from analysis</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {labels.map((label) => (
+          <span key={label} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">
+            <CheckCircle2 size={12} aria-hidden="true" />
+            {label}
+          </span>
+        ))}
       </div>
     </div>
   );

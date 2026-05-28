@@ -45,6 +45,19 @@ Role-level positioning guardrail:
 - If the role is senior, architect, principal, director, lead, or explicitly strategic, stronger strategic positioning is acceptable when supported by the resume.
 `;
 
+export const MITIGATION_STRATEGY_RULES = `
+Mitigation strategy rules:
+- Use mitigation suggestions from the fit analysis as positioning guidance.
+- Never fabricate direct experience.
+- Do not claim tools, platforms, certifications, or responsibilities the user has not used.
+- Use adjacent experience only when supported by the resume/profile or generated fit analysis.
+- Avoid keyword stuffing and avoid sounding defensive.
+- Prefer natural, evidence-based phrasing over one-to-one mirroring of the job description.
+- For platform-specific gaps, emphasize adaptability and similar tools without claiming the missing platform.
+- For wording gaps, add supported phrasing naturally where it belongs.
+- For seniority/framing gaps, keep tone hands-on, practical, and execution-focused.
+`;
+
 export const fitSchema = {
   type: "object",
   additionalProperties: false,
@@ -208,6 +221,7 @@ export function buildPrompt(action, profile, job, options = {}) {
   const fitRecommendation = options.fitRecommendation || "Unknown";
   const fitSummary = options.fitSummary || "No fit analysis provided.";
   const evidencePromptNotes = buildEvidencePromptNotes(profile, job);
+  const mitigationPromptContext = formatMitigationPromptContext(options.mitigationPlan);
   const context = `
 User profile:
 - Name: ${profile?.full_name || "Not provided"}
@@ -233,6 +247,7 @@ Known fit context:
 - Latest fit summary: ${fitSummary}
 - Manual tailoring intensity override: ${manualIntensityOverride}
 ${evidencePromptNotes}
+${mitigationPromptContext}
 `;
 
   if (action === "fit") {
@@ -302,6 +317,8 @@ Latest fit recommendation: ${fitRecommendation}
 Manual tailoring intensity override: ${manualIntensityOverride}
 
 ${roleLevelPositioning}
+
+${MITIGATION_STRATEGY_RULES}
 
 Required sections:
 1. Contact/Header
@@ -374,6 +391,8 @@ ${options.latestResume || "No tailored resume provided."}
 
 ${roleLevelPositioning}
 
+${MITIGATION_STRATEGY_RULES}
+
 Rules:
 - Write from the applicant/candidate to the company or contact.
 - Must sound like the applicant, not the company, recruiter, or employer.
@@ -431,6 +450,8 @@ Return:
 Generate one concise recruiter outreach message.
 ${roleLevelPositioning}
 
+${MITIGATION_STRATEGY_RULES}
+
 Rules:
 - Write from the user/candidate to a recruiter, hiring manager, or company contact.
 - Use first person as the user/candidate.
@@ -461,4 +482,21 @@ Rules:
 - Do not oversell or invent anything.
 
 ${naturalnessPass}`;
+}
+
+function formatMitigationPromptContext(plan = {}) {
+  if (!plan?.items?.length) return "";
+  const rows = plan.items.map((item) => [
+    `- Gap: ${item.gapText}`,
+    `  Severity/confidence: ${item.severity || "moderate"} / ${item.confidence || "partial"}`,
+    `  Strategy: ${item.strategy}`,
+    `  Resume instruction: ${item.resumeInstruction}`,
+    `  Cover letter instruction: ${item.coverLetterInstruction}`,
+    `  Recruiter message instruction: ${item.recruiterMessageInstruction}`,
+  ].join("\n"));
+  return `
+Mitigation strategy from fit analysis:
+${plan.summary || "Use the gap analysis to strengthen truthful positioning."}
+${rows.join("\n")}
+`;
 }

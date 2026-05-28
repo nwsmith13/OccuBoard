@@ -1,6 +1,6 @@
 import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AiToolsPanel, CopyButton } from "../../components/ai/AiToolsPanel.jsx";
+import { AiToolsPanel, AppliedMitigationList, CopyButton } from "../../components/ai/AiToolsPanel.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
 import { Button } from "../../components/ui/Button.jsx";
@@ -19,6 +19,7 @@ import { exportCoverLetterDocx, exportCoverLetterPdf } from "../../lib/coverLett
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
 import { getJobAiStatus, isCoverLetter, isRecruiterMessage } from "../../lib/jobAiStatus.js";
+import { buildMitigationPlan, getAppliedMitigations } from "../../lib/mitigationPlan.js";
 import { getResumeExportHistory } from "../../lib/resumeExport.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { getNextBestAction, getNextBestActionTone } from "../../utils/nextBestAction.js";
@@ -1186,17 +1187,23 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
     setError("");
     try {
       const contact = contacts[0];
+      const mitigationPlan = buildMitigationPlan(score);
+      const appliedMitigations = getAppliedMitigations(mitigationPlan, "Cover letter");
       const result = await generateAiOutput("coverLetter", profile, job, {
         fitRecommendation: score?.recommendation,
         fitSummary: score?.summary,
         latestResume: resume?.content,
         contactName: contact?.name || "",
+        mitigationPlan,
+        appliedMitigationLabels: appliedMitigations.map((item) => item.appliedLabel),
       });
       await onSaveCoverLetter(user, job, {
         type: "Cover Letter",
         content: result.coverLetterText,
         coverLetterText: result.coverLetterText,
+        appliedMitigations,
       });
+      if (appliedMitigations.length) await onLogActivity?.(user, job.id, "cover_letter_generated_with_mitigation", { detail: "Cover letter generated with mitigation strategy", appliedLabels: appliedMitigations.map((item) => item.appliedLabel) });
       toast.success("Cover letter saved.");
     } catch (err) {
       setError(err.message || "Cover letter could not be generated yet.");
@@ -1336,21 +1343,27 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
     setError("");
     try {
       const contact = contacts[0];
+      const mitigationPlan = buildMitigationPlan(score);
+      const appliedMitigations = getAppliedMitigations(mitigationPlan, "Cover letter");
       const result = await generateAiOutput("coverLetter", profile, job, {
         fitRecommendation: score?.recommendation,
         fitSummary: score?.summary,
         latestResume: resume?.content,
         contactName: contact?.name || "",
+        mitigationPlan,
+        appliedMitigationLabels: appliedMitigations.map((item) => item.appliedLabel),
       });
       const saved = await onSave(user, job, {
         type: "Cover Letter",
         content: result.coverLetterText,
         coverLetterText: result.coverLetterText,
+        appliedMitigations,
       });
       const nextContent = saved?.content || result.coverLetterText || "";
       setDraft(nextContent);
       setLastSavedDraft(nextContent);
       toast.success(regenerate ? "Cover letter regenerated." : "Cover letter saved.");
+      if (appliedMitigations.length) await onLogActivity?.(user, job.id, "cover_letter_generated_with_mitigation", { detail: "Cover letter generated with mitigation strategy", appliedLabels: appliedMitigations.map((item) => item.appliedLabel) });
       if (regenerate) await onLogActivity?.(user, job.id, "cover_letter_regenerated", { detail: "Cover letter regenerated" });
     } catch (err) {
       setError(err.message || "Cover letter could not be generated yet.");
@@ -1448,6 +1461,7 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
             setSavedState("dirty");
           }}
         />
+        <AppliedMitigationList material={coverLetter} className="mt-4" />
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button className="min-h-8 px-3 text-xs" onClick={saveEdits} disabled={!draft.trim() || savedState === "saving"}>
             {savedState === "saving" && <Loader2 size={14} className="animate-spin" />}

@@ -359,6 +359,7 @@ export async function saveResumeVersion(user, job, draft, metadata = {}) {
     content: `${draft.content}\n\nWhy this fits:\n${draft.whyThisFits ?? ""}`.trim(),
     tailoring_intensity: metadata.tailoringIntensity ?? null,
     recommendation: metadata.recommendation ?? null,
+    applied_mitigations: metadata.appliedMitigations ?? metadata.applied_mitigations ?? [],
     created_at: now(),
   };
   if (hasSupabaseConfig && user?.id) {
@@ -369,6 +370,7 @@ export async function saveResumeVersion(user, job, draft, metadata = {}) {
       const legacyPayload = { ...payload };
       delete legacyPayload.tailoring_intensity;
       delete legacyPayload.recommendation;
+      delete legacyPayload.applied_mitigations;
       const retry = await supabase.from("resume_versions").insert(legacyPayload).select("*").single();
       if (retry.error) throw retry.error;
       await logActivity(user, "AI", `Generated tailored resume for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
@@ -377,6 +379,7 @@ export async function saveResumeVersion(user, job, draft, metadata = {}) {
         ...retry.data,
         tailoring_intensity: payload.tailoring_intensity,
         recommendation: payload.recommendation,
+        applied_mitigations: payload.applied_mitigations,
       };
     }
     await logActivity(user, "AI", `Generated tailored resume for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
@@ -415,6 +418,7 @@ export async function saveMessage(user, job, message) {
     contact_id: message.contact_id ?? message.contactId ?? null,
     type: messageType,
     content: message.content ?? message.coverLetterText,
+    applied_mitigations: message.appliedMitigations ?? message.applied_mitigations ?? [],
     created_at: now(),
   };
   if (hasSupabaseConfig && user?.id) {
@@ -424,11 +428,12 @@ export async function saveMessage(user, job, message) {
       if (!isMissingColumnError(error)) throw error;
       const legacyPayload = { ...payload };
       delete legacyPayload.contact_id;
+      delete legacyPayload.applied_mitigations;
       const retry = await supabase.from("messages").insert(legacyPayload).select("*").single();
       if (retry.error) throw retry.error;
       await logActivity(user, "AI", getMessageActivityDescription(payload.type, job));
       await logJobActivity(user, job.id, getMessageActivityType(payload.type), { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
-      return { ...retry.data, contact_id: payload.contact_id };
+      return { ...retry.data, contact_id: payload.contact_id, applied_mitigations: payload.applied_mitigations };
     }
     await logActivity(user, "AI", getMessageActivityDescription(payload.type, job));
     await logJobActivity(user, job.id, getMessageActivityType(payload.type), { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });

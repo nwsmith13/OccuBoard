@@ -7,13 +7,16 @@ export function formatActivityLabel(event = {}) {
     job_created: "Job created",
     analysis_generated: "Analysis generated",
     resume_generated: "Resume generated",
+    resume_generated_with_mitigation: "Resume generated with mitigation strategy",
     resume_exported_pdf: "Resume exported PDF",
     resume_exported_docx: "Resume exported DOCX",
     message_generated: "Message generated",
+    message_generated_with_mitigation: "Recruiter message generated with mitigation strategy",
     message_regenerated: "Recruiter message regenerated",
     message_edited: "Recruiter message edited",
     message_copied: "Recruiter message copied",
     cover_letter_generated: "Cover letter generated",
+    cover_letter_generated_with_mitigation: "Cover letter generated with mitigation strategy",
     cover_letter_regenerated: "Cover letter regenerated",
     cover_letter_edited: "Cover letter edited",
     cover_letter_copied: "Cover letter copied",
@@ -46,7 +49,8 @@ export function formatActivityLabel(event = {}) {
 
 export function formatActivityDetails(event = {}) {
   const metadata = parseMetadata(event.metadata);
-  if (event.type === "analysis_generated") return [metadata.score && `${metadata.score}% fit`, metadata.recommendation].filter(Boolean).join(" • ");
+  if (event.type?.includes("_with_mitigation")) return normalizeAppliedLabels(metadata.appliedLabels).join(" - ") || metadata.detail || "";
+  if (event.type === "analysis_generated") return [metadata.score && `${metadata.score}% fit`, metadata.recommendation].filter(Boolean).join(" - ");
   if (event.type === "resume_generated") return metadata.title || "";
   if (event.type === "stage_changed") return [metadata.from && `From ${metadata.from}`, metadata.to && `to ${metadata.to}`].filter(Boolean).join(" ");
   if (event.type === "followup_saved") return metadata.date ? `Next follow-up ${formatDate(metadata.date)}` : "";
@@ -64,6 +68,11 @@ export function formatActivityDetails(event = {}) {
   if (event.type === "job_archived") return metadata.reason || "Hidden from active pipeline";
   if (event.type === "job_restored") return "Returned to active pipeline";
   return metadata.detail || metadata.title || metadata.company || "";
+}
+
+function normalizeAppliedLabels(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item || "").trim()).filter(Boolean);
 }
 
 export function formatRelativeTime(value) {
