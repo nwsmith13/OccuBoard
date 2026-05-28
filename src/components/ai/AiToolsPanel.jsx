@@ -7,6 +7,8 @@ import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
 import { getLatestForJob, isCoverLetter, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
 import { buildMitigationPlan, getAppliedMitigationLabels, getAppliedMitigations } from "../../lib/mitigationPlan.js";
+import { buildGapRecovery, buildRewriteInsights } from "../../lib/rewriteInsights.js";
+import { assessRewriteRestraint } from "../../lib/rewriteRestraint.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { ResumeExportPanel } from "../resume/ResumeExportPanel.jsx";
 import { Button } from "../ui/Button.jsx";
@@ -77,12 +79,12 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       let savedResume = null;
       if (action === "resume") {
         savedResume = await saveResumeVersion(user, job, result, { tailoringIntensity: effectiveIntensity, recommendation: latestScore?.recommendation, appliedMitigations });
-        if (appliedMitigations.length) await logJobActivity(user, job.id, "resume_generated_with_mitigation", { detail: "Resume generated with mitigation strategy", appliedLabels: appliedMitigations.map((item) => item.appliedLabel) });
+        if (appliedMitigations.length) await logJobActivity(user, job.id, "resume_strengthened_from_analysis", { detail: "Resume strengthened from analysis", appliedLabels: appliedMitigations.map((item) => item.appliedLabel) });
       }
       if (action === "message") {
         const contact = contacts.find((item) => item.id === selectedContactId);
         await saveMessage(user, job, { ...result, contact_id: selectedContactId || null, contactName: contact?.name || "", appliedMitigations });
-        if (appliedMitigations.length) await logJobActivity(user, job.id, "message_generated_with_mitigation", { detail: "Recruiter message generated with mitigation strategy", appliedLabels: appliedMitigations.map((item) => item.appliedLabel) });
+        if (appliedMitigations.length) await logJobActivity(user, job.id, "message_strengthened_from_analysis", { detail: "Recruiter message strengthened from analysis", appliedLabels: appliedMitigations.map((item) => item.appliedLabel) });
         if (regenerate) await logJobActivity(user, job.id, "message_regenerated", { detail: "Recruiter message regenerated" });
       }
       setAiState({ loading: "", error: "", latest: { action, result, resumeId: savedResume?.id }, confirm: "" });
@@ -119,8 +121,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
           </div>
         )}
         {activeAction === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} />}
-        {activeAction === "resume" && <ResumeResult resume={latestResume} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
-          {activeAction === "message" && <MessageResult message={latestMessage} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+        {activeAction === "resume" && <ResumeResult resume={latestResume} score={latestScore} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
+          {activeAction === "message" && <MessageResult message={latestMessage} score={latestScore} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
       </section>
     );
   }
@@ -214,8 +216,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       {!compact && (
         <>
           {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} />}
-          {activeTab === "resume" && <ResumeResult resume={latestResume} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
-          {activeTab === "message" && <MessageResult message={latestMessage} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "resume" && <ResumeResult resume={latestResume} score={latestScore} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "message" && <MessageResult message={latestMessage} score={latestScore} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
         </>
       )}
@@ -391,7 +393,7 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
   );
 }
 
-export function ResumeResult({ resume, analysisReady = true, onAnalyze, onGenerate, onRegenerate, onExportComplete, loading, showAction = true }) {
+export function ResumeResult({ resume, score, analysisReady = true, onAnalyze, onGenerate, onRegenerate, onExportComplete, loading, showAction = true }) {
   const { profile, jobs } = useWorkspaceStore();
   const job = resume ? jobs.find((item) => item.id === resume.job_id) : null;
   const whyThisFits = extractWhyThisFits(resume?.content);
@@ -416,6 +418,7 @@ export function ResumeResult({ resume, analysisReady = true, onAnalyze, onGenera
         </div>
       )}
       <AppliedMitigationList material={resume} className="mt-4" />
+      <RewriteVisibilityPanel material={resume} score={score} originalText={profile?.base_resume_text} generatedText={resume.content} materialType="resume" className="mt-4" />
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           className="inline-flex min-h-10 items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
@@ -432,8 +435,9 @@ export function ResumeResult({ resume, analysisReady = true, onAnalyze, onGenera
   );
 }
 
-export function MessageResult({ message, analysisReady = true, resumeReady = false, coverLetterReady = false, contacts = [], selectedContactId = "", onContactChange, onAnalyze, onResume, onSave, onLogActivity, onGenerate, onRegenerate, loading, showAction = true }) {
+export function MessageResult({ message, score, analysisReady = true, resumeReady = false, coverLetterReady = false, contacts = [], selectedContactId = "", onContactChange, onAnalyze, onResume, onSave, onLogActivity, onGenerate, onRegenerate, loading, showAction = true }) {
   const toast = useToast();
+  const { profile } = useWorkspaceStore();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message?.content || "");
   const [saveState, setSaveState] = useState("");
@@ -515,6 +519,7 @@ export function MessageResult({ message, analysisReady = true, resumeReady = fal
         <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm leading-6 text-slate-700">{draft}</p>
       )}
       <AppliedMitigationList material={message} className="mt-4" />
+      <RewriteVisibilityPanel material={message} score={score} originalText={profile?.base_resume_text} generatedText={draft} materialType="message" className="mt-4" />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {editing ? (
           <>
@@ -577,6 +582,115 @@ export function AppliedMitigationList({ material, items, className = "" }) {
       </div>
     </div>
   );
+}
+
+export function RewriteVisibilityPanel({ material, score, originalText = "", generatedText = "", materialType = "resume", className = "" }) {
+  const mitigationPlan = buildMitigationPlan(score);
+  const insights = buildRewriteInsights({
+    originalText,
+    generatedText,
+    mitigationPlan,
+    analysis: score,
+    gaps: score?.gaps,
+    strengths: score?.strengths,
+    keywords: score?.keywords,
+    materialType,
+  }).sections;
+  const appliedLabels = getAppliedMitigationLabels(material);
+  const recovery = buildGapRecovery({ mitigationPlan, rewriteSections: insights, generatedText });
+  const restraint = assessRewriteRestraint(originalText, generatedText);
+  const meaningfulRecovery = recovery.filter((item) => item.recovery !== "Unchanged").slice(0, materialType === "resume" ? 4 : 2);
+  const showPreservation = materialType === "resume" && restraint.preservationScore > 0;
+
+  if (!insights.length && !appliedLabels.length && !meaningfulRecovery.length && !showPreservation) return null;
+
+  return (
+    <section className={`rounded-lg bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 ${className}`}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-bold text-ink">Strengthened from analysis</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">OccuBoard used the fit analysis to improve positioning while staying grounded in your experience.</p>
+        </div>
+        {showPreservation && (
+          <span className="w-fit rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600 ring-1 ring-slate-100">
+            {restraint.preservationScore}% preserved
+          </span>
+        )}
+      </div>
+
+      {showPreservation && (
+        <div className="mt-3 rounded-lg bg-brand-50/70 p-3 text-sm text-slate-700 ring-1 ring-brand-100">
+          <p className="font-bold text-brand-900">Writing preservation</p>
+          <p className="mt-1 text-sm leading-5 text-slate-600">OccuBoard strengthened alignment while preserving your existing experience and tone.</p>
+        </div>
+      )}
+
+      {insights.length > 0 && (
+        <div className="mt-3 grid gap-3">
+          {insights.map((section) => (
+            <article key={section.id} className="rounded-lg bg-slate-50/80 p-3 ring-1 ring-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-bold text-ink">{section.title}</p>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getRewriteConfidenceTone(section.confidence)}`}>
+                  {capitalize(section.confidence)}
+                </span>
+              </div>
+              <p className="mt-2 text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Why this helps</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">{section.whyItHelps}</p>
+              {materialType === "resume" && (
+                <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                  <RewriteSnippet label="Before" text={section.before} />
+                  <RewriteSnippet label="After" text={section.after} emphasized />
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+
+      {meaningfulRecovery.length > 0 && (
+        <div className="mt-3 rounded-lg bg-white p-3 ring-1 ring-slate-100">
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Gap recovery</p>
+          <div className="mt-2 grid gap-2">
+            {meaningfulRecovery.map((item) => (
+              <div key={item.gapId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="min-w-0 text-slate-700">{item.label}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getRecoveryTone(item.recovery)}`}>{item.recovery}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function RewriteSnippet({ label, text, emphasized = false }) {
+  return (
+    <div className={`rounded-lg p-3 ring-1 ${emphasized ? "bg-brand-50 text-brand-950 ring-brand-100" : "bg-white text-slate-600 ring-slate-100"}`}>
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm leading-6">{text}</p>
+    </div>
+  );
+}
+
+function getRewriteConfidenceTone(confidence) {
+  return {
+    strong: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    moderate: "bg-brand-50 text-brand-700 ring-brand-100",
+    partial: "bg-slate-50 text-slate-600 ring-slate-100",
+  }[confidence] ?? "bg-slate-50 text-slate-600 ring-slate-100";
+}
+
+function getRecoveryTone(recovery = "") {
+  if (recovery.startsWith("Strong")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  if (recovery.startsWith("Moderate")) return "bg-brand-50 text-brand-700 ring-brand-100";
+  if (recovery.startsWith("Partial")) return "bg-amber-50 text-amber-700 ring-amber-100";
+  return "bg-slate-50 text-slate-600 ring-slate-100";
+}
+
+function capitalize(value = "") {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : "";
 }
 
 function MessageReadiness({ readiness }) {
