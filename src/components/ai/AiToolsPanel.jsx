@@ -1,4 +1,4 @@
-import { ChevronDown, Clipboard, Loader2, RefreshCcw, Sparkles } from "lucide-react";
+import { ChevronDown, Clipboard, Lightbulb, Loader2, RefreshCcw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -669,8 +669,11 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
           const text = item.gap;
           const key = `${normalizeText(text)}-${index}`;
           const coachingId = `gap-coaching-${index}-${normalizeText(text).slice(0, 28)}`;
-          const hasSuggestions = item.mitigationSuggestions?.length > 0;
+          const mitigationItems = normalizeSuggestionItems(item.mitigationSuggestions);
+          const hasSuggestions = Array.isArray(mitigationItems) && mitigationItems.length > 0;
           const isExpanded = expanded[key] ?? item.severity === "critical";
+          const suggestedPlacements = getSuggestedPlacements({ ...item, mitigationSuggestions: mitigationItems });
+          const [quickWin, ...otherIdeas] = mitigationItems;
           return (
             <div key={text} className={`rounded-lg border-l-4 bg-white px-3 py-3 text-sm leading-6 text-slate-700 ring-1 ${getSeverityCardTone(item.severity)}`}>
               <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
@@ -679,40 +682,53 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm leading-6 text-slate-700">{text}</p>
-                  {["critical", "moderate"].includes(item.severity) && (
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      <span className="font-semibold text-slate-600">Why this matters:</span> This may affect recruiter confidence during initial screening.
-                    </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{getSeverityConfidenceCopy(item.severity)}</p>
+                  {hasSuggestions && (
+                    <button
+                      type="button"
+                      className="mt-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-extrabold text-brand-800 ring-1 ring-brand-200 shadow-sm transition hover:bg-brand-100 hover:text-brand-950 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                      aria-expanded={isExpanded}
+                      aria-controls={coachingId}
+                      onClick={() => setExpanded((current) => ({ ...current, [key]: !isExpanded }))}
+                    >
+                      <Lightbulb size={13} aria-hidden="true" />
+                      {isExpanded ? "Hide suggestions" : "How to address this"}
+                      <ChevronDown size={13} className={`transition duration-200 ${isExpanded ? "rotate-180" : ""}`} aria-hidden="true" />
+                    </button>
                   )}
                 </div>
               </div>
-              {hasSuggestions && (
-                <button
-                  type="button"
-                  className="mt-3 inline-flex min-h-8 items-center gap-1 rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-100 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
-                  aria-expanded={isExpanded}
-                  aria-controls={coachingId}
-                  onClick={() => setExpanded((current) => ({ ...current, [key]: !isExpanded }))}
-                >
-                  {isExpanded ? "Hide suggestions" : "How to address this"}
-                  <ChevronDown size={13} className={`transition duration-200 ${isExpanded ? "rotate-180" : ""}`} aria-hidden="true" />
-                </button>
-              )}
               {hasSuggestions && isExpanded && (
                 <div id={coachingId} className="mt-3 rounded-lg bg-brand-50/80 p-3 ring-1 ring-brand-100 transition duration-200 ease-out">
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">How to address this</p>
                   <p className="mt-1 text-xs leading-5 text-slate-600">Use these as positioning ideas for your resume, message, or interview.</p>
-                  <ul className="mt-2 grid gap-1.5 text-[13px] leading-5 text-slate-700">
-                    {item.mitigationSuggestions.map((suggestion, suggestionIndex) => (
-                      <li key={suggestion} className="flex gap-2">
-                        <span className="mt-[0.45rem] h-1 w-1 shrink-0 rounded-full bg-brand-400" />
-                        <span>
-                          {suggestionIndex === 0 && <span className="mr-1 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-brand-700 ring-1 ring-brand-100">Quick win</span>}
-                          {suggestion}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  {quickWin && (
+                    <div className="mt-3 rounded-lg bg-white/85 p-2.5 text-[13px] leading-5 text-slate-700 ring-1 ring-brand-100">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-brand-700">Quick win</p>
+                      <p className="mt-1">{quickWin}</p>
+                    </div>
+                  )}
+                  {otherIdeas.length > 0 && (
+                    <>
+                      <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Other ideas</p>
+                      <ul className="mt-1.5 grid gap-1.5 text-[13px] leading-5 text-slate-700">
+                        {otherIdeas.map((suggestion) => (
+                          <li key={suggestion} className="flex gap-2">
+                            <span className="mt-[0.45rem] h-1 w-1 shrink-0 rounded-full bg-brand-400" />
+                            <span>{suggestion}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  <div className="mt-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Suggested placement</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {suggestedPlacements.map((placement) => (
+                        <span key={placement} className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{placement}</span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -724,16 +740,19 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
 }
 
 function getWeightedGaps(gaps = [], gapAssessments = [], mitigationSuggestions = []) {
-  const assessments = gapAssessments.length
-    ? gapAssessments
-    : gaps.map((gap) => {
+  const normalizedGaps = normalizeArray(gaps);
+  const normalizedAssessments = normalizeArray(gapAssessments);
+  const normalizedMitigations = normalizeArray(mitigationSuggestions);
+  const assessments = normalizedAssessments.length
+    ? normalizedAssessments
+    : normalizedGaps.map((gap) => {
         const text = getGapText(gap);
-        const mitigation = findMitigationForGap(text, mitigationSuggestions);
+        const mitigation = findMitigationForGap(text, normalizedMitigations);
         return {
           gap: text,
           severity: gap?.severity || inferUiSeverity(text),
           confidence: gap?.confidence || "partial",
-          mitigationSuggestions: gap?.mitigationSuggestions || mitigation?.suggestions || [],
+          mitigationSuggestions: getSuggestionItems(gap, mitigation),
         };
       });
   const severityRank = { critical: 0, moderate: 1, minor: 2, informational: 3 };
@@ -744,7 +763,7 @@ function getWeightedGaps(gaps = [], gapAssessments = [], mitigationSuggestions =
       gap: item.gap,
       severity: normalizeSeverity(item.severity),
       confidence: normalizeConfidence(item.confidence),
-      mitigationSuggestions: item.mitigationSuggestions || item.suggestions || findMitigationForGap(item.gap, mitigationSuggestions)?.suggestions || [],
+      mitigationSuggestions: getSuggestionItems(item, findMitigationForGap(item.gap, normalizedMitigations)),
     }))
     .sort((a, b) => severityRank[a.severity] - severityRank[b.severity] || confidenceRank[a.confidence] - confidenceRank[b.confidence]);
 }
@@ -755,11 +774,33 @@ function getGapText(gap) {
 }
 
 function findMitigationForGap(gap, mitigationSuggestions = []) {
+  const items = normalizeArray(mitigationSuggestions);
   const normalizedGap = normalizeText(gap);
-  return mitigationSuggestions.find((item) => {
+  return items.find((item) => {
     const itemGap = normalizeText(item.gap);
     return itemGap && (itemGap === normalizedGap || itemGap.includes(normalizedGap.slice(0, 40)) || normalizedGap.includes(itemGap.slice(0, 40)));
   });
+}
+
+function getSuggestionItems(primary = {}, fallback = {}) {
+  const direct = normalizeSuggestionItems(primary?.mitigationSuggestions ?? primary?.mitigation_suggestions ?? primary?.suggestions ?? primary?.mitigation);
+  if (direct.length) return direct;
+  return normalizeSuggestionItems(fallback?.mitigationSuggestions ?? fallback?.mitigation_suggestions ?? fallback?.suggestions ?? fallback?.mitigation);
+}
+
+function normalizeSuggestionItems(value) {
+  return normalizeArray(value)
+    .map((item) => {
+      if (typeof item === "string") return item;
+      return item?.suggestion || item?.text || item?.label || item?.content || "";
+    })
+    .map((item) => String(item).trim())
+    .filter(Boolean);
+}
+
+function normalizeArray(value) {
+  if (Array.isArray(value)) return value;
+  return value ? [value] : [];
 }
 
 function inferUiSeverity(gap = "") {
@@ -794,6 +835,29 @@ function getSeverityLabel(severity) {
     minor: "Minor",
     informational: "Info",
   }[severity] ?? "Moderate";
+}
+
+function getSeverityConfidenceCopy(severity) {
+  return {
+    critical: "Likely to impact screening.",
+    moderate: "Worth addressing if possible.",
+    minor: "Transferable experience likely offsets this.",
+    informational: "Mostly framing/context.",
+  }[severity] ?? "Worth addressing if possible.";
+}
+
+function getSuggestedPlacements(item = {}) {
+  const text = normalizeText(`${item.gap || ""} ${(item.mitigationSuggestions || []).join(" ")}`);
+  if (/\b(buildops|sage intacct|smartsheet|zendesk|servicenow|jira|platform|tool|system)\b/.test(text)) {
+    return ["Recruiter message", "Interview"];
+  }
+  if (/\b(keyword|wording|uat|explicit|mention|listed|documentation|training|onboarding)\b/.test(text)) {
+    return /\b(documentation|training|onboarding)\b/.test(text) ? ["Resume", "Cover letter"] : ["Resume"];
+  }
+  if (/\b(seniority|junior|senior|startup|enterprise|framing|context)\b/.test(text)) {
+    return ["Recruiter message", "Interview"];
+  }
+  return ["Resume", "Recruiter message", "Interview"];
 }
 
 function getSeverityCardTone(severity) {
