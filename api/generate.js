@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { refineFitAnalysisEvidence } from "./analysisEvidence.js";
 import { DEFAULT_MODEL, GLOBAL_AI_RULES, buildPrompt, getSchema } from "./prompts.js";
 
 const supportedActions = ["fit", "resume", "message", "followupMessage", "coverLetter", "interviewPrep"];
@@ -51,7 +52,8 @@ export default async function handler(req, res) {
       },
     });
 
-    const result = parseStructuredOutput(response);
+    let result = parseStructuredOutput(response);
+    if (action === "fit") result = refineFitAnalysisEvidence(result, profile, job);
     validateGeneratedResult(action, result, profile, job);
     return send(res, 200, { result });
   } catch (error) {

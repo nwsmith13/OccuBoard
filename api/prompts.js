@@ -1,3 +1,5 @@
+import { buildEvidencePromptNotes } from "./analysisEvidence.js";
+
 export const DEFAULT_MODEL = "gpt-5-mini";
 
 export const GLOBAL_AI_RULES = `
@@ -179,6 +181,7 @@ export function buildPrompt(action, profile, job, options = {}) {
   const manualIntensityOverride = options.manualIntensityOverride ? "Yes" : "No";
   const fitRecommendation = options.fitRecommendation || "Unknown";
   const fitSummary = options.fitSummary || "No fit analysis provided.";
+  const evidencePromptNotes = buildEvidencePromptNotes(profile, job);
   const context = `
 User profile:
 - Name: ${profile?.full_name || "Not provided"}
@@ -203,6 +206,7 @@ Known fit context:
 - Latest recommendation: ${fitRecommendation}
 - Latest fit summary: ${fitSummary}
 - Manual tailoring intensity override: ${manualIntensityOverride}
+${evidencePromptNotes}
 `;
 
   if (action === "fit") {
@@ -224,6 +228,14 @@ Return:
 - 5-10 relevant keywords from the job/user overlap
 - transferableStrengths: professional strengths the user still has even if this role is not a direct fit
 - betterAlignedRoles: 3-5 more realistic role types based on actual background
+
+Evidence confidence rules:
+- Distinguish direct evidence, partial/adjacent evidence, and missing evidence.
+- Do not use hard-negative wording like "no explicit mention" when partial evidence exists.
+- If a job asks for ticketing, ITSM, service desk, Zendesk, ServiceNow, or ticket tracking and the resume includes Jira, treat it as partial/adjacent evidence unless service-desk queue ownership is also described.
+- In that case, write a nuanced gap such as: "Limited direct ITSM/service-desk evidence. Jira experience is present, though support intake and ticket lifecycle workflows are not heavily emphasized."
+- Surface useful adjacent evidence in strengths or supporting signals when present.
+- Prefer nuanced interpretation over aggressive gap detection.
 
 If recommendation is Skip:
 - Be honest about hard blockers without being harsh.
