@@ -785,7 +785,9 @@ function findMitigationForGap(gap, mitigationSuggestions = []) {
 function getSuggestionItems(primary = {}, fallback = {}) {
   const direct = normalizeSuggestionItems(primary?.mitigationSuggestions ?? primary?.mitigation_suggestions ?? primary?.suggestions ?? primary?.mitigation);
   if (direct.length) return direct;
-  return normalizeSuggestionItems(fallback?.mitigationSuggestions ?? fallback?.mitigation_suggestions ?? fallback?.suggestions ?? fallback?.mitigation);
+  const fallbackItems = normalizeSuggestionItems(fallback?.mitigationSuggestions ?? fallback?.mitigation_suggestions ?? fallback?.suggestions ?? fallback?.mitigation);
+  if (fallbackItems.length) return fallbackItems;
+  return getFallbackMitigationSuggestions(primary?.gap || primary?.text || primary || fallback?.gap || fallback?.text || "");
 }
 
 function normalizeSuggestionItems(value) {
@@ -858,6 +860,36 @@ function getSuggestedPlacements(item = {}) {
     return ["Recruiter message", "Interview"];
   }
   return ["Resume", "Recruiter message", "Interview"];
+}
+
+function getFallbackMitigationSuggestions(gap = "") {
+  const text = normalizeText(gap);
+  if (/\b(itsm|ticket|ticketing|service desk|zendesk|servicenow|jira|intake|support queue|escalation)\b/.test(text)) {
+    return [
+      "Position Jira workflow coordination as intake-tracking experience.",
+      "Mention escalation coordination from implementation or support work.",
+      "Connect onboarding support and issue-resolution workflows to service-desk readiness.",
+    ];
+  }
+  if (/\b(buildops|sage intacct|smartsheet|platform|tool|erp|crm|system)\b/.test(text)) {
+    return [
+      "Emphasize ability to learn adjacent operational systems quickly.",
+      "Reference similar ERP, CRM, or workflow tools already used.",
+    ];
+  }
+  if (/\b(seniority|junior|senior|startup|enterprise|framing|context|overqualified)\b/.test(text)) {
+    return [
+      "Position yourself as hands-on and execution-focused.",
+      "Emphasize interest in practical operational ownership.",
+    ];
+  }
+  if (/\b(documentation|training|onboarding|enablement|guide|quick reference)\b/.test(text)) {
+    return [
+      "Highlight onboarding documentation and quick-reference guide creation.",
+      "Connect training support to user enablement and adoption.",
+    ];
+  }
+  return [];
 }
 
 function getSeverityCardTone(severity) {

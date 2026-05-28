@@ -224,20 +224,28 @@ function completeGapAssessments(gaps, assessments, mitigations) {
   const next = [...assessments];
   gaps.forEach((gap) => {
     const text = getGapText(gap);
-    if (!text || next.some((item) => normalize(item.gap) === normalize(text))) return;
+    if (!text) return;
     const mitigation = mitigations.find((item) => normalize(item.gap) === normalize(text));
+    const existing = next.find((item) => normalize(item.gap) === normalize(text));
+    if (existing) {
+      existing.mitigationSuggestions = uniqueTerms([
+        ...(existing.mitigationSuggestions || existing.mitigation_suggestions || existing.suggestions || []),
+        ...(mitigation?.suggestions || mitigation?.mitigationSuggestions || mitigation?.mitigation_suggestions || []),
+      ]);
+      return;
+    }
     next.push({
       gap: text,
       severity: inferSeverity(text),
       confidence: inferConfidence(text),
-      mitigationSuggestions: mitigation?.suggestions || [],
+      mitigationSuggestions: mitigation?.suggestions || mitigation?.mitigationSuggestions || mitigation?.mitigation_suggestions || [],
     });
   });
   return next.map((item) => ({
     gap: item.gap,
     severity: normalizeSeverity(item.severity),
     confidence: normalizeConfidence(item.confidence),
-    mitigationSuggestions: item.mitigationSuggestions || item.suggestions || [],
+    mitigationSuggestions: item.mitigationSuggestions || item.mitigation_suggestions || item.suggestions || item.mitigation || [],
   }));
 }
 
