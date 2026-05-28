@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useIntelligenceMode } from "../../contexts/IntelligenceModeContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { calculateApplicationReadiness } from "../../lib/applicationReadiness.js";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
 import { getLatestForJob, isCoverLetter, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
@@ -385,6 +386,7 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
       <AiList title="Strengths" items={strengths} />
       <GapList gaps={score.gaps} gapAssessments={score.gapAssessments || score.gap_assessments} mitigationSuggestions={score.mitigationSuggestions || score.mitigation_suggestions} />
       <MitigationStrategySummary score={score} />
+      {isCompact && <ApplicationReadinessCard score={score} compact className="mt-3" />}
       {!isCompact && <TransferableStrengths items={score.transferable_strengths || score.transferableStrengths} />}
       {!isCompact && <BetterAlignedRoles items={score.better_aligned_roles || score.betterAlignedRoles} />}
       {!isCompact && <AiList title="Keywords" items={score.keywords} inline />}
@@ -590,6 +592,83 @@ export function AppliedMitigationList({ material, items, className = "" }) {
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+export function ApplicationReadinessCard({ score, profile, resume, coverLetter, recruiterMessage, rewriteSections = [], compact = false, className = "" }) {
+  const readiness = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage, rewriteSections });
+  const [expanded, setExpanded] = useState(false);
+  const { isStrategic } = useIntelligenceMode();
+  const showDetails = isStrategic || expanded;
+  if (!score && !resume && !coverLetter && !recruiterMessage) return null;
+
+  return (
+    <section className={`rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 ${className}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application readiness</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">{readiness.tier}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">A recruiter-aware estimate based on fit, materials, recovery, and skim readability.</p>
+        </div>
+        <div className="min-w-36">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-3xl font-black text-brand-900">{readiness.readiness}%</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getReadinessTone(readiness.readiness)}`}>{readiness.tier}</span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.readiness}% application readiness`}>
+            <div className={`h-full rounded-full ${getReadinessBarTone(readiness.readiness)}`} style={{ width: `${readiness.readiness}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <div className={`mt-4 grid gap-3 ${compact ? "" : "md:grid-cols-2"}`}>
+        <ReadinessSignal label="Strongest hiring signal" value={readiness.strongestSignal} tone="success" />
+        <ReadinessSignal label="Main hiring consideration" value={readiness.biggestConsideration} tone="neutral" />
+        <ReadinessSignal label="Recruiter skim readability" value={readiness.recruiterSkimReadability} tone="info" />
+        <ReadinessSignal label="Interview likelihood" value={readiness.interviewLikelihood} tone="success" />
+      </div>
+
+      {readiness.recoveryHighlights.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {readiness.recoveryHighlights.map((item) => (
+            <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">
+              <CheckCircle2 size={12} aria-hidden="true" />
+              {item}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {!isStrategic && !compact && (
+        <button
+          type="button"
+          className="mt-3 inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Hide readiness detail" : "Show readiness detail"}
+          <ChevronDown size={13} className={`transition duration-200 ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
+        </button>
+      )}
+
+      {showDetails && (
+        <div className="mt-3 grid gap-2 rounded-lg bg-slate-50/80 p-3 text-xs font-semibold text-slate-600 ring-1 ring-slate-100 sm:grid-cols-2">
+          <span>Keyword coverage: {Math.round(readiness.metrics.keywordCoverage * 100)}%</span>
+          <span>Readability score: {Math.round(readiness.metrics.readabilityScore)}%</span>
+          <span>Recovery strength: {readiness.metrics.recoveryAverage.toFixed(1)} / 4</span>
+          <span>Voice preservation: {Math.round(readiness.metrics.preservationScore)}%</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ReadinessSignal({ label, value, tone }) {
+  return (
+    <div className="rounded-lg bg-slate-50/80 p-3 ring-1 ring-slate-100">
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">{label}</p>
+      <p className={`mt-1 text-sm font-bold ${tone === "success" ? "text-emerald-800" : tone === "info" ? "text-brand-800" : "text-slate-700"}`}>{value}</p>
     </div>
   );
 }
@@ -908,6 +987,22 @@ function getRecoveryPercent(recovery = "") {
   if (recovery.startsWith("Moderate")) return 64;
   if (recovery.startsWith("Partial")) return 42;
   return 18;
+}
+
+function getReadinessTone(readiness) {
+  if (readiness >= 88) return "bg-emerald-50 text-emerald-800 ring-emerald-100";
+  if (readiness >= 78) return "bg-green-50 text-green-800 ring-green-100";
+  if (readiness >= 66) return "bg-brand-50 text-brand-800 ring-brand-100";
+  if (readiness >= 50) return "bg-amber-50 text-amber-800 ring-amber-100";
+  return "bg-slate-50 text-slate-600 ring-slate-100";
+}
+
+function getReadinessBarTone(readiness) {
+  if (readiness >= 88) return "bg-emerald-500";
+  if (readiness >= 78) return "bg-emerald-400";
+  if (readiness >= 66) return "bg-cyan-500";
+  if (readiness >= 50) return "bg-amber-400";
+  return "bg-slate-300";
 }
 
 function capitalize(value = "") {
