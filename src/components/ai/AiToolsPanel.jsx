@@ -667,11 +667,13 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
         {items.map((item) => {
           const text = item.gap;
           return (
-            <div key={text} className={`rounded-lg bg-white px-3 py-2 text-sm text-slate-700 ring-1 ${getSeverityCardTone(item.severity)}`}>
-              <div className="flex flex-wrap items-start gap-2">
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold capitalize ${getSeverityBadgeTone(item.severity)}`}>{item.severity}</span>
-                <p className="min-w-0 flex-1">{text}</p>
-              </div>
+            <div key={text} className={`rounded-lg bg-white px-3 py-2 text-sm leading-6 text-slate-700 ring-1 ${getSeverityCardTone(item.severity)}`}>
+              <p className="min-w-0">
+                <span className={`mr-2 inline-flex shrink-0 translate-y-[-1px] items-center rounded-full px-2 py-0.5 text-[11px] font-bold leading-4 ${getSeverityBadgeTone(item.severity)}`}>
+                  {getSeverityLabel(item.severity)}
+                </span>
+                <span>{text}</span>
+              </p>
               {item.mitigationSuggestions?.length > 0 && (
                 <div className="mt-3 rounded-lg bg-brand-50/80 p-3 ring-1 ring-brand-100">
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Mitigation suggestions</p>
@@ -747,9 +749,18 @@ function getSeverityBadgeTone(severity) {
   return {
     critical: "bg-rose-50 text-rose-700 ring-1 ring-rose-100",
     moderate: "bg-amber-50 text-amber-800 ring-1 ring-amber-100",
-    minor: "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+    minor: "bg-sky-50 text-slate-700 ring-1 ring-sky-100",
     informational: "bg-slate-50 text-slate-500 ring-1 ring-slate-100",
   }[severity] ?? "bg-slate-100 text-slate-600 ring-1 ring-slate-200";
+}
+
+function getSeverityLabel(severity) {
+  return {
+    critical: "Critical",
+    moderate: "Moderate",
+    minor: "Minor",
+    informational: "Info",
+  }[severity] ?? "Moderate";
 }
 
 function getSeverityCardTone(severity) {
