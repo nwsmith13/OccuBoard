@@ -417,7 +417,6 @@ export function ResumeResult({ resume, score, analysisReady = true, onAnalyze, o
           <p className="mt-2">{whyThisFits}</p>
         </div>
       )}
-      <AppliedMitigationList material={resume} className="mt-4" />
       <RewriteVisibilityPanel material={resume} score={score} originalText={profile?.base_resume_text} generatedText={resume.content} materialType="resume" className="mt-4" />
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
@@ -518,7 +517,6 @@ export function MessageResult({ message, score, analysisReady = true, resumeRead
       ) : (
         <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm leading-6 text-slate-700">{draft}</p>
       )}
-      <AppliedMitigationList material={message} className="mt-4" />
       <RewriteVisibilityPanel material={message} score={score} originalText={profile?.base_resume_text} generatedText={draft} materialType="message" className="mt-4" />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {editing ? (
@@ -585,6 +583,7 @@ export function AppliedMitigationList({ material, items, className = "" }) {
 }
 
 export function RewriteVisibilityPanel({ material, score, originalText = "", generatedText = "", materialType = "resume", className = "" }) {
+  const [expanded, setExpanded] = useState({});
   const mitigationPlan = buildMitigationPlan(score);
   const insights = buildRewriteInsights({
     originalText,
@@ -601,6 +600,8 @@ export function RewriteVisibilityPanel({ material, score, originalText = "", gen
   const restraint = assessRewriteRestraint(originalText, generatedText);
   const meaningfulRecovery = recovery.filter((item) => item.recovery !== "Unchanged").slice(0, materialType === "resume" ? 4 : 2);
   const showPreservation = materialType === "resume" && restraint.preservationScore > 0;
+  const strongRecoveries = meaningfulRecovery.filter((item) => item.recovery.startsWith("Strong")).length;
+  const preservation = getPreservationCopy(restraint.preservationScore);
 
   if (!insights.length && !appliedLabels.length && !meaningfulRecovery.length && !showPreservation) return null;
 
@@ -609,41 +610,50 @@ export function RewriteVisibilityPanel({ material, score, originalText = "", gen
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-bold text-ink">Strengthened from analysis</p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">OccuBoard used the fit analysis to improve positioning while staying grounded in your experience.</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Applied analysis findings to strengthen positioning.</p>
         </div>
         {showPreservation && (
           <span className="w-fit rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600 ring-1 ring-slate-100">
-            {restraint.preservationScore}% preserved
+            {preservation.label}
           </span>
         )}
       </div>
 
+      <div className="mt-3 flex flex-wrap gap-2">
+        {appliedLabels.length > 0 && <SummaryChip>{appliedLabels.length} improvement{appliedLabels.length === 1 ? "" : "s"}</SummaryChip>}
+        {meaningfulRecovery.length > 0 && <SummaryChip>{strongRecoveries || meaningfulRecovery.length} {strongRecoveries ? "strong" : "active"} recover{(strongRecoveries || meaningfulRecovery.length) === 1 ? "y" : "ies"}</SummaryChip>}
+        {showPreservation && <SummaryChip>{preservation.shortLabel}</SummaryChip>}
+      </div>
+
+      {appliedLabels.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {appliedLabels.map((label) => (
+            <span key={label} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">
+              <CheckCircle2 size={12} aria-hidden="true" />
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+
       {showPreservation && (
         <div className="mt-3 rounded-lg bg-brand-50/70 p-3 text-sm text-slate-700 ring-1 ring-brand-100">
-          <p className="font-bold text-brand-900">Writing preservation</p>
-          <p className="mt-1 text-sm leading-5 text-slate-600">OccuBoard strengthened alignment while preserving your existing experience and tone.</p>
+          <p className="font-bold text-brand-900">{preservation.label}</p>
+          <p className="mt-1 text-sm leading-5 text-slate-600">{restraint.preservationScore}% of original positioning remained intact.</p>
         </div>
       )}
 
       {insights.length > 0 && (
         <div className="mt-3 grid gap-3">
           {insights.map((section) => (
-            <article key={section.id} className="rounded-lg bg-slate-50/80 p-3 ring-1 ring-slate-100">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-bold text-ink">{section.title}</p>
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getRewriteConfidenceTone(section.confidence)}`}>
-                  {capitalize(section.confidence)}
-                </span>
-              </div>
-              <p className="mt-2 text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Why this helps</p>
-              <p className="mt-1 text-sm leading-6 text-slate-600">{section.whyItHelps}</p>
-              {materialType === "resume" && (
-                <div className="mt-3 grid gap-2 lg:grid-cols-2">
-                  <RewriteSnippet label="Before" text={section.before} />
-                  <RewriteSnippet label="After" text={section.after} emphasized />
-                </div>
-              )}
-            </article>
+            <RewriteInsightCard
+              key={section.id}
+              section={section}
+              materialType={materialType}
+              recovery={meaningfulRecovery.find((item) => item.label === section.mitigationSource)}
+              expanded={Boolean(expanded[section.id])}
+              onToggle={() => setExpanded((current) => ({ ...current, [section.id]: !current[section.id] }))}
+            />
           ))}
         </div>
       )}
@@ -651,17 +661,85 @@ export function RewriteVisibilityPanel({ material, score, originalText = "", gen
       {meaningfulRecovery.length > 0 && (
         <div className="mt-3 rounded-lg bg-white p-3 ring-1 ring-slate-100">
           <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Gap recovery</p>
-          <div className="mt-2 grid gap-2">
+          <p className="mt-1 text-xs leading-5 text-slate-500">Recovery reflects improved positioning, not newly invented experience.</p>
+          <div className="mt-3 grid gap-3">
             {meaningfulRecovery.map((item) => (
-              <div key={item.gapId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <div key={item.gapId} className="grid gap-1.5 text-sm sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
                 <span className="min-w-0 text-slate-700">{item.label}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getRecoveryTone(item.recovery)}`}>{item.recovery}</span>
+                <RecoveryBar recovery={item.recovery} />
               </div>
             ))}
           </div>
         </div>
       )}
     </section>
+  );
+}
+
+function RewriteInsightCard({ section, materialType, recovery, expanded, onToggle }) {
+  const changeId = `rewrite-change-${section.id}`;
+  const addedItems = getAddedImprovementItems(section.category);
+  return (
+    <article className="rounded-lg bg-slate-50/80 p-3 ring-1 ring-slate-100 transition duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-bold text-ink">{section.title}</p>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${recovery ? getRecoveryTone(recovery.recovery) : getRewriteConfidenceTone(section.confidence)}`}>
+          {recovery?.recovery || capitalize(section.confidence)}
+        </span>
+      </div>
+      <p className="mt-2 text-sm leading-5 text-slate-600">{section.whyItHelps}</p>
+      {addedItems.length > 0 && (
+        <div className="mt-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Added</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {addedItems.map((item) => (
+              <span key={item} className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">
+                <CheckCircle2 size={11} aria-hidden="true" />
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {(section.before || section.after) && (
+        <div className="mt-3">
+          <button
+            type="button"
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+            aria-expanded={expanded}
+            aria-controls={changeId}
+            onClick={onToggle}
+          >
+            {expanded ? "Hide wording change" : "View wording change"}
+            <ChevronDown size={13} className={`transition duration-200 ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
+          </button>
+          {expanded && (
+            <div id={changeId} className={`mt-3 grid gap-2 ${materialType === "message" ? "" : "lg:grid-cols-2"}`}>
+              <RewriteSnippet label="Before" text={section.before} />
+              <RewriteSnippet label="After" text={section.after} emphasized />
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function SummaryChip({ children }) {
+  return <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{children}</span>;
+}
+
+function RecoveryBar({ recovery }) {
+  const percent = getRecoveryPercent(recovery);
+  return (
+    <div className="min-w-0" aria-label={recovery}>
+      <div className="flex items-center gap-2">
+        <div className="h-2 min-w-20 flex-1 overflow-hidden rounded-full bg-slate-100">
+          <div className={`h-full rounded-full transition-[width] duration-500 ease-out ${getRecoveryBarTone(recovery)}`} style={{ width: `${percent}%` }} />
+        </div>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getRecoveryTone(recovery)}`}>{recovery}</span>
+      </div>
+    </div>
   );
 }
 
@@ -682,11 +760,45 @@ function getRewriteConfidenceTone(confidence) {
   }[confidence] ?? "bg-slate-50 text-slate-600 ring-slate-100";
 }
 
+function getAddedImprovementItems(category) {
+  return {
+    intake_escalation: ["intake tracking", "escalation coordination", "workflow ownership"],
+    uat_rollout: ["rollout validation", "go-live readiness", "implementation testing"],
+    onboarding_support: ["onboarding support", "user enablement", "adoption framing"],
+    systems_adaptability: ["adjacent systems", "platform adaptability", "ERP/CRM transfer"],
+    operational_support: ["hands-on support", "workflow follow-through", "operational coordination"],
+    documentation_enablement: ["documentation", "training support", "enablement"],
+    cross_functional_coordination: ["stakeholder coordination", "client communication", "team alignment"],
+    seniority_softening: ["hands-on framing", "practical tone", "execution focus"],
+  }[category] ?? [];
+}
+
+function getPreservationCopy(score) {
+  if (score >= 80) return { label: "Highly preserved", shortLabel: "Voice highly preserved" };
+  if (score >= 60) return { label: "Candidate voice mostly preserved", shortLabel: "Voice mostly preserved" };
+  if (score >= 40) return { label: "Moderately rewritten", shortLabel: "Moderately rewritten" };
+  return { label: "Heavily rewritten", shortLabel: "Heavily rewritten" };
+}
+
 function getRecoveryTone(recovery = "") {
   if (recovery.startsWith("Strong")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   if (recovery.startsWith("Moderate")) return "bg-brand-50 text-brand-700 ring-brand-100";
   if (recovery.startsWith("Partial")) return "bg-amber-50 text-amber-700 ring-amber-100";
   return "bg-slate-50 text-slate-600 ring-slate-100";
+}
+
+function getRecoveryBarTone(recovery = "") {
+  if (recovery.startsWith("Strong")) return "bg-emerald-400";
+  if (recovery.startsWith("Moderate")) return "bg-cyan-500";
+  if (recovery.startsWith("Partial")) return "bg-amber-400";
+  return "bg-slate-300";
+}
+
+function getRecoveryPercent(recovery = "") {
+  if (recovery.startsWith("Strong")) return 82;
+  if (recovery.startsWith("Moderate")) return 64;
+  if (recovery.startsWith("Partial")) return 42;
+  return 18;
 }
 
 function capitalize(value = "") {

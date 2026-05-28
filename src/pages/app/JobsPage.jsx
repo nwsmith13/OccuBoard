@@ -1,6 +1,6 @@
 import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AiToolsPanel, AppliedMitigationList, CopyButton, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
+import { AiToolsPanel, CopyButton, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
 import { Button } from "../../components/ui/Button.jsx";
@@ -1461,7 +1461,6 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
             setSavedState("dirty");
           }}
         />
-        <AppliedMitigationList material={coverLetter} className="mt-4" />
         <RewriteVisibilityPanel material={coverLetter} score={score} originalText={profile?.base_resume_text} generatedText={draft} materialType="coverLetter" className="mt-4" />
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button className="min-h-8 px-3 text-xs" onClick={saveEdits} disabled={!draft.trim() || savedState === "saving"}>
