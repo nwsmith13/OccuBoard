@@ -203,7 +203,7 @@ export function generateRecommendations({
         actionLabel: "Review analysis",
         actionTab: "fit",
         score: momentumScore + 3,
-        reasoningText: "Fit analysis includes practical gap-positioning suggestions.",
+        reasoningText: "Fit analysis includes practical hiring consideration suggestions.",
         reasoningSignals: ["mitigation_available", ...momentum.factors],
         confidence: 0.74,
       }));

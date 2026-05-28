@@ -599,6 +599,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
                 resume={latestResume}
                 contacts={contacts}
                 coverLetter={latestCoverLetter}
+                recruiterMessage={latestMessage}
                 user={user}
                 onSave={saveMessage}
                 onUpdate={updateMessage}
@@ -1309,7 +1310,7 @@ function MaterialCard({ title, status, description, children }) {
   );
 }
 
-function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, user, onSave, onUpdate, onLogActivity, onUnsavedChange }) {
+function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, recruiterMessage, user, onSave, onUpdate, onLogActivity, onUnsavedChange }) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState("");
@@ -1461,7 +1462,7 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
             setSavedState("dirty");
           }}
         />
-        <RewriteVisibilityPanel material={coverLetter} score={score} originalText={profile?.base_resume_text} generatedText={draft} materialType="coverLetter" className="mt-4" />
+        <RewriteVisibilityPanel material={coverLetter} materials={{ resume, coverLetter, message: recruiterMessage }} score={score} originalText={profile?.base_resume_text} generatedText={draft} materialType="coverLetter" className="mt-3" />
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button className="min-h-8 px-3 text-xs" onClick={saveEdits} disabled={!draft.trim() || savedState === "saving"}>
             {savedState === "saving" && <Loader2 size={14} className="animate-spin" />}

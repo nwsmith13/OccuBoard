@@ -7,7 +7,7 @@ import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
 import { getLatestForJob, isCoverLetter, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
 import { buildMitigationPlan, getAppliedMitigationLabels, getAppliedMitigations } from "../../lib/mitigationPlan.js";
-import { buildGapRecovery, buildRewriteInsights } from "../../lib/rewriteInsights.js";
+import { buildGapRecovery, buildMaterialRecoveryScores, buildRewriteInsights, estimateOptimizedFit } from "../../lib/rewriteInsights.js";
 import { assessRewriteRestraint } from "../../lib/rewriteRestraint.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { ResumeExportPanel } from "../resume/ResumeExportPanel.jsx";
@@ -121,8 +121,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
           </div>
         )}
         {activeAction === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} />}
-        {activeAction === "resume" && <ResumeResult resume={latestResume} score={latestScore} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
-          {activeAction === "message" && <MessageResult message={latestMessage} score={latestScore} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+        {activeAction === "resume" && <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
+          {activeAction === "message" && <MessageResult message={latestMessage} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
       </section>
     );
   }
@@ -216,8 +216,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       {!compact && (
         <>
           {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} />}
-          {activeTab === "resume" && <ResumeResult resume={latestResume} score={latestScore} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
-          {activeTab === "message" && <MessageResult message={latestMessage} score={latestScore} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "resume" && <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "message" && <MessageResult message={latestMessage} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
         </>
       )}
@@ -393,7 +393,7 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
   );
 }
 
-export function ResumeResult({ resume, score, analysisReady = true, onAnalyze, onGenerate, onRegenerate, onExportComplete, loading, showAction = true }) {
+export function ResumeResult({ resume, score, materials = {}, analysisReady = true, onAnalyze, onGenerate, onRegenerate, onExportComplete, loading, showAction = true }) {
   const { profile, jobs } = useWorkspaceStore();
   const job = resume ? jobs.find((item) => item.id === resume.job_id) : null;
   const whyThisFits = extractWhyThisFits(resume?.content);
@@ -417,7 +417,7 @@ export function ResumeResult({ resume, score, analysisReady = true, onAnalyze, o
           <p className="mt-2">{whyThisFits}</p>
         </div>
       )}
-      <RewriteVisibilityPanel material={resume} score={score} originalText={profile?.base_resume_text} generatedText={resume.content} materialType="resume" className="mt-4" />
+      <RewriteVisibilityPanel material={resume} materials={materials} score={score} originalText={profile?.base_resume_text} generatedText={resume.content} materialType="resume" className="mt-3" />
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           className="inline-flex min-h-10 items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
@@ -434,7 +434,7 @@ export function ResumeResult({ resume, score, analysisReady = true, onAnalyze, o
   );
 }
 
-export function MessageResult({ message, score, analysisReady = true, resumeReady = false, coverLetterReady = false, contacts = [], selectedContactId = "", onContactChange, onAnalyze, onResume, onSave, onLogActivity, onGenerate, onRegenerate, loading, showAction = true }) {
+export function MessageResult({ message, score, materials = {}, analysisReady = true, resumeReady = false, coverLetterReady = false, contacts = [], selectedContactId = "", onContactChange, onAnalyze, onResume, onSave, onLogActivity, onGenerate, onRegenerate, loading, showAction = true }) {
   const toast = useToast();
   const { profile } = useWorkspaceStore();
   const [editing, setEditing] = useState(false);
@@ -517,7 +517,7 @@ export function MessageResult({ message, score, analysisReady = true, resumeRead
       ) : (
         <p className="mt-4 whitespace-pre-wrap rounded-lg bg-white p-4 text-sm leading-6 text-slate-700">{draft}</p>
       )}
-      <RewriteVisibilityPanel material={message} score={score} originalText={profile?.base_resume_text} generatedText={draft} materialType="message" className="mt-4" />
+      <RewriteVisibilityPanel material={message} materials={materials} score={score} originalText={profile?.base_resume_text} generatedText={draft} materialType="message" className="mt-3" />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {editing ? (
           <>
@@ -582,7 +582,7 @@ export function AppliedMitigationList({ material, items, className = "" }) {
   );
 }
 
-export function RewriteVisibilityPanel({ material, score, originalText = "", generatedText = "", materialType = "resume", className = "" }) {
+export function RewriteVisibilityPanel({ material, materials = {}, score, originalText = "", generatedText = "", materialType = "resume", className = "" }) {
   const [expanded, setExpanded] = useState({});
   const mitigationPlan = buildMitigationPlan(score);
   const insights = buildRewriteInsights({
@@ -597,16 +597,27 @@ export function RewriteVisibilityPanel({ material, score, originalText = "", gen
   }).sections;
   const appliedLabels = getAppliedMitigationLabels(material);
   const recovery = buildGapRecovery({ mitigationPlan, rewriteSections: insights, generatedText });
+  const strategicRecovery = buildMaterialRecoveryScores({
+    mitigationPlan,
+    materials: {
+      resume: materials.resume,
+      coverLetter: materials.coverLetter,
+      message: materials.message,
+      current: { ...material, content: generatedText },
+    },
+    rewriteSections: insights,
+  });
   const restraint = assessRewriteRestraint(originalText, generatedText);
-  const meaningfulRecovery = recovery.filter((item) => item.recovery !== "Unchanged").slice(0, materialType === "resume" ? 4 : 2);
+  const meaningfulRecovery = (strategicRecovery.length ? strategicRecovery : recovery).filter((item) => item.score > 0 || item.recovery !== "Unchanged").slice(0, materialType === "resume" ? 4 : 2);
   const showPreservation = materialType === "resume" && restraint.preservationScore > 0;
   const strongRecoveries = meaningfulRecovery.filter((item) => item.recovery.startsWith("Strong")).length;
   const preservation = getPreservationCopy(restraint.preservationScore);
+  const fitEstimate = estimateOptimizedFit({ baselineScore: score?.score, recoveryScores: meaningfulRecovery, rewriteSections: insights, keywords: score?.keywords, generatedText });
 
   if (!insights.length && !appliedLabels.length && !meaningfulRecovery.length && !showPreservation) return null;
 
   return (
-    <section className={`rounded-lg bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 ${className}`}>
+    <section className={`rounded-lg bg-white/90 p-3 shadow-sm ring-1 ring-brand-100 sm:p-4 ${className}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-bold text-ink">Strengthened from analysis</p>
@@ -625,6 +636,17 @@ export function RewriteVisibilityPanel({ material, score, originalText = "", gen
         {showPreservation && <SummaryChip>{preservation.shortLabel}</SummaryChip>}
       </div>
 
+      {fitEstimate && materialType === "resume" && (
+        <div className="mt-3 rounded-lg bg-brand-50/70 p-3 ring-1 ring-brand-100">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-bold text-slate-600">Initial fit: {fitEstimate.initial}</span>
+            <span className="font-bold text-brand-900">Optimized estimate: {fitEstimate.optimized}</span>
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-100">+{fitEstimate.delta} improvement</span>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-slate-500">Estimate based on mitigation coverage, keyword recovery, and strengthened role alignment.</p>
+        </div>
+      )}
+
       {appliedLabels.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {appliedLabels.map((label) => (
@@ -638,8 +660,8 @@ export function RewriteVisibilityPanel({ material, score, originalText = "", gen
 
       {showPreservation && (
         <div className="mt-3 rounded-lg bg-brand-50/70 p-3 text-sm text-slate-700 ring-1 ring-brand-100">
-          <p className="font-bold text-brand-900">{preservation.label}</p>
-          <p className="mt-1 text-sm leading-5 text-slate-600">{restraint.preservationScore}% of original positioning remained intact.</p>
+          <p className="font-bold text-brand-900">{restraint.summary || preservation.label}</p>
+          <p className="mt-1 text-sm leading-5 text-slate-600">{restraint.preservationScore}% wording retained · tone {String(restraint.tonePreserved || "").toLowerCase()} · {String(restraint.keywordInjectionLevel || "light").toLowerCase()} keyword enhancement.</p>
         </div>
       )}
 
@@ -666,12 +688,14 @@ export function RewriteVisibilityPanel({ material, score, originalText = "", gen
             {meaningfulRecovery.map((item) => (
               <div key={item.gapId} className="grid gap-1.5 text-sm sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
                 <span className="min-w-0 text-slate-700">{item.label}</span>
-                <RecoveryBar recovery={item.recovery} />
+                <RecoveryBar recovery={item.recovery} confidence={item.confidence} />
               </div>
             ))}
           </div>
         </div>
       )}
+      {strategicRecovery.length > 0 && <CoverageMatrix rows={strategicRecovery.slice(0, materialType === "resume" ? 4 : 3)} />}
+      {materialType === "resume" && (fitEstimate || appliedLabels.length > 0) && <RecoveryTimeline fitEstimate={fitEstimate} hasMessage={Boolean(materials.message)} hasResume={Boolean(materials.resume)} />}
     </section>
   );
 }
@@ -729,7 +753,7 @@ function SummaryChip({ children }) {
   return <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{children}</span>;
 }
 
-function RecoveryBar({ recovery }) {
+function RecoveryBar({ recovery, confidence }) {
   const percent = getRecoveryPercent(recovery);
   return (
     <div className="min-w-0" aria-label={recovery}>
@@ -739,6 +763,68 @@ function RecoveryBar({ recovery }) {
         </div>
         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getRecoveryTone(recovery)}`}>{recovery}</span>
       </div>
+      {confidence && <p className="mt-1 text-[11px] font-semibold text-slate-500">{confidence}</p>}
+    </div>
+  );
+}
+
+function CoverageMatrix({ rows }) {
+  if (!rows.length) return null;
+  return (
+    <div className="mt-3 rounded-lg bg-white p-3 ring-1 ring-slate-100" title="Shows where OccuBoard strengthened positioning.">
+      <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Strategic coverage</p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[420px] text-left text-xs">
+          <thead className="text-slate-500">
+            <tr>
+              <th className="py-1 pr-2 font-bold">Consideration</th>
+              <th className="px-2 py-1 text-center font-bold">Resume</th>
+              <th className="px-2 py-1 text-center font-bold">Cover Letter</th>
+              <th className="px-2 py-1 text-center font-bold">Recruiter</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.map((row) => (
+              <tr key={row.gapId}>
+                <td className="py-1.5 pr-2 font-semibold text-slate-700">{row.label}</td>
+                <CoverageCell active={row.coverage.resume} />
+                <CoverageCell active={row.coverage.coverLetter} />
+                <CoverageCell active={row.coverage.recruiterMessage} />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CoverageCell({ active }) {
+  return (
+    <td className="px-2 py-1.5 text-center">
+      <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ring-1 ${active ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-slate-50 text-slate-400 ring-slate-100"}`}>
+        {active ? "✓" : "—"}
+      </span>
+    </td>
+  );
+}
+
+function RecoveryTimeline({ fitEstimate, hasResume, hasMessage }) {
+  const items = [
+    "Analysis complete",
+    "Mitigation strategy generated",
+    hasResume ? "Resume strengthened" : "",
+    hasMessage ? "Recruiter positioning enhanced" : "",
+    fitEstimate ? `Fit estimate improved +${fitEstimate.delta}` : "",
+  ].filter(Boolean);
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50/80 p-2.5 text-[11px] font-bold text-slate-600 ring-1 ring-slate-100">
+      {items.map((item, index) => (
+        <span key={item} className="inline-flex items-center gap-2">
+          <span>{item}</span>
+          {index < items.length - 1 && <span className="text-brand-300">→</span>}
+        </span>
+      ))}
     </div>
   );
 }
@@ -781,6 +867,7 @@ function getPreservationCopy(score) {
 }
 
 function getRecoveryTone(recovery = "") {
+  if (recovery.startsWith("Fully")) return "bg-emerald-100 text-emerald-800 ring-emerald-200";
   if (recovery.startsWith("Strong")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   if (recovery.startsWith("Moderate")) return "bg-brand-50 text-brand-700 ring-brand-100";
   if (recovery.startsWith("Partial")) return "bg-amber-50 text-amber-700 ring-amber-100";
@@ -788,6 +875,7 @@ function getRecoveryTone(recovery = "") {
 }
 
 function getRecoveryBarTone(recovery = "") {
+  if (recovery.startsWith("Fully")) return "bg-emerald-500";
   if (recovery.startsWith("Strong")) return "bg-emerald-400";
   if (recovery.startsWith("Moderate")) return "bg-cyan-500";
   if (recovery.startsWith("Partial")) return "bg-amber-400";
@@ -795,6 +883,7 @@ function getRecoveryBarTone(recovery = "") {
 }
 
 function getRecoveryPercent(recovery = "") {
+  if (recovery.startsWith("Fully")) return 96;
   if (recovery.startsWith("Strong")) return 82;
   if (recovery.startsWith("Moderate")) return 64;
   if (recovery.startsWith("Partial")) return 42;
@@ -943,8 +1032,8 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
   return (
     <div className="mt-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <p className="text-sm font-bold">Gaps</p>
-        <p className="text-xs font-medium text-slate-500">Not all gaps carry equal weight.</p>
+        <p className="text-sm font-bold">Hiring considerations</p>
+        <p className="text-xs font-medium text-slate-500">Areas that may benefit from stronger positioning or clarification.</p>
       </div>
       <div className="mt-2 grid gap-2">
         {items.map((item, index) => {

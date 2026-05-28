@@ -28,17 +28,29 @@ export function assessRewriteRestraint(originalText = "", generatedText = "") {
       preservedStrengths: [],
       rewrittenAreas: [],
       preservationScore: 0,
+      wordingPreserved: 0,
+      tonePreserved: "Unknown",
+      positioningStrengthened: "Unknown",
+      keywordInjectionLevel: "Unknown",
+      summary: "No preservation signal available yet.",
     };
   }
 
   const preservedStrengths = originalTerms.filter((term) => generated.includes(term)).slice(0, 8);
   const rewrittenAreas = getRewriteAreas(generatedText);
   const preservationScore = Math.min(94, Math.max(62, Math.round((preservedStrengths.length / Math.min(originalTerms.length, 18)) * 100)));
+  const keywordInjectionLevel = getKeywordInjectionLevel(originalText, generatedText);
+  const positioningStrengthened = rewrittenAreas.length >= 3 ? "Strong" : rewrittenAreas.length ? "Targeted" : "Light";
 
   return {
     preservedStrengths,
     rewrittenAreas,
     preservationScore,
+    wordingPreserved: preservationScore,
+    tonePreserved: preservationScore >= 70 ? "Highly preserved" : "Mostly preserved",
+    positioningStrengthened,
+    keywordInjectionLevel,
+    summary: `${preservationScore >= 70 ? "Voice mostly preserved" : "Voice moderately preserved"} with ${positioningStrengthened.toLowerCase()} operational positioning improvements.`,
   };
 }
 
@@ -62,6 +74,16 @@ function getSignificantTerms(text = "") {
     .sort((a, b) => b[1] - a[1])
     .map(([term]) => term)
     .slice(0, 24);
+}
+
+function getKeywordInjectionLevel(originalText = "", generatedText = "") {
+  const original = normalizeText(originalText);
+  const generated = normalizeText(generatedText);
+  const strategicTerms = ["validation", "rollout", "escalation", "intake", "workflow", "documentation", "enablement", "operational", "platform"];
+  const added = strategicTerms.filter((term) => generated.includes(term) && !original.includes(term)).length;
+  if (added >= 5) return "High";
+  if (added >= 2) return "Moderate";
+  return "Light";
 }
 
 function normalizeText(value = "") {

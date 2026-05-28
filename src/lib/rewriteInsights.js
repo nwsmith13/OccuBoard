@@ -120,12 +120,52 @@ export function buildGapRecovery({ mitigationPlan, rewriteSections = [], generat
   return mitigationPlan.items.map((item) => {
     const related = rewriteSections.filter((section) => section.mitigationSource === item.appliedLabel);
     const hasDirectContent = categoryTerms(item.category).some((term) => generated.includes(term));
+    const score = getRecoveryScore({ item, relatedSections: related, hasDirectContent, coverageCount: hasDirectContent ? 1 : 0 });
     return {
       gapId: item.id,
       label: item.appliedLabel,
-      recovery: getRecoveryLevel(item, related, hasDirectContent),
+      score,
+      recovery: getRecoveryLabel(score),
     };
   });
+}
+
+export function buildMaterialRecoveryScores({ mitigationPlan, materials = {}, rewriteSections = [] } = {}) {
+  if (!mitigationPlan?.items?.length) return [];
+  return mitigationPlan.items.map((item) => {
+    const coverage = {
+      resume: materialHasMitigation(materials.resume, item) || materialContainsTerms(materials.resume, item.category),
+      coverLetter: materialHasMitigation(materials.coverLetter, item) || materialContainsTerms(materials.coverLetter, item.category),
+      recruiterMessage: materialHasMitigation(materials.message, item) || materialContainsTerms(materials.message, item.category),
+    };
+    const coverageCount = Object.values(coverage).filter(Boolean).length;
+    const related = rewriteSections.filter((section) => section.mitigationSource === item.appliedLabel);
+    const hasDirectContent = Object.values(materials).some((material) => materialContainsTerms(material, item.category));
+    const score = getRecoveryScore({ item, relatedSections: related, hasDirectContent, coverageCount });
+    return {
+      gapId: item.id,
+      label: item.appliedLabel,
+      category: item.category,
+      confidence: getRecoveryConfidence(item, score),
+      coverage,
+      score,
+      recovery: getRecoveryLabel(score),
+    };
+  });
+}
+
+export function estimateOptimizedFit({ baselineScore = 0, recoveryScores = [], rewriteSections = [], keywords = [], generatedText = "" } = {}) {
+  const baseline = Number(baselineScore) || 0;
+  if (!baseline || !recoveryScores.length) return null;
+  const recoveryLift = Math.min(6, Math.round(recoveryScores.reduce((sum, item) => sum + item.score, 0) / 2));
+  const rewriteLift = Math.min(3, rewriteSections.filter((item) => item.impactLevel === "high").length + Math.floor(rewriteSections.length / 2));
+  const keywordLift = Math.min(2, countKeywordHits(keywords, generatedText));
+  const delta = Math.max(1, Math.min(10, recoveryLift + rewriteLift + keywordLift));
+  return {
+    initial: baseline,
+    optimized: Math.min(99, baseline + delta),
+    delta,
+  };
 }
 
 function findMitigationSource(plan, sourceCategories = []) {
@@ -138,10 +178,42 @@ function getConfidence(source, wasAlreadyEmphasized) {
   return "moderate";
 }
 
-function getRecoveryLevel(item, relatedSections, hasDirectContent) {
-  if (relatedSections.some((section) => section.confidence === "strong")) return "Strong recovery";
-  if (relatedSections.length || hasDirectContent) return item.severity === "minor" ? "Moderate recovery" : "Partial recovery";
-  return "Unchanged";
+function getRecoveryScore({ item, relatedSections = [], hasDirectContent = false, coverageCount = 0 }) {
+  let score = 0;
+  if (coverageCount > 0) score += Math.min(2, coverageCount);
+  if (hasDirectContent) score += 1;
+  if (relatedSections.some((section) => section.confidence === "strong")) score += 1;
+  if (item.confidence === "strong" && score > 0) score += 1;
+  if (item.severity === "minor" && score > 3) score = 3;
+  return Math.max(0, Math.min(4, score));
+}
+
+function getRecoveryLabel(score) {
+  return ["Unaddressed", "Partial recovery", "Moderate recovery", "Strong recovery", "Fully addressed"][score] || "Unaddressed";
+}
+
+function getRecoveryConfidence(item, score) {
+  if (score >= 3 && item.confidence !== "missing") return "High confidence";
+  if (score >= 2) return "Moderate confidence";
+  return "Low confidence";
+}
+
+function materialHasMitigation(material, item) {
+  const mitigations = normalizeArray(material?.appliedMitigations ?? material?.applied_mitigations);
+  return mitigations.some((entry) => entry?.gapId === item.id || entry?.appliedLabel === item.appliedLabel || entry?.applied_label === item.appliedLabel);
+}
+
+function materialContainsTerms(material, category) {
+  const text = normalizeText(material?.content || material?.coverLetterText || "");
+  return Boolean(text) && categoryTerms(category).some((term) => text.includes(term));
+}
+
+function countKeywordHits(keywords = [], generatedText = "") {
+  const generated = normalizeText(generatedText);
+  return normalizeArray(keywords).filter((keyword) => {
+    const value = normalizeText(keyword);
+    return value && generated.includes(value);
+  }).length;
 }
 
 function getBeforePatterns(category) {
