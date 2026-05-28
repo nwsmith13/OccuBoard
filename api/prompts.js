@@ -48,13 +48,25 @@ Role-level positioning guardrail:
 export const fitSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["score", "recommendation", "summary", "strengths", "gaps", "keywords", "transferableStrengths", "betterAlignedRoles"],
+  required: ["score", "recommendation", "summary", "strengths", "gaps", "mitigationSuggestions", "keywords", "transferableStrengths", "betterAlignedRoles"],
   properties: {
     score: { type: "integer" },
     recommendation: { type: "string", enum: ["Apply", "Maybe", "Skip"] },
     summary: { type: "string" },
     strengths: { type: "array", items: { type: "string" } },
     gaps: { type: "array", items: { type: "string" } },
+    mitigationSuggestions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["gap", "suggestions"],
+        properties: {
+          gap: { type: "string" },
+          suggestions: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
     keywords: { type: "array", items: { type: "string" } },
     transferableStrengths: {
       type: "array",
@@ -225,9 +237,19 @@ Return:
 - one short summary written in a supportive, nuanced, career-guiding tone
 - 3-5 strengths grounded in the resume/profile
 - 2-4 gaps or risks
+- mitigationSuggestions: one entry per meaningful gap, with 1-3 practical suggestions for addressing or positioning that gap
 - 5-10 relevant keywords from the job/user overlap
 - transferableStrengths: professional strengths the user still has even if this role is not a direct fit
 - betterAlignedRoles: 3-5 more realistic role types based on actual background
+
+Mitigation suggestion rules:
+- For each identified gap, provide 1-3 short practical mitigation suggestions.
+- Suggestions should be resume, interview, or application focused.
+- Leverage transferable experience already present in the resume/profile.
+- Never invent experience.
+- Avoid generic advice like "learn the platform", "gain more experience", or "take a course".
+- Suggestions should help the candidate position adjacent experience more effectively.
+- Good examples: "Position Jira and workflow coordination as operational intake-tracking experience.", "Highlight onboarding documentation and quick-reference guide creation.", "Emphasize cross-functional coordination during ERP integrations."
 
 Evidence confidence rules:
 - Distinguish direct evidence, partial/adjacent evidence, and missing evidence.

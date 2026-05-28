@@ -306,6 +306,7 @@ export async function saveJobScore(user, job, score) {
     score: score.score,
     strengths: score.strengths ?? [],
     gaps: score.gaps ?? [],
+    mitigation_suggestions: score.mitigationSuggestions ?? score.mitigation_suggestions ?? [],
     keywords: score.keywords ?? [],
     transferable_strengths: score.transferableStrengths ?? score.transferable_strengths ?? [],
     better_aligned_roles: score.betterAlignedRoles ?? score.better_aligned_roles ?? [],
@@ -323,6 +324,7 @@ export async function saveJobScore(user, job, score) {
       delete legacyPayload.transferable_strengths;
       delete legacyPayload.better_aligned_roles;
       delete legacyPayload.tailoring_intensity;
+      delete legacyPayload.mitigation_suggestions;
       const retry = await supabase.from("job_scores").insert(legacyPayload).select("*").single();
       if (retry.error) throw retry.error;
     await logActivity(user, "AI", `Analyzed fit for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
@@ -332,6 +334,7 @@ export async function saveJobScore(user, job, score) {
         transferable_strengths: payload.transferable_strengths,
         better_aligned_roles: payload.better_aligned_roles,
         tailoring_intensity: payload.tailoring_intensity,
+        mitigation_suggestions: payload.mitigation_suggestions,
       };
     }
     await logActivity(user, "AI", `Analyzed fit for ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);

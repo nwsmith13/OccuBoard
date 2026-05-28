@@ -11,6 +11,7 @@ const visibleTypeLimits = {
   HIGH_MOMENTUM_ROLE: 1,
   COVER_LETTER_RECOMMENDED: 2,
   READY_TO_APPLY: 1,
+  STRENGTHEN_POSITIONING: 1,
 };
 const urgentBypassTypes = new Set(["FOLLOW_UP_OVERDUE", "FOLLOW_UP_DUE", "INTERVIEW_SOON"]);
 
@@ -25,6 +26,7 @@ export const recommendationTypes = {
   STALE_APPLICATION: "STALE_APPLICATION",
   READY_TO_APPLY: "READY_TO_APPLY",
   HIGH_MOMENTUM_ROLE: "HIGH_MOMENTUM_ROLE",
+  STRENGTHEN_POSITIONING: "STRENGTHEN_POSITIONING",
   ARCHIVE_CANDIDATE: "ARCHIVE_CANDIDATE",
 };
 
@@ -190,6 +192,23 @@ export function generateRecommendations({
       }));
     }
 
+    if (hasMeaningfulMitigation(score) && scoreValue >= 60 && ["Saved", "Applied"].includes(stage)) {
+      const mitigation = getFirstMitigation(score);
+      recommendations.push(buildRecommendation(job, {
+        type: recommendationTypes.STRENGTHEN_POSITIONING,
+        priority: "low",
+        urgency: "suggested",
+        title: "Strengthen positioning.",
+        description: getMitigationDescription(mitigation),
+        actionLabel: "Review analysis",
+        actionTab: "fit",
+        score: momentumScore + 3,
+        reasoningText: "Fit analysis includes practical gap-positioning suggestions.",
+        reasoningSignals: ["mitigation_available", ...momentum.factors],
+        confidence: 0.74,
+      }));
+    }
+
     if (scoreValue >= 85 && inactiveDays <= 4 && hasRecruiterMessage) {
       recommendations.push(buildRecommendation(job, {
         type: recommendationTypes.HIGH_MOMENTUM_ROLE,
@@ -338,8 +357,27 @@ export function getRecommendationIcon(type) {
     STALE_APPLICATION: "clock",
     READY_TO_APPLY: "arrow",
     HIGH_MOMENTUM_ROLE: "trending",
+    STRENGTHEN_POSITIONING: "search",
     ARCHIVE_CANDIDATE: "archive",
   }[type] ?? "sparkles";
+}
+
+function hasMeaningfulMitigation(score = {}) {
+  return getMitigations(score).some((item) => item.suggestions?.length);
+}
+
+function getFirstMitigation(score = {}) {
+  return getMitigations(score).find((item) => item.suggestions?.length);
+}
+
+function getMitigations(score = {}) {
+  return score.mitigation_suggestions || score.mitigationSuggestions || [];
+}
+
+function getMitigationDescription(mitigation = {}) {
+  const suggestion = mitigation.suggestions?.[0];
+  if (suggestion) return suggestion;
+  return "Review the fit analysis for practical ways to position adjacent experience.";
 }
 
 function hasValidAnalysis(score) {

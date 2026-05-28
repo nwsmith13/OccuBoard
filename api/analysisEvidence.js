@@ -27,7 +27,7 @@ const semanticToolGroups = {
   },
   erp_systems: {
     label: "ERP systems",
-    terms: ["Banner", "PeopleSoft", "NetSuite", "Sage Intacct", "SAP", "Oracle ERP", "ERP"],
+    terms: ["Banner", "PeopleSoft", "NetSuite", "Sage Intacct", "BuildOps", "SAP", "Oracle ERP", "ERP"],
     directContext: ["ERP", "finance system", "student information system", "integration"],
   },
   project_management: {
@@ -99,20 +99,36 @@ export function refineFitAnalysisEvidence(result = {}, profile = {}, job = {}) {
     ...result,
     strengths: Array.isArray(result.strengths) ? [...result.strengths] : [],
     gaps: Array.isArray(result.gaps) ? [...result.gaps] : [],
+    mitigationSuggestions: Array.isArray(result.mitigationSuggestions) ? [...result.mitigationSuggestions] : [],
   };
 
   evidence.forEach((item) => {
     if (item.category === "ticketing_systems" && item.confidence === "partial") {
+      const refinedGap = "Limited direct ITSM/service-desk evidence. Jira experience is present, though support intake and ticket lifecycle workflows are not heavily emphasized.";
       next.gaps = replaceHardNegativeGap(
         next.gaps,
         /\b(no|not|without|lacks?|missing)\b.*\b(ticket|ticketing|itsm|service\s*desk|zendesk|servicenow)\b|\b(ticket|ticketing|itsm|service\s*desk|zendesk|servicenow)\b.*\b(no|not|without|lacks?|missing)\b/i,
-        "Limited direct ITSM/service-desk evidence. Jira experience is present, though support intake and ticket lifecycle workflows are not heavily emphasized."
+        refinedGap
       );
       addUniqueSignal(next.strengths, "Jira and workflow coordination suggest transferable intake-tracking experience.");
+      addMitigation(next.mitigationSuggestions, refinedGap, [
+        "Position Jira and workflow coordination as transferable intake-tracking experience.",
+        "Highlight escalation coordination from SaaS implementation or support projects when present.",
+        "Mention onboarding support and issue-resolution workflows without claiming direct ITSM ownership.",
+      ]);
     }
 
     if (item.category === "erp_systems" && ["strong", "partial"].includes(item.confidence)) {
       addUniqueSignal(next.strengths, "ERP integration work implies operational systems coordination familiarity.");
+      if (item.confidence === "partial") {
+        const requestedPlatforms = item.missingTerms.length ? item.missingTerms.join(" or ") : "the requested ERP platform";
+        const refinedGap = `Limited direct ownership of ${requestedPlatforms}.`;
+        next.gaps = replaceHardNegativeGap(next.gaps, /\b(Sage\s*Intacct|BuildOps|ERP|enterprise\s+resource\s+planning)\b/i, refinedGap);
+        addMitigation(next.mitigationSuggestions, refinedGap, [
+          "Emphasize ERP integration coordination and system handoff experience.",
+          "Connect workflow configuration, documentation, and user support to operational systems readiness.",
+        ]);
+      }
     }
   });
 
@@ -152,6 +168,15 @@ function replaceHardNegativeGap(gaps, pattern, replacement) {
 
 function addUniqueSignal(items, signal) {
   if (!items.some((item) => normalize(item).includes(normalize(signal).slice(0, 28)))) items.push(signal);
+}
+
+function addMitigation(items, gap, suggestions) {
+  const existing = items.find((item) => normalize(item.gap) === normalize(gap));
+  if (existing) {
+    existing.suggestions = uniqueTerms([...(existing.suggestions || []), ...suggestions]);
+    return;
+  }
+  items.push({ gap, suggestions });
 }
 
 function getMatchedTerms(text = "", terms = []) {

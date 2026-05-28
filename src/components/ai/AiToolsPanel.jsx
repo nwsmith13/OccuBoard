@@ -368,7 +368,7 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
       </div>
       <p className="mt-5 rounded-lg bg-white/80 p-4 text-sm font-medium leading-6 text-slate-700">{score.summary}</p>
       <AiList title="Strengths" items={score.strengths} />
-      <AiList title="Gaps" items={score.gaps} />
+      <GapList gaps={score.gaps} mitigationSuggestions={score.mitigationSuggestions || score.mitigation_suggestions} />
       <TransferableStrengths items={score.transferable_strengths || score.transferableStrengths} />
       <BetterAlignedRoles items={score.better_aligned_roles || score.betterAlignedRoles} />
       <AiList title="Keywords" items={score.keywords} inline />
@@ -652,6 +652,51 @@ function AiList({ title, items = [], inline = false }) {
       </div>
     </div>
   );
+}
+
+function GapList({ gaps = [], mitigationSuggestions = [] }) {
+  if (!gaps.length) return null;
+  return (
+    <div className="mt-4">
+      <p className="text-sm font-bold">Gaps</p>
+      <div className="mt-2 grid gap-2">
+        {gaps.map((gap) => {
+          const text = getGapText(gap);
+          const mitigation = findMitigationForGap(text, mitigationSuggestions);
+          return (
+            <div key={text} className="rounded-lg bg-white px-3 py-2 text-sm text-slate-700">
+              <p>{text}</p>
+              {mitigation?.suggestions?.length > 0 && (
+                <div className="mt-3 rounded-lg bg-brand-50/80 p-3 ring-1 ring-brand-100">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Mitigation suggestions</p>
+                  <ul className="mt-2 grid gap-1.5 text-[13px] leading-5 text-slate-700">
+                    {mitigation.suggestions.map((suggestion) => <li key={suggestion}>• {suggestion}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function getGapText(gap) {
+  if (typeof gap === "string") return gap;
+  return gap?.gap || gap?.text || "";
+}
+
+function findMitigationForGap(gap, mitigationSuggestions = []) {
+  const normalizedGap = normalizeText(gap);
+  return mitigationSuggestions.find((item) => {
+    const itemGap = normalizeText(item.gap);
+    return itemGap && (itemGap === normalizedGap || itemGap.includes(normalizedGap.slice(0, 40)) || normalizedGap.includes(itemGap.slice(0, 40)));
+  });
+}
+
+function normalizeText(value = "") {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function TransferableStrengths({ items = [] }) {
