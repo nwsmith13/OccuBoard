@@ -93,14 +93,22 @@ export function refineFitAnalysisEvidence(result = {}, profile = {}, job = {}) {
     resumeText: profile.base_resume_text,
     jobDescription: job.job_description,
   });
-  if (!evidence.length || !result) return result;
+  if (!result) return result;
 
   const next = {
     ...result,
     strengths: Array.isArray(result.strengths) ? [...result.strengths] : [],
     gaps: Array.isArray(result.gaps) ? [...result.gaps] : [],
+    gapAssessments: Array.isArray(result.gapAssessments) ? [...result.gapAssessments] : [],
     mitigationSuggestions: Array.isArray(result.mitigationSuggestions) ? [...result.mitigationSuggestions] : [],
   };
+
+  if (!evidence.length) {
+    return {
+      ...next,
+      gapAssessments: sortGapAssessments(completeGapAssessments(next.gaps, next.gapAssessments, next.mitigationSuggestions)),
+    };
+  }
 
   evidence.forEach((item) => {
     if (item.category === "ticketing_systems" && item.confidence === "partial") {
@@ -116,6 +124,16 @@ export function refineFitAnalysisEvidence(result = {}, profile = {}, job = {}) {
         "Highlight escalation coordination from SaaS implementation or support projects when present.",
         "Mention onboarding support and issue-resolution workflows without claiming direct ITSM ownership.",
       ]);
+      addGapAssessment(next.gapAssessments, {
+        gap: refinedGap,
+        severity: "moderate",
+        confidence: "partial",
+        mitigationSuggestions: [
+          "Position Jira and workflow coordination as transferable intake-tracking experience.",
+          "Highlight escalation coordination from SaaS implementation or support projects when present.",
+          "Mention onboarding support and issue-resolution workflows without claiming direct ITSM ownership.",
+        ],
+      });
     }
 
     if (item.category === "erp_systems" && ["strong", "partial"].includes(item.confidence)) {
@@ -128,11 +146,23 @@ export function refineFitAnalysisEvidence(result = {}, profile = {}, job = {}) {
           "Emphasize ERP integration coordination and system handoff experience.",
           "Connect workflow configuration, documentation, and user support to operational systems readiness.",
         ]);
+        addGapAssessment(next.gapAssessments, {
+          gap: refinedGap,
+          severity: item.missingTerms.some((term) => /BuildOps|Sage Intacct/i.test(term)) ? "minor" : "moderate",
+          confidence: "partial",
+          mitigationSuggestions: [
+            "Emphasize ERP integration coordination and system handoff experience.",
+            "Connect workflow configuration, documentation, and user support to operational systems readiness.",
+          ],
+        });
       }
     }
   });
 
-  return next;
+  return {
+    ...next,
+    gapAssessments: sortGapAssessments(completeGapAssessments(next.gaps, next.gapAssessments, next.mitigationSuggestions)),
+  };
 }
 
 function getConfidence({ category, matchedTerms, missingTerms, resumeTerms, resumeContext, requestedTerms }) {
@@ -177,6 +207,81 @@ function addMitigation(items, gap, suggestions) {
     return;
   }
   items.push({ gap, suggestions });
+}
+
+function addGapAssessment(items, assessment) {
+  const existing = items.find((item) => normalize(item.gap) === normalize(assessment.gap));
+  if (existing) {
+    existing.severity = getStrongerSeverity(existing.severity, assessment.severity);
+    existing.confidence = getStrongerConfidence(existing.confidence, assessment.confidence);
+    existing.mitigationSuggestions = uniqueTerms([...(existing.mitigationSuggestions || []), ...(assessment.mitigationSuggestions || [])]);
+    return;
+  }
+  items.push(assessment);
+}
+
+function completeGapAssessments(gaps, assessments, mitigations) {
+  const next = [...assessments];
+  gaps.forEach((gap) => {
+    const text = getGapText(gap);
+    if (!text || next.some((item) => normalize(item.gap) === normalize(text))) return;
+    const mitigation = mitigations.find((item) => normalize(item.gap) === normalize(text));
+    next.push({
+      gap: text,
+      severity: inferSeverity(text),
+      confidence: inferConfidence(text),
+      mitigationSuggestions: mitigation?.suggestions || [],
+    });
+  });
+  return next.map((item) => ({
+    gap: item.gap,
+    severity: normalizeSeverity(item.severity),
+    confidence: normalizeConfidence(item.confidence),
+    mitigationSuggestions: item.mitigationSuggestions || item.suggestions || [],
+  }));
+}
+
+function sortGapAssessments(items) {
+  const severityRank = { critical: 0, moderate: 1, minor: 2, informational: 3 };
+  const confidenceRank = { missing: 0, partial: 1, strong: 2 };
+  return [...items].sort((a, b) => severityRank[a.severity] - severityRank[b.severity] || confidenceRank[a.confidence] - confidenceRank[b.confidence]);
+}
+
+function inferSeverity(gap = "") {
+  if (/\b(certification|required license|degree required|no relevant experience|no customer-facing|no onboarding)\b/i.test(gap)) return "critical";
+  if (/\b(ITSM|service\s*desk|ownership|industry-specific|workflow experience|implementation experience)\b/i.test(gap)) return "moderate";
+  if (/\b(BuildOps|Sage\s*Intacct|Smartsheet|UAT|platform|tool)\b/i.test(gap)) return "minor";
+  if (/\b(junior|senior|startup|enterprise|environment|pace)\b/i.test(gap)) return "informational";
+  return "moderate";
+}
+
+function inferConfidence(gap = "") {
+  if (/\b(limited|partial|adjacent|not heavily emphasized|not strongly described)\b/i.test(gap)) return "partial";
+  if (/\b(no|missing|without|lacks?)\b/i.test(gap)) return "missing";
+  return "partial";
+}
+
+function normalizeSeverity(value) {
+  return ["critical", "moderate", "minor", "informational"].includes(value) ? value : "moderate";
+}
+
+function normalizeConfidence(value) {
+  return ["strong", "partial", "missing"].includes(value) ? value : "partial";
+}
+
+function getStrongerSeverity(a, b) {
+  const rank = { critical: 0, moderate: 1, minor: 2, informational: 3 };
+  return rank[normalizeSeverity(a)] <= rank[normalizeSeverity(b)] ? normalizeSeverity(a) : normalizeSeverity(b);
+}
+
+function getStrongerConfidence(a, b) {
+  const rank = { missing: 0, partial: 1, strong: 2 };
+  return rank[normalizeConfidence(a)] <= rank[normalizeConfidence(b)] ? normalizeConfidence(a) : normalizeConfidence(b);
+}
+
+function getGapText(gap) {
+  if (typeof gap === "string") return gap;
+  return gap?.gap || gap?.text || "";
 }
 
 function getMatchedTerms(text = "", terms = []) {

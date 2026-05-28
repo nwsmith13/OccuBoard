@@ -363,21 +363,31 @@ export function getRecommendationIcon(type) {
 }
 
 function hasMeaningfulMitigation(score = {}) {
-  return getMitigations(score).some((item) => item.suggestions?.length);
+  return getMitigations(score).some((item) => isActionableSeverity(item.severity) && getSuggestions(item).length);
 }
 
 function getFirstMitigation(score = {}) {
-  return getMitigations(score).find((item) => item.suggestions?.length);
+  return getMitigations(score).find((item) => isActionableSeverity(item.severity) && getSuggestions(item).length);
 }
 
 function getMitigations(score = {}) {
+  const assessments = score.gap_assessments || score.gapAssessments || [];
+  if (assessments.length) return assessments;
   return score.mitigation_suggestions || score.mitigationSuggestions || [];
 }
 
 function getMitigationDescription(mitigation = {}) {
-  const suggestion = mitigation.suggestions?.[0];
+  const suggestion = getSuggestions(mitigation)[0];
   if (suggestion) return suggestion;
   return "Review the fit analysis for practical ways to position adjacent experience.";
+}
+
+function getSuggestions(item = {}) {
+  return item.mitigationSuggestions || item.suggestions || [];
+}
+
+function isActionableSeverity(severity = "moderate") {
+  return ["critical", "moderate"].includes(severity || "moderate");
 }
 
 function hasValidAnalysis(score) {

@@ -48,13 +48,27 @@ Role-level positioning guardrail:
 export const fitSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["score", "recommendation", "summary", "strengths", "gaps", "mitigationSuggestions", "keywords", "transferableStrengths", "betterAlignedRoles"],
+  required: ["score", "recommendation", "summary", "strengths", "gaps", "gapAssessments", "mitigationSuggestions", "keywords", "transferableStrengths", "betterAlignedRoles"],
   properties: {
     score: { type: "integer" },
     recommendation: { type: "string", enum: ["Apply", "Maybe", "Skip"] },
     summary: { type: "string" },
     strengths: { type: "array", items: { type: "string" } },
     gaps: { type: "array", items: { type: "string" } },
+    gapAssessments: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["gap", "severity", "confidence", "mitigationSuggestions"],
+        properties: {
+          gap: { type: "string" },
+          severity: { type: "string", enum: ["critical", "moderate", "minor", "informational"] },
+          confidence: { type: "string", enum: ["strong", "partial", "missing"] },
+          mitigationSuggestions: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
     mitigationSuggestions: {
       type: "array",
       items: {
@@ -237,10 +251,23 @@ Return:
 - one short summary written in a supportive, nuanced, career-guiding tone
 - 3-5 strengths grounded in the resume/profile
 - 2-4 gaps or risks
+- gapAssessments: one object per gap with gap, severity, confidence, and mitigationSuggestions
 - mitigationSuggestions: one entry per meaningful gap, with 1-3 practical suggestions for addressing or positioning that gap
 - 5-10 relevant keywords from the job/user overlap
 - transferableStrengths: professional strengths the user still has even if this role is not a direct fit
 - betterAlignedRoles: 3-5 more realistic role types based on actual background
+
+Gap severity rules:
+- Assign severity for each gap: critical, moderate, minor, or informational.
+- critical = likely blocker, such as no required certification, no relevant experience category, or no customer-facing background for a customer-facing role.
+- moderate = meaningful but addressable, such as missing direct ITSM ownership or missing industry-specific workflow experience.
+- minor = adjacent gap or platform familiarity, such as BuildOps not listed, Smartsheet not listed, or no explicit UAT wording.
+- informational = soft observations only, such as the role being more junior than the candidate's background or startup vs enterprise environment mismatch.
+- Platform-specific tools alone should rarely be critical if adjacent operational/tooling experience exists.
+- Missing BuildOps with strong ERP/CRM/workflow experience should usually be minor.
+- Missing customer onboarding experience for an onboarding-heavy role may be critical or moderate depending on adjacent customer-facing evidence.
+- Use confidence with severity: partial evidence + platform mismatch usually minor; missing evidence + adjacent workflow experience usually moderate; missing evidence + no adjacent signals can be critical.
+- Scores should reflect severity intelligently: do not heavily reduce fit for missing vendor-specific platforms when adjacent operational tooling exists.
 
 Mitigation suggestion rules:
 - For each identified gap, provide 1-3 short practical mitigation suggestions.

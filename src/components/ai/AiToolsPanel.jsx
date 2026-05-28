@@ -368,7 +368,7 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
       </div>
       <p className="mt-5 rounded-lg bg-white/80 p-4 text-sm font-medium leading-6 text-slate-700">{score.summary}</p>
       <AiList title="Strengths" items={score.strengths} />
-      <GapList gaps={score.gaps} mitigationSuggestions={score.mitigationSuggestions || score.mitigation_suggestions} />
+      <GapList gaps={score.gaps} gapAssessments={score.gapAssessments || score.gap_assessments} mitigationSuggestions={score.mitigationSuggestions || score.mitigation_suggestions} />
       <TransferableStrengths items={score.transferable_strengths || score.transferableStrengths} />
       <BetterAlignedRoles items={score.better_aligned_roles || score.betterAlignedRoles} />
       <AiList title="Keywords" items={score.keywords} inline />
@@ -654,23 +654,29 @@ function AiList({ title, items = [], inline = false }) {
   );
 }
 
-function GapList({ gaps = [], mitigationSuggestions = [] }) {
-  if (!gaps.length) return null;
+function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] }) {
+  const items = getWeightedGaps(gaps, gapAssessments, mitigationSuggestions);
+  if (!items.length) return null;
   return (
     <div className="mt-4">
-      <p className="text-sm font-bold">Gaps</p>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <p className="text-sm font-bold">Gaps</p>
+        <p className="text-xs font-medium text-slate-500">Not all gaps carry equal weight.</p>
+      </div>
       <div className="mt-2 grid gap-2">
-        {gaps.map((gap) => {
-          const text = getGapText(gap);
-          const mitigation = findMitigationForGap(text, mitigationSuggestions);
+        {items.map((item) => {
+          const text = item.gap;
           return (
-            <div key={text} className="rounded-lg bg-white px-3 py-2 text-sm text-slate-700">
-              <p>{text}</p>
-              {mitigation?.suggestions?.length > 0 && (
+            <div key={text} className={`rounded-lg bg-white px-3 py-2 text-sm text-slate-700 ring-1 ${getSeverityCardTone(item.severity)}`}>
+              <div className="flex flex-wrap items-start gap-2">
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold capitalize ${getSeverityBadgeTone(item.severity)}`}>{item.severity}</span>
+                <p className="min-w-0 flex-1">{text}</p>
+              </div>
+              {item.mitigationSuggestions?.length > 0 && (
                 <div className="mt-3 rounded-lg bg-brand-50/80 p-3 ring-1 ring-brand-100">
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Mitigation suggestions</p>
                   <ul className="mt-2 grid gap-1.5 text-[13px] leading-5 text-slate-700">
-                    {mitigation.suggestions.map((suggestion) => <li key={suggestion}>• {suggestion}</li>)}
+                    {item.mitigationSuggestions.map((suggestion) => <li key={suggestion}>• {suggestion}</li>)}
                   </ul>
                 </div>
               )}
@@ -680,6 +686,32 @@ function GapList({ gaps = [], mitigationSuggestions = [] }) {
       </div>
     </div>
   );
+}
+
+function getWeightedGaps(gaps = [], gapAssessments = [], mitigationSuggestions = []) {
+  const assessments = gapAssessments.length
+    ? gapAssessments
+    : gaps.map((gap) => {
+        const text = getGapText(gap);
+        const mitigation = findMitigationForGap(text, mitigationSuggestions);
+        return {
+          gap: text,
+          severity: gap?.severity || inferUiSeverity(text),
+          confidence: gap?.confidence || "partial",
+          mitigationSuggestions: gap?.mitigationSuggestions || mitigation?.suggestions || [],
+        };
+      });
+  const severityRank = { critical: 0, moderate: 1, minor: 2, informational: 3 };
+  const confidenceRank = { missing: 0, partial: 1, strong: 2 };
+  return assessments
+    .filter((item) => item?.gap)
+    .map((item) => ({
+      gap: item.gap,
+      severity: normalizeSeverity(item.severity),
+      confidence: normalizeConfidence(item.confidence),
+      mitigationSuggestions: item.mitigationSuggestions || item.suggestions || findMitigationForGap(item.gap, mitigationSuggestions)?.suggestions || [],
+    }))
+    .sort((a, b) => severityRank[a.severity] - severityRank[b.severity] || confidenceRank[a.confidence] - confidenceRank[b.confidence]);
 }
 
 function getGapText(gap) {
@@ -693,6 +725,40 @@ function findMitigationForGap(gap, mitigationSuggestions = []) {
     const itemGap = normalizeText(item.gap);
     return itemGap && (itemGap === normalizedGap || itemGap.includes(normalizedGap.slice(0, 40)) || normalizedGap.includes(itemGap.slice(0, 40)));
   });
+}
+
+function inferUiSeverity(gap = "") {
+  if (/\b(certification|required license|no relevant experience|no customer-facing|no onboarding)\b/i.test(gap)) return "critical";
+  if (/\b(ITSM|service\s*desk|ownership|industry-specific|workflow experience)\b/i.test(gap)) return "moderate";
+  if (/\b(BuildOps|Sage\s*Intacct|Smartsheet|UAT|platform|tool)\b/i.test(gap)) return "minor";
+  if (/\b(junior|senior|startup|enterprise|environment|pace)\b/i.test(gap)) return "informational";
+  return "moderate";
+}
+
+function normalizeSeverity(value) {
+  return ["critical", "moderate", "minor", "informational"].includes(value) ? value : "moderate";
+}
+
+function normalizeConfidence(value) {
+  return ["strong", "partial", "missing"].includes(value) ? value : "partial";
+}
+
+function getSeverityBadgeTone(severity) {
+  return {
+    critical: "bg-rose-50 text-rose-700 ring-1 ring-rose-100",
+    moderate: "bg-amber-50 text-amber-800 ring-1 ring-amber-100",
+    minor: "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+    informational: "bg-slate-50 text-slate-500 ring-1 ring-slate-100",
+  }[severity] ?? "bg-slate-100 text-slate-600 ring-1 ring-slate-200";
+}
+
+function getSeverityCardTone(severity) {
+  return {
+    critical: "ring-rose-100",
+    moderate: "ring-amber-100",
+    minor: "ring-slate-100",
+    informational: "ring-slate-100",
+  }[severity] ?? "ring-slate-100";
 }
 
 function normalizeText(value = "") {
