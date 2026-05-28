@@ -850,6 +850,9 @@ function getSeverityConfidenceCopy(severity) {
 
 function getSuggestedPlacements(item = {}) {
   const text = normalizeText(`${item.gap || ""} ${(item.mitigationSuggestions || []).join(" ")}`);
+  if (isUatValidationGap(text)) {
+    return ["Resume", "Interview", "Cover letter"];
+  }
   if (/\b(buildops|sage intacct|smartsheet|zendesk|servicenow|jira|platform|tool|system)\b/.test(text)) {
     return ["Recruiter message", "Interview"];
   }
@@ -864,7 +867,19 @@ function getSuggestedPlacements(item = {}) {
 
 function getFallbackMitigationSuggestions(gap = "") {
   const text = normalizeText(gap);
-  if (/\b(itsm|ticket|ticketing|service desk|zendesk|servicenow|jira|intake|support queue|escalation)\b/.test(text)) {
+  if (isUatValidationGap(text)) {
+    const suggestions = [
+      "Mention testing, validation, or rollout support from implementation projects.",
+      "Use go-live preparation and client acceptance steps as UAT-adjacent experience.",
+      "Highlight how you confirmed workflows, data mapping, or configurations before launch.",
+      "Reference any stakeholder review, sign-off, or post-launch validation work.",
+    ];
+    if (isTicketingGap(text)) {
+      suggestions.push("If relevant, connect Jira or workflow tracking to issue resolution during rollout.");
+    }
+    return suggestions;
+  }
+  if (isTicketingGap(text)) {
     return [
       "Position Jira workflow coordination as intake-tracking experience.",
       "Mention escalation coordination from implementation or support work.",
@@ -890,6 +905,14 @@ function getFallbackMitigationSuggestions(gap = "") {
     ];
   }
   return [];
+}
+
+function isUatValidationGap(text = "") {
+  return /\b(uat|user acceptance testing|testing|validation|rollout validation|qa|quality assurance|go live testing|go live|acceptance criteria|release validation|implementation validation|process validation)\b/.test(text);
+}
+
+function isTicketingGap(text = "") {
+  return /\b(itsm|ticket|ticketing|service desk|zendesk|servicenow|jira|intake|support queue|escalation)\b/.test(text);
 }
 
 function getSeverityCardTone(severity) {
