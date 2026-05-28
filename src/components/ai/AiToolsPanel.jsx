@@ -1,4 +1,4 @@
-import { Clipboard, Loader2, RefreshCcw, Sparkles } from "lucide-react";
+import { ChevronDown, Clipboard, Loader2, RefreshCcw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -672,22 +672,30 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
           const hasSuggestions = item.mitigationSuggestions?.length > 0;
           const isExpanded = expanded[key] ?? item.severity === "critical";
           return (
-            <div key={text} className={`rounded-lg bg-white px-3 py-2 text-sm leading-6 text-slate-700 ring-1 ${getSeverityCardTone(item.severity)}`}>
-              <p className="min-w-0">
-                <span className={`mr-2 inline-flex shrink-0 translate-y-[-1px] items-center rounded-full px-2 py-0.5 text-[11px] font-bold leading-4 ${getSeverityBadgeTone(item.severity)}`}>
+            <div key={text} className={`rounded-lg border-l-4 bg-white px-3 py-3 text-sm leading-6 text-slate-700 ring-1 ${getSeverityCardTone(item.severity)}`}>
+              <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
+                <span className={`inline-flex w-fit shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold leading-4 ${getSeverityBadgeTone(item.severity)}`}>
                   {getSeverityLabel(item.severity)}
                 </span>
-                <span>{text}</span>
-              </p>
+                <div className="min-w-0">
+                  <p className="text-sm leading-6 text-slate-700">{text}</p>
+                  {["critical", "moderate"].includes(item.severity) && (
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      <span className="font-semibold text-slate-600">Why this matters:</span> This may affect recruiter confidence during initial screening.
+                    </p>
+                  )}
+                </div>
+              </div>
               {hasSuggestions && (
                 <button
                   type="button"
-                  className="mt-2 inline-flex rounded-md text-xs font-bold text-brand-700 transition hover:text-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                  className="mt-3 inline-flex min-h-8 items-center gap-1 rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-100 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
                   aria-expanded={isExpanded}
                   aria-controls={coachingId}
                   onClick={() => setExpanded((current) => ({ ...current, [key]: !isExpanded }))}
                 >
                   {isExpanded ? "Hide suggestions" : "How to address this"}
+                  <ChevronDown size={13} className={`transition duration-200 ${isExpanded ? "rotate-180" : ""}`} aria-hidden="true" />
                 </button>
               )}
               {hasSuggestions && isExpanded && (
@@ -695,7 +703,15 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">How to address this</p>
                   <p className="mt-1 text-xs leading-5 text-slate-600">Use these as positioning ideas for your resume, message, or interview.</p>
                   <ul className="mt-2 grid gap-1.5 text-[13px] leading-5 text-slate-700">
-                    {item.mitigationSuggestions.map((suggestion) => <li key={suggestion}>• {suggestion}</li>)}
+                    {item.mitigationSuggestions.map((suggestion, suggestionIndex) => (
+                      <li key={suggestion} className="flex gap-2">
+                        <span className="mt-[0.45rem] h-1 w-1 shrink-0 rounded-full bg-brand-400" />
+                        <span>
+                          {suggestionIndex === 0 && <span className="mr-1 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-brand-700 ring-1 ring-brand-100">Quick win</span>}
+                          {suggestion}
+                        </span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               )}
@@ -782,11 +798,11 @@ function getSeverityLabel(severity) {
 
 function getSeverityCardTone(severity) {
   return {
-    critical: "ring-rose-100",
-    moderate: "ring-amber-100",
-    minor: "ring-slate-100",
-    informational: "ring-slate-100",
-  }[severity] ?? "ring-slate-100";
+    critical: "border-l-rose-300 ring-rose-100",
+    moderate: "border-l-amber-300 ring-amber-100",
+    minor: "border-l-sky-200 ring-slate-100",
+    informational: "border-l-slate-200 ring-slate-100",
+  }[severity] ?? "border-l-slate-200 ring-slate-100";
 }
 
 function normalizeText(value = "") {
