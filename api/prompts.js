@@ -23,6 +23,26 @@ const targetRoleHints = [
   "CRM / Workflow Automation roles",
 ];
 
+const naturalnessPass = `
+Naturalness / human tone pass:
+- After drafting, briefly revise the output before returning JSON.
+- Remove repeated phrasing and repeated role keywords.
+- Avoid sounding like the job description was copied line by line.
+- Use natural professional language that a real candidate would plausibly use.
+- Keep only the strongest role-aligned terms instead of repeating every keyword.
+- Simplify overly formal or inflated language.
+- Preserve factual accuracy and do not add unsupported claims.
+- Reduce repeated phrases such as "operational systems", "workflow consistency", "user adoption", "scalable systems", and "process improvement" when they appear too often.
+`;
+
+const roleLevelPositioning = `
+Role-level positioning guardrail:
+- If the role is coordinator, support, specialist, associate, administrator, analyst, or similar, do not over-position the candidate as a senior architect, executive strategist, or transformation leader.
+- For coordinator/support/analyst roles, emphasize practical hands-on strengths: support coordination, onboarding, troubleshooting, documentation, follow-through, user enablement, and cross-functional communication.
+- Technical and process strengths are useful, but phrase them as applied support and operational follow-through unless the role clearly asks for senior architecture or leadership.
+- If the role is senior, architect, principal, director, lead, or explicitly strategic, stronger strategic positioning is acceptable when supported by the resume.
+`;
+
 export const fitSchema = {
   type: "object",
   additionalProperties: false,
@@ -220,6 +240,8 @@ Tailoring intensity: ${intensity}
 Latest fit recommendation: ${fitRecommendation}
 Manual tailoring intensity override: ${manualIntensityOverride}
 
+${roleLevelPositioning}
+
 Required sections:
 1. Contact/Header
 2. Tailored Professional Summary
@@ -247,7 +269,14 @@ Rules:
 - Do not sound desperate or compensatory.
 - Reorder emphasis and rephrase only when supported by the user's material.
 - Integrate ATS keywords naturally when supported.
-- Keep it concise and directly usable.`;
+- Keep ATS alignment strong without one-to-one mirroring of the job description.
+- Preserve believable candidate voice.
+- Prefer one strong phrase over repeating the same idea across summary, skills, and bullets.
+- Prioritize the user's real experience over keyword stuffing.
+- For coordinator/support/analyst roles, keep the resume practical and hands-on; highlight documentation, training, user support, troubleshooting, onboarding, and follow-through when supported.
+- Keep it concise and directly usable.
+
+${naturalnessPass}`;
   }
 
   if (action === "followupMessage") {
@@ -282,16 +311,22 @@ Additional context:
 ${options.latestResume || "No tailored resume provided."}
 - Contact if available: ${options.contactName || "No contact selected."}
 
+${roleLevelPositioning}
+
 Rules:
 - Write from the applicant/candidate to the company or contact.
 - Must sound like the applicant, not the company, recruiter, or employer.
 - Be specific to the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}.
 - Keep it concise, human, and direct: 3-5 short paragraphs, under about 350 words.
+- Keep the final letter between 250 and 350 words unless the user requested another length.
 - Do not use "Dear Hiring Manager" if a contact or company is known.
 - Avoid generic phrasing like "I am writing to express my interest."
 - Avoid dramatic language, "perfect fit", and inflated claims.
 - Do not repeat resume bullets verbatim.
 - Do not invent experience, metrics, tools, certifications, dates, employers, or responsibilities.
+- Use metrics only when a specific metric is present in the base resume/profile or tailored resume.
+- Do not imply vague measurable claims such as "measurable efficiency gains" unless a real metric is provided.
+- If a metric is available, use it specifically. If no metric is available, state the impact qualitatively without pretending it was measured.
 - Ground every claim in the base resume/profile, fit context, job description, or tailored resume.
 - Preferred structure:
   1. Opening: interest in the role/company.
@@ -302,7 +337,9 @@ Rules:
 Return:
 - coverLetterText: the complete cover letter text.
 - highlightsUsed: 3-5 truthful strengths or themes used.
-- toneNotes: one short note explaining the tone and positioning.`;
+- toneNotes: one short note explaining the tone and positioning.
+
+${naturalnessPass}`;
   }
 
   if (action === "interviewPrep") {
@@ -331,6 +368,8 @@ Return:
   return `${context}
 
 Generate one concise recruiter outreach message.
+${roleLevelPositioning}
+
 Rules:
 - Write from the user/candidate to a recruiter, hiring manager, or company contact.
 - Use first person as the user/candidate.
@@ -340,20 +379,25 @@ Rules:
 - Never say "I'm reaching out from [Company]".
 - Never say "our role", "our team", or "we are hiring".
 - Make it clear the user is reaching out about the role.
-- Must use candidate voice, such as: "Hello - my name is ${profile?.full_name || "the candidate"}, and I am interested in the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}."
+- Start naturally with: "Hello — my name is ${profile?.full_name || "the candidate"}, and I am interested in the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}."
+- Must use candidate voice throughout.
 - Prefer "my name is ${profile?.full_name || "the candidate"}" instead of "I'm ${profile?.full_name || "the candidate"}."
 - Use clear phrasing like "I am interested in..." when naming the role.
 - Avoid clipped phrasing like "interested in..." without a subject.
-- 4-8 sentences maximum.
+- Usually 80-120 words.
+- 3-5 sentences maximum.
 - Human, professional, practical, not overly enthusiastic.
 - Warm, direct, and human.
 - Mention the role and company.
-- Mention 1-2 matching strengths supported by the profile/resume.
+- Mention 2-3 strongest aligned strengths supported by the profile/resume.
+- If noting a gap, keep it brief, confident, and practical.
+- Avoid dense lists.
+- Avoid long comma-heavy sentences.
+- Do not sound like a cover letter.
 - Do not use "I'd welcome a brief conversation."
 - Do not use wording that sounds like the candidate is granting permission.
-- End with one of these closing styles:
-  - "Would you be open to a quick conversation this week?"
-  - "Would you be open to connecting for 15-20 minutes this week?"
-  - "Would it make sense to connect briefly this week?"
-- Do not oversell or invent anything.`;
+- End with: "Would you be open to connecting for 15-20 minutes this week?"
+- Do not oversell or invent anything.
+
+${naturalnessPass}`;
 }
