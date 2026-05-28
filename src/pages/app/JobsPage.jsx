@@ -1,6 +1,7 @@
 import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiToolsPanel, CopyButton, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
+import { IntelligenceModeToggle } from "../../components/ai/IntelligenceModeToggle.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
 import { Button } from "../../components/ui/Button.jsx";
@@ -451,6 +452,11 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
             <AiToolsPanel compact job={job} activeTab={getAiToolsTab(activeTab)} onTabChange={requestTabChange} />
           </div>
           <WorkflowSteps activeTab={activeTab} completed={completedSteps} score={latestScore} onSelect={requestTabChange} />
+          {["fit", "resume", "coverLetter", "message"].includes(activeTab) && (
+            <div className="border-t border-brand-100 bg-white/90 px-4 py-2 sm:px-5">
+              <IntelligenceModeToggle />
+            </div>
+          )}
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">

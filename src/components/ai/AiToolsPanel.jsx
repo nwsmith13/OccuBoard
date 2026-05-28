@@ -2,6 +2,7 @@ import { CheckCircle2, ChevronDown, Clipboard, Lightbulb, Loader2, RefreshCcw, S
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useIntelligenceMode } from "../../contexts/IntelligenceModeContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
@@ -361,10 +362,12 @@ function AiSkeleton({ action }) {
 }
 
 export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading, showAction = true }) {
+  const { isCompact } = useIntelligenceMode();
   if (!score) return <EmptyAiState title="No fit analysis yet" description="Start with analysis so OccuBoard can identify fit, risks, keywords, and tailoring angles." action={showAction && onGenerate ? "Analyze Fit" : ""} onAction={onGenerate} loading={loading} />;
   const tone = getScoreTone(score.score);
+  const strengths = isCompact ? (score.strengths || []).slice(0, 4) : score.strengths;
   return (
-    <div className={`w-full animate-[fadeIn_260ms_ease-out] rounded-lg border p-6 shadow-card ${tone.panel}`}>
+    <div className={`w-full animate-[fadeIn_260ms_ease-out] rounded-lg border p-4 shadow-card sm:p-5 ${tone.panel}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <div className={`grid h-28 w-28 shrink-0 place-items-center rounded-full border-4 ${tone.ring}`}>
@@ -378,13 +381,13 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
         </div>
         <RecommendationBadge value={score.recommendation} />
       </div>
-      <p className="mt-5 rounded-lg bg-white/80 p-4 text-sm font-medium leading-6 text-slate-700">{score.summary}</p>
-      <AiList title="Strengths" items={score.strengths} />
+      <p className="mt-4 rounded-lg bg-white/80 p-3 text-sm font-medium leading-6 text-slate-700">{score.summary}</p>
+      <AiList title="Strengths" items={strengths} />
       <GapList gaps={score.gaps} gapAssessments={score.gapAssessments || score.gap_assessments} mitigationSuggestions={score.mitigationSuggestions || score.mitigation_suggestions} />
       <MitigationStrategySummary score={score} />
-      <TransferableStrengths items={score.transferable_strengths || score.transferableStrengths} />
-      <BetterAlignedRoles items={score.better_aligned_roles || score.betterAlignedRoles} />
-      <AiList title="Keywords" items={score.keywords} inline />
+      {!isCompact && <TransferableStrengths items={score.transferable_strengths || score.transferableStrengths} />}
+      {!isCompact && <BetterAlignedRoles items={score.better_aligned_roles || score.betterAlignedRoles} />}
+      {!isCompact && <AiList title="Keywords" items={score.keywords} inline />}
       <div className="mt-5 flex flex-wrap gap-2">
         {onContinue && <Button onClick={onContinue}>Continue to Resume</Button>}
         {onRegenerate && <RegenerateButton label="Regenerate analysis" onClick={onRegenerate} disabled={Boolean(loading)} />}
@@ -540,8 +543,17 @@ export function MessageResult({ message, score, materials = {}, analysisReady = 
 }
 
 function MitigationStrategySummary({ score }) {
+  const { isCompact } = useIntelligenceMode();
   const plan = buildMitigationPlan(score);
   if (!plan.items.length) return null;
+  if (isCompact) {
+    return (
+      <div className="mt-3 rounded-lg bg-white/85 p-3 shadow-sm ring-1 ring-brand-100">
+        <p className="text-sm font-bold text-ink">Optimized positioning summary</p>
+        <p className="mt-1 text-sm leading-6 text-slate-600">OccuBoard strengthened operational positioning while preserving your original experience and tone.</p>
+      </div>
+    );
+  }
   return (
     <div className="mt-4 rounded-lg bg-white/85 p-4 shadow-sm ring-1 ring-brand-100">
       <div className="flex items-start gap-3">
@@ -584,6 +596,7 @@ export function AppliedMitigationList({ material, items, className = "" }) {
 
 export function RewriteVisibilityPanel({ material, materials = {}, score, originalText = "", generatedText = "", materialType = "resume", className = "" }) {
   const [expanded, setExpanded] = useState({});
+  const { isCompact } = useIntelligenceMode();
   const mitigationPlan = buildMitigationPlan(score);
   const insights = buildRewriteInsights({
     originalText,
@@ -608,7 +621,8 @@ export function RewriteVisibilityPanel({ material, materials = {}, score, origin
     rewriteSections: insights,
   });
   const restraint = assessRewriteRestraint(originalText, generatedText);
-  const meaningfulRecovery = (strategicRecovery.length ? strategicRecovery : recovery).filter((item) => item.score > 0 || item.recovery !== "Unchanged").slice(0, materialType === "resume" ? 4 : 2);
+  const maxRecoveryItems = isCompact ? 2 : materialType === "resume" ? 4 : 2;
+  const meaningfulRecovery = (strategicRecovery.length ? strategicRecovery : recovery).filter((item) => item.score > 0 || item.recovery !== "Unchanged").slice(0, maxRecoveryItems);
   const showPreservation = materialType === "resume" && restraint.preservationScore > 0;
   const strongRecoveries = meaningfulRecovery.filter((item) => item.recovery.startsWith("Strong")).length;
   const preservation = getPreservationCopy(restraint.preservationScore);
@@ -658,16 +672,22 @@ export function RewriteVisibilityPanel({ material, materials = {}, score, origin
         </div>
       )}
 
+      {isCompact && (
+        <div className="mt-3 rounded-lg bg-brand-50/70 p-3 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">
+          OccuBoard strengthened operational positioning while preserving your original experience and tone.
+        </div>
+      )}
+
       {showPreservation && (
-        <div className="mt-3 rounded-lg bg-brand-50/70 p-3 text-sm text-slate-700 ring-1 ring-brand-100">
+        <div className={`mt-3 rounded-lg bg-brand-50/70 p-3 text-sm text-slate-700 ring-1 ring-brand-100 ${isCompact ? "hidden" : ""}`}>
           <p className="font-bold text-brand-900">{restraint.summary || preservation.label}</p>
           <p className="mt-1 text-sm leading-5 text-slate-600">{restraint.preservationScore}% wording retained · tone {String(restraint.tonePreserved || "").toLowerCase()} · {String(restraint.keywordInjectionLevel || "light").toLowerCase()} keyword enhancement.</p>
         </div>
       )}
 
       {insights.length > 0 && (
-        <div className="mt-3 grid gap-3">
-          {insights.map((section) => (
+        <div className={`mt-3 grid gap-2 ${isCompact ? "" : "gap-3"}`}>
+          {insights.slice(0, isCompact ? (materialType === "resume" ? 2 : 1) : insights.length).map((section) => (
             <RewriteInsightCard
               key={section.id}
               section={section}
@@ -681,7 +701,7 @@ export function RewriteVisibilityPanel({ material, materials = {}, score, origin
       )}
 
       {meaningfulRecovery.length > 0 && (
-        <div className="mt-3 rounded-lg bg-white p-3 ring-1 ring-slate-100">
+        <div className={`mt-3 rounded-lg bg-white p-3 ring-1 ring-slate-100 ${isCompact ? "hidden" : ""}`}>
           <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Gap recovery</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">Recovery reflects improved positioning, not newly invented experience.</p>
           <div className="mt-3 grid gap-3">
@@ -694,13 +714,13 @@ export function RewriteVisibilityPanel({ material, materials = {}, score, origin
           </div>
         </div>
       )}
-      {strategicRecovery.length > 0 && <CoverageMatrix rows={strategicRecovery.slice(0, materialType === "resume" ? 4 : 3)} />}
-      {materialType === "resume" && (fitEstimate || appliedLabels.length > 0) && <RecoveryTimeline fitEstimate={fitEstimate} hasMessage={Boolean(materials.message)} hasResume={Boolean(materials.resume)} />}
+      {!isCompact && strategicRecovery.length > 0 && <CoverageMatrix rows={strategicRecovery.slice(0, materialType === "resume" ? 4 : 3)} />}
+      {!isCompact && materialType === "resume" && (fitEstimate || appliedLabels.length > 0) && <RecoveryTimeline fitEstimate={fitEstimate} hasMessage={Boolean(materials.message)} hasResume={Boolean(materials.resume)} />}
     </section>
   );
 }
 
-function RewriteInsightCard({ section, materialType, recovery, expanded, onToggle }) {
+function RewriteInsightCard({ section, materialType, recovery, expanded, onToggle, compact = false }) {
   const changeId = `rewrite-change-${section.id}`;
   const addedItems = getAddedImprovementItems(section.category);
   return (
@@ -725,7 +745,7 @@ function RewriteInsightCard({ section, materialType, recovery, expanded, onToggl
           </div>
         </div>
       )}
-      {(section.before || section.after) && (
+      {!compact && (section.before || section.after) && (
         <div className="mt-3">
           <button
             type="button"
@@ -1026,6 +1046,7 @@ function AiList({ title, items = [], inline = false }) {
 }
 
 function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] }) {
+  const { isCompact } = useIntelligenceMode();
   const items = getWeightedGaps(gaps, gapAssessments, mitigationSuggestions);
   const [expanded, setExpanded] = useState({});
   if (!items.length) return null;
@@ -1042,17 +1063,17 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
           const coachingId = `gap-coaching-${index}-${normalizeText(text).slice(0, 28)}`;
           const mitigationItems = normalizeSuggestionItems(item.mitigationSuggestions);
           const hasSuggestions = Array.isArray(mitigationItems) && mitigationItems.length > 0;
-          const isExpanded = expanded[key] ?? item.severity === "critical";
+          const isExpanded = expanded[key] ?? (!isCompact && item.severity === "critical");
           const suggestedPlacements = getSuggestedPlacements({ ...item, mitigationSuggestions: mitigationItems });
           const [quickWin, ...otherIdeas] = mitigationItems;
           return (
-            <div key={text} className={`rounded-lg border-l-4 bg-white px-3 py-3 text-sm leading-6 text-slate-700 ring-1 ${getSeverityCardTone(item.severity)}`}>
+            <div key={text} className={`rounded-lg border-l-4 bg-white px-3 py-2.5 text-sm leading-6 text-slate-700 ring-1 ${getSeverityCardTone(item.severity)}`}>
               <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
                 <span className={`inline-flex w-fit shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold leading-4 ${getSeverityBadgeTone(item.severity)}`}>
                   {getSeverityLabel(item.severity)}
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm leading-6 text-slate-700">{text}</p>
+                  <p className="text-sm leading-6 text-slate-700">{getCompactConsiderationText(text, isCompact)}</p>
                   <p className="mt-1 text-xs leading-5 text-slate-500">{getSeverityConfidenceCopy(item.severity)}</p>
                   {hasSuggestions && (
                     <button
@@ -1217,6 +1238,13 @@ function getSeverityConfidenceCopy(severity) {
     minor: "Transferable experience likely offsets this.",
     informational: "Mostly framing/context.",
   }[severity] ?? "Worth addressing if possible.";
+}
+
+function getCompactConsiderationText(text, isCompact) {
+  if (!isCompact) return text;
+  const value = String(text || "");
+  if (value.length <= 120) return value;
+  return `${value.slice(0, 117).trim()}...`;
 }
 
 function getSuggestedPlacements(item = {}) {
