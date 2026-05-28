@@ -2,6 +2,13 @@ import { formatDate } from "../lib/date.js";
 import { getFollowUpDate, getFollowUpStatus, normalizeStage } from "../lib/followUp.js";
 
 const actionDefaults = {
+  analyze_fit: {
+    label: "Analyze this role",
+    description: "Identify fit, risks, keywords, and the strongest resume angles before tailoring materials.",
+    tone: "info",
+    priority: 1,
+    icon: "search",
+  },
   follow_up_overdue: {
     label: "Follow up overdue",
     description: "This reminder is past due. A short, calm follow-up should be the next move.",
@@ -25,7 +32,7 @@ const actionDefaults = {
   },
   generate_resume: {
     label: "Generate tailored resume",
-    description: "Create a focused resume version before you apply.",
+    description: "Create a focused resume version using the analysis and role requirements.",
     tone: "info",
     priority: 2,
     icon: "document",
@@ -79,6 +86,13 @@ export function getNextBestAction(job = {}, options = {}) {
   const followUpStatus = getFollowUpStatus(job);
   const scoreValue = getScoreValue(options.score ?? options.latestScore);
   const aiStatus = options.aiStatus ?? {};
+  const hasAnalysis = Boolean(
+    options.hasAnalysis ||
+    aiStatus.analyzed ||
+    hasValidAnalysis(options.score ?? options.latestScore) ||
+    job.analysis ||
+    job.fitAnalysis
+  );
   const hasResume = Boolean(options.hasResume ?? aiStatus.resumeDrafted);
   const hasMessage = Boolean(options.hasMessage ?? aiStatus.messageDrafted);
   const hasCoverLetter = Boolean(options.hasCoverLetter ?? aiStatus.coverLetterDrafted ?? options.messages?.some((message) => message.job_id === job.id && message.type === "Cover Letter"));
@@ -89,10 +103,14 @@ export function getNextBestAction(job = {}, options = {}) {
     return buildAction("no_action", { description: "Outcome recorded. No next step is needed." });
   }
 
-  if (followUpStatus === "overdue") return buildAction("follow_up_overdue");
-  if (followUpStatus === "due") return buildAction("follow_up_today");
+  if (shouldPrioritizeFollowUp(job, stage, followUpStatus, options)) {
+    if (followUpStatus === "overdue") return buildAction("follow_up_overdue");
+    if (followUpStatus === "due") return buildAction("follow_up_today");
+  }
 
-  if (stage === "Interview") {
+  if (!hasAnalysis && !(isInterviewSoon(job, 48) && (stage === "Interview" || job.interview_date))) return buildAction("analyze_fit");
+
+  if (stage === "Interview" || job.interview_date) {
     if (isInterviewSoon(job, 48)) {
       return buildAction("prepare_interview", {
         label: "Interview coming up",
@@ -130,6 +148,28 @@ export function getNextBestAction(job = {}, options = {}) {
   if (scoreValue >= 75 && isStaleHighFit(job, options)) return buildAction("review_high_fit");
 
   return buildAction("no_action");
+}
+
+function hasValidAnalysis(score) {
+  if (!score) return false;
+  const value = Number(score.score ?? score);
+  if (Number.isFinite(value) && value > 0) return true;
+  return Boolean(
+    score.summary ||
+    score.recommendation ||
+    score.strengths?.length ||
+    score.gaps?.length ||
+    score.keywords?.length
+  );
+}
+
+function shouldPrioritizeFollowUp(job, stage, followUpStatus, options = {}) {
+  if (!["due", "overdue"].includes(followUpStatus)) return false;
+  if (stage === "Applied" || stage === "Interview") return true;
+  if (options.hasFollowUpMessage || options.hasMessage) return true;
+  if (options.messages?.some((message) => message.job_id === job.id && (message.type === "Follow-up Message" || message.type === "Recruiter Message" || message.type === "Outreach Message"))) return true;
+  if (options.activityEvents?.some((event) => ["message_generated", "followup_message_generated", "contact_contacted"].includes(event.type))) return true;
+  return false;
 }
 
 function asksForCoverLetter(description = "") {

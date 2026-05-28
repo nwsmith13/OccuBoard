@@ -1,10 +1,23 @@
 export function getJobAiStatus(jobId, jobScores, resumeVersions, messages) {
   return {
-    analyzed: jobScores.some((score) => score.job_id === jobId),
+    analyzed: jobScores.some((score) => score.job_id === jobId && hasValidAnalysis(score)),
     resumeDrafted: resumeVersions.some((version) => version.job_id === jobId),
     messageDrafted: messages.some((message) => message.job_id === jobId && isRecruiterMessage(message)),
     coverLetterDrafted: messages.some((message) => message.job_id === jobId && isCoverLetter(message)),
   };
+}
+
+function hasValidAnalysis(score) {
+  if (!score) return false;
+  const value = Number(score.score ?? score);
+  if (Number.isFinite(value) && value > 0) return true;
+  return Boolean(
+    score.summary ||
+    score.recommendation ||
+    score.strengths?.length ||
+    score.gaps?.length ||
+    score.keywords?.length
+  );
 }
 
 export function getLatestForJob(items, jobId) {

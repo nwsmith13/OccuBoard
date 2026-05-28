@@ -1,4 +1,4 @@
-import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, FileText, MessageCircle, Sparkles, TrendingUp } from "lucide-react";
+import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, FileText, MessageCircle, Search, Sparkles, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
@@ -353,6 +353,7 @@ function getGuidanceIcon(icon) {
     sparkles: Sparkles,
     clock: Clock,
     arrow: ArrowRightCircle,
+    search: Search,
     trending: TrendingUp,
     archive: Archive,
   }[icon] ?? Sparkles;
@@ -665,7 +666,7 @@ function getFocusInitialTab(item) {
   const actionType = item.nextBestAction?.actionType;
   if (actionType === "prepare_interview") return "interview";
   if (["follow_up_due", "follow_up_overdue", "follow_up_today", "move_to_interview"].includes(actionType)) return "overview";
-  if (actionType === "review_high_fit") return "fit";
+  if (actionType === "review_high_fit" || actionType === "analyze_fit") return "fit";
   if (["generate_resume", "apply_now"].includes(actionType)) return "resume";
   if (actionType === "generate_cover_letter") return "coverLetter";
   if (actionType === "generate_message") return "message";

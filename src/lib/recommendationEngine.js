@@ -15,6 +15,7 @@ const visibleTypeLimits = {
 const urgentBypassTypes = new Set(["FOLLOW_UP_OVERDUE", "FOLLOW_UP_DUE", "INTERVIEW_SOON"]);
 
 export const recommendationTypes = {
+  ANALYZE_ROLE: "ANALYZE_ROLE",
   FOLLOW_UP_DUE: "FOLLOW_UP_DUE",
   FOLLOW_UP_OVERDUE: "FOLLOW_UP_OVERDUE",
   INTERVIEW_SOON: "INTERVIEW_SOON",
@@ -46,6 +47,7 @@ export function generateRecommendations({
   jobsToEvaluate.forEach((job) => {
     const score = latestScores.get(job.id);
     const scoreValue = Number(score?.score ?? 0);
+    const hasAnalysis = hasValidAnalysis(score) || Boolean(job.analysis || job.fitAnalysis);
     const stage = normalizeStage(job.status);
     const jobMessages = messages.filter((message) => message.job_id === job.id);
     const hasRecruiterMessage = jobMessages.some(isRecruiterMessage);
@@ -59,7 +61,7 @@ export function generateRecommendations({
     const momentum = getJobMomentumScore(job, { score, messages, resumeVersions, interviewPrep, activityHistory });
     const momentumScore = momentum.score;
 
-    if (followUpStatus === "overdue") {
+    if (shouldPrioritizeFollowUp(job, stage, followUpStatus, { messages, activityHistory }) && followUpStatus === "overdue") {
       recommendations.push(buildRecommendation(job, {
         type: recommendationTypes.FOLLOW_UP_OVERDUE,
         priority: "critical",
@@ -75,7 +77,7 @@ export function generateRecommendations({
       }));
     }
 
-    if (followUpStatus === "due") {
+    if (shouldPrioritizeFollowUp(job, stage, followUpStatus, { messages, activityHistory }) && followUpStatus === "due") {
       recommendations.push(buildRecommendation(job, {
         type: recommendationTypes.FOLLOW_UP_DUE,
         priority: "high",
@@ -89,6 +91,23 @@ export function generateRecommendations({
         reasoningSignals: ["followup_due", ...momentum.factors],
         confidence: 0.94,
       }));
+    }
+
+    if (!hasAnalysis && !(isInterviewWithinHours(job, 48) && (stage === "Interview" || job.interview_date))) {
+      recommendations.push(buildRecommendation(job, {
+        type: recommendationTypes.ANALYZE_ROLE,
+        priority: "high",
+        urgency: "suggested",
+        title: "Analyze this role.",
+        description: "Identify fit, risks, keywords, and the strongest resume angles before tailoring materials.",
+        actionLabel: "Analyze Fit",
+        actionTab: "fit",
+        score: momentumScore + 20,
+        reasoningText: "No fit analysis exists yet.",
+        reasoningSignals: ["analysis_missing"],
+        confidence: 0.95,
+      }));
+      return;
     }
 
     if (stage === "Interview" && isInterviewWithinHours(job, 48) && !hasInterviewPrep) {
@@ -123,7 +142,7 @@ export function generateRecommendations({
       }));
     }
 
-    if (scoreValue >= 85 && ["Saved", "Applied"].includes(stage) && !hasRecruiterMessage) {
+    if (hasResume && scoreValue >= 85 && ["Saved", "Applied"].includes(stage) && !hasRecruiterMessage) {
       recommendations.push(buildRecommendation(job, {
         type: recommendationTypes.STRONG_MATCH_NEEDS_OUTREACH,
         priority: "high",
@@ -139,7 +158,7 @@ export function generateRecommendations({
       }));
     }
 
-    if (scoreValue >= 85 && !hasCoverLetter && shouldRecommendCoverLetter(job)) {
+    if (hasResume && scoreValue >= 85 && !hasCoverLetter && shouldRecommendCoverLetter(job)) {
       recommendations.push(buildRecommendation(job, {
         type: recommendationTypes.COVER_LETTER_RECOMMENDED,
         priority: "medium",
@@ -309,6 +328,7 @@ export function getRecommendationTone(priority) {
 
 export function getRecommendationIcon(type) {
   return {
+    ANALYZE_ROLE: "search",
     FOLLOW_UP_DUE: "bell",
     FOLLOW_UP_OVERDUE: "bell",
     INTERVIEW_SOON: "calendar",
@@ -320,6 +340,27 @@ export function getRecommendationIcon(type) {
     HIGH_MOMENTUM_ROLE: "trending",
     ARCHIVE_CANDIDATE: "archive",
   }[type] ?? "sparkles";
+}
+
+function hasValidAnalysis(score) {
+  if (!score) return false;
+  const value = Number(score.score ?? score);
+  if (Number.isFinite(value) && value > 0) return true;
+  return Boolean(
+    score.summary ||
+    score.recommendation ||
+    score.strengths?.length ||
+    score.gaps?.length ||
+    score.keywords?.length
+  );
+}
+
+function shouldPrioritizeFollowUp(job, stage, followUpStatus, { messages = [], activityHistory = [] } = {}) {
+  if (!["due", "overdue"].includes(followUpStatus)) return false;
+  if (stage === "Applied" || stage === "Interview") return true;
+  if (messages.some((message) => message.job_id === job.id && ["Recruiter Message", "Outreach Message", "Follow-up Message"].includes(message.type))) return true;
+  if (activityHistory.some((event) => event.job_id === job.id && ["message_generated", "followup_message_generated", "contact_contacted"].includes(event.type))) return true;
+  return false;
 }
 
 export function getRecommendationMeta(recommendation = {}) {

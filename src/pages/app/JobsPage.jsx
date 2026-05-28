@@ -333,6 +333,10 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
   }, [activeTab, hasUnsavedChanges]);
 
   async function handleNextBestAction() {
+    if (nextBestAction.actionType === "analyze_fit") {
+      requestTabChange("fit");
+      return;
+    }
     if (nextBestAction.actionType === "generate_resume") {
       requestTabChange("resume");
       return;
@@ -846,6 +850,7 @@ function getNextBestActionCtaLabel(actionType) {
   return {
     follow_up_overdue: "Follow up",
     follow_up_today: "Follow up",
+    analyze_fit: "Analyze Fit",
     generate_resume: "Generate resume",
     generate_message: "Generate message",
     generate_cover_letter: "Generate cover letter",

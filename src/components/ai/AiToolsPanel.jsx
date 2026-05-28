@@ -109,8 +109,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
           </div>
         )}
         {activeAction === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} />}
-        {activeAction === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
-          {activeAction === "message" && <MessageResult message={latestMessage} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+        {activeAction === "resume" && <ResumeResult resume={latestResume} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
+          {activeAction === "message" && <MessageResult message={latestMessage} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
       </section>
     );
   }
@@ -204,8 +204,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       {!compact && (
         <>
           {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} />}
-          {activeTab === "resume" && <ResumeResult resume={latestResume} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
-          {activeTab === "message" && <MessageResult message={latestMessage} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "resume" && <ResumeResult resume={latestResume} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "message" && <MessageResult message={latestMessage} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
         </>
       )}
@@ -314,6 +314,8 @@ function getPrimaryAction(activeAction, existing, all) {
   if (activeAction === "resume" && existing) return { label: "Ready to Export", nextTab: "resume", variant: "secondary" };
   if (activeAction === "resume") return { label: all.latestScore ? "Tailor Resume" : "Analyze Fit First", nextTab: all.latestScore ? "" : "fit", variant: all.latestScore ? "primary" : "secondary" };
   if (activeAction === "message" && existing) return { label: "View Message", nextTab: "message", variant: "secondary" };
+  if (activeAction === "message" && !all.latestScore) return { label: "Analyze Fit First", nextTab: "fit", variant: "secondary" };
+  if (activeAction === "message" && !all.latestResume) return { label: "Tailor Resume First", nextTab: "resume", variant: "secondary" };
   return { label: "Generate Recruiter Message", variant: "primary" };
 }
 
@@ -347,7 +349,7 @@ function AiSkeleton({ action }) {
 }
 
 export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading, showAction = true }) {
-  if (!score) return <EmptyAiState title="No fit analysis yet" description="See strengths, gaps, keywords, and a recommendation for this role." action={showAction && onGenerate ? "Analyze Fit" : ""} onAction={onGenerate} loading={loading} />;
+  if (!score) return <EmptyAiState title="No fit analysis yet" description="Start with analysis so OccuBoard can identify fit, risks, keywords, and tailoring angles." action={showAction && onGenerate ? "Analyze Fit" : ""} onAction={onGenerate} loading={loading} />;
   const tone = getScoreTone(score.score);
   return (
     <div className={`w-full animate-[fadeIn_260ms_ease-out] rounded-lg border p-6 shadow-card ${tone.panel}`}>
@@ -378,10 +380,11 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading
   );
 }
 
-export function ResumeResult({ resume, onGenerate, onRegenerate, onExportComplete, loading, showAction = true }) {
+export function ResumeResult({ resume, analysisReady = true, onAnalyze, onGenerate, onRegenerate, onExportComplete, loading, showAction = true }) {
   const { profile, jobs } = useWorkspaceStore();
   const job = resume ? jobs.find((item) => item.id === resume.job_id) : null;
   const whyThisFits = extractWhyThisFits(resume?.content);
+  if (!resume && !analysisReady) return <EmptyAiState title="No tailored resume yet" description="Generate the fit analysis first so your resume can be tailored from the strongest evidence." action={showAction && onAnalyze ? "Analyze Fit" : ""} onAction={onAnalyze} loading={loading} />;
   if (!resume) return <EmptyAiState title="No tailored resume yet" description="Create an application-ready resume version using your base resume and this job." action={showAction && onGenerate ? "Tailor Resume" : ""} onAction={onGenerate} loading={loading} />;
   return (
     <div className="w-full rounded-lg bg-brand-50 p-5 shadow-card">
@@ -417,7 +420,7 @@ export function ResumeResult({ resume, onGenerate, onRegenerate, onExportComplet
   );
 }
 
-export function MessageResult({ message, resumeReady = false, coverLetterReady = false, contacts = [], selectedContactId = "", onContactChange, onSave, onLogActivity, onGenerate, onRegenerate, loading, showAction = true }) {
+export function MessageResult({ message, analysisReady = true, resumeReady = false, coverLetterReady = false, contacts = [], selectedContactId = "", onContactChange, onAnalyze, onResume, onSave, onLogActivity, onGenerate, onRegenerate, loading, showAction = true }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message?.content || "");
@@ -461,6 +464,12 @@ export function MessageResult({ message, resumeReady = false, coverLetterReady =
   }
 
   if (!message) {
+    if (!analysisReady) {
+      return <EmptyAiState title="No recruiter message yet" description="Start with fit analysis before drafting outreach so the message is grounded in the strongest role evidence." action={showAction && onAnalyze ? "Analyze Fit" : ""} onAction={onAnalyze} loading={loading} />;
+    }
+    if (!resumeReady) {
+      return <EmptyAiState title="No recruiter message yet" description="Tailor the resume first, then draft a short outreach note that matches your application materials." action={showAction && onResume ? "Tailor Resume" : ""} onAction={onResume} loading={loading} />;
+    }
     return (
       <div className="grid gap-3">
         <MessageReadiness readiness={readiness} />
