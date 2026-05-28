@@ -656,6 +656,7 @@ function AiList({ title, items = [], inline = false }) {
 
 function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] }) {
   const items = getWeightedGaps(gaps, gapAssessments, mitigationSuggestions);
+  const [expanded, setExpanded] = useState({});
   if (!items.length) return null;
   return (
     <div className="mt-4">
@@ -664,8 +665,12 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
         <p className="text-xs font-medium text-slate-500">Not all gaps carry equal weight.</p>
       </div>
       <div className="mt-2 grid gap-2">
-        {items.map((item) => {
+        {items.map((item, index) => {
           const text = item.gap;
+          const key = `${normalizeText(text)}-${index}`;
+          const coachingId = `gap-coaching-${index}-${normalizeText(text).slice(0, 28)}`;
+          const hasSuggestions = item.mitigationSuggestions?.length > 0;
+          const isExpanded = expanded[key] ?? item.severity === "critical";
           return (
             <div key={text} className={`rounded-lg bg-white px-3 py-2 text-sm leading-6 text-slate-700 ring-1 ${getSeverityCardTone(item.severity)}`}>
               <p className="min-w-0">
@@ -674,9 +679,21 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
                 </span>
                 <span>{text}</span>
               </p>
-              {item.mitigationSuggestions?.length > 0 && (
-                <div className="mt-3 rounded-lg bg-brand-50/80 p-3 ring-1 ring-brand-100">
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Mitigation suggestions</p>
+              {hasSuggestions && (
+                <button
+                  type="button"
+                  className="mt-2 inline-flex rounded-md text-xs font-bold text-brand-700 transition hover:text-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                  aria-expanded={isExpanded}
+                  aria-controls={coachingId}
+                  onClick={() => setExpanded((current) => ({ ...current, [key]: !isExpanded }))}
+                >
+                  {isExpanded ? "Hide suggestions" : "How to address this"}
+                </button>
+              )}
+              {hasSuggestions && isExpanded && (
+                <div id={coachingId} className="mt-3 rounded-lg bg-brand-50/80 p-3 ring-1 ring-brand-100 transition duration-200 ease-out">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">How to address this</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">Use these as positioning ideas for your resume, message, or interview.</p>
                   <ul className="mt-2 grid gap-1.5 text-[13px] leading-5 text-slate-700">
                     {item.mitigationSuggestions.map((suggestion) => <li key={suggestion}>• {suggestion}</li>)}
                   </ul>
