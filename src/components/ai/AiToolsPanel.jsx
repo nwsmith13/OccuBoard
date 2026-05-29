@@ -989,7 +989,7 @@ function SummaryChip({ children }) {
 export function RecoveryBar({ recovery, confidence }) {
   const percent = getRecoveryPercent(recovery);
   return (
-    <div className="min-w-0" aria-label={recovery}>
+    <div className="min-w-0" aria-label={`${recovery}: ${percent}% recovery strength`}>
       <div className="flex items-center gap-2">
         <div className="h-2 min-w-20 flex-1 overflow-hidden rounded-full bg-slate-100">
           <div className={`h-full rounded-full transition-[width] duration-500 ease-out ${getRecoveryBarTone(recovery)}`} style={{ width: `${percent}%` }} />
@@ -1116,11 +1116,11 @@ function getRecoveryBarTone(recovery = "") {
 }
 
 function getRecoveryPercent(recovery = "") {
-  if (recovery.startsWith("Fully")) return 96;
-  if (recovery.startsWith("Strong")) return 82;
-  if (recovery.startsWith("Moderate")) return 64;
-  if (recovery.startsWith("Partial")) return 42;
-  return 18;
+  if (recovery.startsWith("Fully")) return 100;
+  if (recovery.startsWith("Strong")) return 75;
+  if (recovery.startsWith("Moderate")) return 50;
+  if (recovery.startsWith("Partial")) return 25;
+  return 8;
 }
 
 function getReadinessTone(readiness) {

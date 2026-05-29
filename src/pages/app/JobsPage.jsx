@@ -1384,11 +1384,11 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
   });
   const strongRecoveryCount = recoveryScores.filter((item) => item.score >= 3).length;
   const coveredInTwoMaterials = recoveryScores.filter((item) => Object.values(item.coverage || {}).filter(Boolean).length >= 2).length;
+  const hasIntelligenceData = recoveryScores.length > 0 || rewriteItems.some((item) => item.insights.length > 0);
   const tabs = [
     ["overview", "Overview"],
-    ["recovery", "Recovery"],
-    ["coverage", "Coverage"],
-    ["changes", "Changes"],
+    ...(recoveryScores.length ? [["recovery", "Recovery"], ["coverage", "Coverage"]] : []),
+    ...(rewriteItems.some((item) => item.insights.length > 0) ? [["changes", "Changes"]] : []),
   ];
 
   return (
@@ -1402,8 +1402,8 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">{readiness.tier}</span>
-            {strongRecoveryCount > 0 && <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{strongRecoveryCount} strong recover{strongRecoveryCount === 1 ? "y" : "ies"}</span>}
-            {mitigationPlan.items.length > 0 && <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200">{mitigationPlan.items.length} considerations addressed</span>}
+            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{readiness.readiness} Recruiter Confidence</span>
+            {mitigationPlan.items.length > 0 && <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200">{strongRecoveryCount}/{mitigationPlan.items.length} Considerations Addressed</span>}
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="Recruiter View sections">
@@ -1427,7 +1427,17 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
         </div>
       </div>
       {section === "overview" && (
-        <RecruiterViewOverview score={score} profile={profile} resume={resume} coverLetter={coverLetter} recruiterMessage={recruiterMessage} strategyItems={mitigationPlan.items} />
+        <RecruiterViewOverview
+          score={score}
+          profile={profile}
+          resume={resume}
+          coverLetter={coverLetter}
+          recruiterMessage={recruiterMessage}
+          strategyItems={mitigationPlan.items}
+          recoveryScores={recoveryScores}
+          onSelectSection={setSection}
+          hasIntelligenceData={hasIntelligenceData}
+        />
       )}
       {section === "recovery" && <RecruiterViewRecovery rows={recoveryScores} strongCount={strongRecoveryCount} />}
       {section === "coverage" && <RecruiterViewCoverage rows={recoveryScores} coveredInTwoMaterials={coveredInTwoMaterials} />}
@@ -1436,10 +1446,12 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
   );
 }
 
-function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterMessage, strategyItems }) {
+function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterMessage, strategyItems, recoveryScores, onSelectSection, hasIntelligenceData }) {
   const readiness = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage });
+  const recommendation = getApplicationRecommendation({ readiness, strategyItems, recoveryScores, resume, recruiterMessage });
   return (
     <section className="grid gap-4">
+      <ApplicationRecommendationCard recommendation={recommendation} onSelectSection={onSelectSection} />
       <ApplicationReadinessCard score={score} profile={profile} resume={resume} coverLetter={coverLetter} recruiterMessage={recruiterMessage} />
       {strategyItems.length > 0 && (
         <div className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
@@ -1452,6 +1464,31 @@ function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterM
           <p className="mt-3 text-sm leading-6 text-slate-700">Recruiters are likely to notice {readiness.strongestSignal.toLowerCase()}. The main place to stay clear and confident is {readiness.biggestConsideration.toLowerCase()}.</p>
         </div>
       )}
+      {!hasIntelligenceData && (
+        <div className="rounded-xl bg-white/90 p-4 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-brand-100">
+          No major hiring considerations were identified for this role.
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ApplicationRecommendationCard({ recommendation, onSelectSection }) {
+  return (
+    <section className={`rounded-xl p-4 shadow-card ring-1 ${recommendation.tone}`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600">Application recommendation</p>
+          <h3 className="mt-1 text-2xl font-black text-ink">{recommendation.label}</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">{recommendation.description}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-600">{recommendation.note}</p>
+        </div>
+        {recommendation.action && (
+          <Button variant={recommendation.actionVariant} className="w-fit shrink-0" onClick={() => onSelectSection?.(recommendation.actionSection)}>
+            {recommendation.action}
+          </Button>
+        )}
+      </div>
     </section>
   );
 }
@@ -1480,11 +1517,19 @@ function RecruiterViewRecovery({ rows, strongCount }) {
 
 function RecruiterViewCoverage({ rows, coveredInTwoMaterials }) {
   if (!rows.length) return <RecruiterViewEmpty message="Coverage details will appear once resume, cover letter, or recruiter message positioning is generated." />;
+  const summary = getCoverageSummary(rows);
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
       <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Strategic coverage</p>
       <h3 className="mt-1 text-lg font-bold text-ink">{coveredInTwoMaterials ? `${coveredInTwoMaterials} concerns are covered across at least two materials.` : "Coverage is starting to build across materials."}</h3>
       <p className="mt-1 text-sm leading-6 text-slate-700">Shows where OccuBoard strengthened each positioning concern.</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <CoverageMetric label="Resume coverage" value={`${summary.resume}%`} />
+        <CoverageMetric label="Cover letter coverage" value={`${summary.coverLetter}%`} />
+        <CoverageMetric label="Recruiter message" value={`${summary.recruiterMessage}%`} />
+        <CoverageMetric label="Considerations covered" value={`${summary.totalCovered} / ${rows.length}`} />
+        <CoverageMetric label="Outreach reinforced" value={`${summary.outreachReinforced} / ${rows.length}`} />
+      </div>
       <CoverageMatrix rows={rows} />
     </section>
   );
@@ -1492,26 +1537,65 @@ function RecruiterViewCoverage({ rows, coveredInTwoMaterials }) {
 
 function RecruiterViewChanges({ rewriteItems, recoveryScores }) {
   const [expanded, setExpanded] = useState({});
+  const [showDetails, setShowDetails] = useState(false);
   const items = rewriteItems.flatMap((item) => item.insights.map((section) => ({ ...section, materialType: item.materialType })));
   if (!items.length) return <RecruiterViewEmpty message="Rewrite details will appear after generated materials include analysis-backed improvements." />;
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
-      <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Strengthened from analysis</p>
-      <h3 className="mt-1 text-lg font-bold text-ink">What changed in the generated materials</h3>
-      <p className="mt-1 text-sm leading-6 text-slate-700">Compact rewrite cards show the strategic changes. Wording comparisons stay collapsed until opened.</p>
-      <div className="mt-4 grid gap-3">
-        {items.map((section) => (
-          <RewriteInsightCard
-            key={`${section.materialType}-${section.id}`}
-            section={section}
-            materialType={section.materialType}
-            recovery={recoveryScores.find((item) => item.label === section.mitigationSource)}
-            expanded={Boolean(expanded[`${section.materialType}-${section.id}`])}
-            onToggle={() => setExpanded((current) => ({ ...current, [`${section.materialType}-${section.id}`]: !current[`${section.materialType}-${section.id}`] }))}
-          />
-        ))}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Strategic Improvements Applied</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">What changed in the generated materials</h3>
+        </div>
+        <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={() => setShowDetails((value) => !value)}>
+          {showDetails ? "Hide detailed changes" : "Show detailed changes"}
+        </Button>
       </div>
+      <div className="mt-4 overflow-hidden rounded-lg ring-1 ring-slate-100">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-[0.1em] text-slate-500">
+            <tr>
+              <th className="px-3 py-2 font-bold">Change</th>
+              <th className="px-3 py-2 font-bold">Impact / Recovery status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 bg-white">
+            {items.map((section) => {
+              const recovery = recoveryScores.find((item) => item.label === section.mitigationSource);
+              return (
+                <tr key={`${section.materialType}-summary-${section.id}`}>
+                  <td className="px-3 py-2 font-bold text-slate-800">{section.title}</td>
+                  <td className="px-3 py-2 text-slate-700">{recovery?.recovery || section.confidence}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {showDetails && (
+        <div className="mt-4 grid gap-3">
+          {items.map((section) => (
+            <RewriteInsightCard
+              key={`${section.materialType}-${section.id}`}
+              section={section}
+              materialType={section.materialType}
+              recovery={recoveryScores.find((item) => item.label === section.mitigationSource)}
+              expanded={Boolean(expanded[`${section.materialType}-${section.id}`])}
+              onToggle={() => setExpanded((current) => ({ ...current, [`${section.materialType}-${section.id}`]: !current[`${section.materialType}-${section.id}`] }))}
+            />
+          ))}
+        </div>
+      )}
     </section>
+  );
+}
+
+function CoverageMetric({ label, value }) {
+  return (
+    <div className="rounded-lg bg-brand-50/70 p-3 ring-1 ring-brand-100">
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-600">{label}</p>
+      <p className="mt-1 text-lg font-black text-brand-900">{value}</p>
+    </div>
   );
 }
 
@@ -1542,6 +1626,63 @@ function buildRecruiterViewRewriteItems({ score, profile, resume, coverLetter, r
       materialType,
     }).sections,
   }));
+}
+
+function getApplicationRecommendation({ readiness, strategyItems = [], recoveryScores = [], resume, recruiterMessage }) {
+  const total = strategyItems.length || recoveryScores.length;
+  const strongOrFullRecoveryCount = recoveryScores.filter((item) => item.score >= 3).length;
+  const unresolvedCriticalCount = strategyItems.filter((item) => item.severity === "critical" && !recoveryScores.some((row) => row.gapId === item.id && row.score >= 3)).length;
+  const missingCoreMaterials = !resume || !recruiterMessage;
+  const recoveredRatio = total ? strongOrFullRecoveryCount / total : 1;
+
+  if (readiness.readiness >= 90 && recoveredRatio >= 0.75 && unresolvedCriticalCount === 0 && !missingCoreMaterials) {
+    return {
+      label: "Submit as-is",
+      description: "All major hiring considerations have been addressed. Recruiter confidence is strong and no blocking concerns remain.",
+      note: `${readiness.readiness} recruiter confidence with ${strongOrFullRecoveryCount}/${total || 0} considerations strongly addressed.`,
+      action: "Continue to Export",
+      actionSection: "coverage",
+      actionVariant: "primary",
+      tone: "bg-emerald-50 ring-emerald-100",
+    };
+  }
+
+  if (readiness.readiness >= 75) {
+    return {
+      label: "Worth minor review",
+      description: "This application is competitive. A quick review of the remaining positioning notes may improve confidence.",
+      note: `${readiness.tier}; review recovery if you want one last confidence check.`,
+      action: "Review Recovery",
+      actionSection: recoveryScores.length ? "recovery" : "overview",
+      actionVariant: "secondary",
+      tone: "bg-brand-50 ring-brand-100",
+    };
+  }
+
+  return {
+    label: "Address remaining concerns",
+    description: "Strengthen the remaining positioning points before submitting this application.",
+    note: missingCoreMaterials ? "Core application materials are still being built." : "A few positioning points may need more attention.",
+    action: recoveryScores.length ? "Review Considerations" : "",
+    actionSection: "recovery",
+    actionVariant: "secondary",
+    tone: "bg-amber-50 ring-amber-100",
+  };
+}
+
+function getCoverageSummary(rows = []) {
+  const total = Math.max(rows.length, 1);
+  const count = (key) => rows.filter((row) => row.coverage?.[key]).length;
+  const resume = count("resume");
+  const coverLetter = count("coverLetter");
+  const recruiterMessage = count("recruiterMessage");
+  return {
+    resume: Math.round((resume / total) * 100),
+    coverLetter: Math.round((coverLetter / total) * 100),
+    recruiterMessage: Math.round((recruiterMessage / total) * 100),
+    totalCovered: rows.filter((row) => Object.values(row.coverage || {}).some(Boolean)).length,
+    outreachReinforced: recruiterMessage,
+  };
 }
 
 function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, recruiterMessage, user, onSave, onUpdate, onLogActivity, onUnsavedChange }) {
@@ -2327,7 +2468,6 @@ function WorkspaceRail({ activeTab, completed, score, onSelect }) {
       ["export", "Export"],
     ]],
   ];
-  const flatSteps = groups.flatMap(([, steps]) => steps);
   const current = activeTab;
   return (
     <aside className="shrink-0 border-b border-brand-100 bg-slate-50/80 md:w-56 md:border-b-0 md:border-r">
@@ -2342,7 +2482,6 @@ function WorkspaceRail({ activeTab, completed, score, onSelect }) {
                 const done = completed[id];
                 const completion = getStepCompletionLabel(id, score, done);
                 const completionTone = id === "fit" && score ? getStepScoreTone(score.score) : "bg-emerald-100 text-emerald-800";
-                const index = flatSteps.findIndex(([stepId]) => stepId === id);
                 return (
                   <button
                     key={id}
@@ -2354,7 +2493,7 @@ function WorkspaceRail({ activeTab, completed, score, onSelect }) {
                   >
                     <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
                     <span className={`grid h-5 min-w-5 shrink-0 place-items-center whitespace-nowrap rounded-full px-1 text-[10px] ${selected ? "bg-white/20 text-white" : done ? completionTone : "bg-slate-50 text-slate-600"}`}>
-                      {id === "overview" ? "1" : completion || index + 1}
+                      {completion}
                     </span>
                   </button>
                 );
@@ -2368,10 +2507,10 @@ function WorkspaceRail({ activeTab, completed, score, onSelect }) {
 }
 
 function getStepCompletionLabel(id, score, done) {
-  if (id === "overview") return "";
+  if (id === "overview") return done ? "✓" : "○";
   if (id === "coverLetter" && !done) return "Optional";
-  if (!done) return "";
   if (id === "fit" && Number.isFinite(Number(score?.score))) return `${Math.round(Number(score.score))}%`;
+  if (!done) return "○";
   return "Ready";
 }
 
