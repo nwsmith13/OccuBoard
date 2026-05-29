@@ -1373,6 +1373,11 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
 
   return (
     <section className="grid gap-4">
+      <div className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Recruiter View</p>
+        <h3 className="mt-1 text-xl font-bold text-ink">Hiring-team perspective</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">A focused view of recruiter confidence, likely first impressions, hesitation points, and how OccuBoard strengthened the application strategy.</p>
+      </div>
       <ApplicationReadinessCard
         score={score}
         profile={profile}
@@ -2189,41 +2194,57 @@ function formatDateTime(value) {
 }
 
 function WorkspaceRail({ activeTab, completed, score, onSelect }) {
-  const steps = [
-    ["overview", "Overview"],
-    ["fit", "Analysis"],
-    ["resume", "Resume"],
-    ["coverLetter", "Cover Letter"],
-    ["message", "Recruiter Message"],
-    ["recruiterView", "Recruiter View"],
-    ["interview", "Interview Prep"],
-    ["export", "Export"],
+  const groups = [
+    ["Prepare", [
+      ["overview", "Overview"],
+      ["fit", "Analysis"],
+    ]],
+    ["Materials", [
+      ["resume", "Resume"],
+      ["coverLetter", "Cover Letter"],
+      ["message", "Recruiter Message"],
+    ]],
+    ["Strategy", [
+      ["recruiterView", "Recruiter View"],
+      ["interview", "Interview Prep"],
+      ["export", "Export"],
+    ]],
   ];
+  const flatSteps = groups.flatMap(([, steps]) => steps);
   const current = activeTab;
   return (
     <aside className="shrink-0 border-b border-brand-100 bg-slate-50/80 md:w-56 md:border-b-0 md:border-r">
-      <div className="kanban-scroll flex gap-2 overflow-x-auto p-3 md:sticky md:top-0 md:block md:h-full md:space-y-1 md:overflow-y-auto">
-        {steps.map(([id, label], index) => {
-          const selected = current === id;
-          const done = completed[id];
-          const completion = getStepCompletionLabel(id, score, done);
-          const completionTone = id === "fit" && score ? getStepScoreTone(score.score) : "bg-emerald-100 text-emerald-800";
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onSelect(id)}
-              className={`group flex min-w-max shrink-0 items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-xs font-bold transition md:w-full md:min-w-0 ${
-                selected ? "bg-brand-700 text-white shadow-card" : done ? "bg-white text-emerald-800 ring-1 ring-emerald-100 hover:border-brand-200 hover:shadow-sm" : "bg-white/70 text-slate-600 ring-1 ring-brand-100 hover:bg-white hover:text-brand-800 hover:shadow-sm"
-              }`}
-            >
-              <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
-              <span className={`grid h-5 min-w-5 shrink-0 place-items-center whitespace-nowrap rounded-full px-1 text-[10px] ${selected ? "bg-white/20 text-white" : done ? completionTone : "bg-slate-50 text-slate-600"}`}>
-                {id === "overview" ? "1" : completion || index + 1}
-              </span>
-            </button>
-          );
-        })}
+      <div className="kanban-scroll flex gap-2 overflow-x-auto p-3 md:sticky md:top-0 md:block md:h-full md:space-y-4 md:overflow-y-auto">
+        <p className="hidden px-2 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 md:block">Application Workflow</p>
+        {groups.map(([groupLabel, steps]) => (
+          <div key={groupLabel} className="contents md:block">
+            <p className="hidden px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 md:block">{groupLabel}</p>
+            <div className="flex gap-2 md:block md:space-y-1">
+              {steps.map(([id, label]) => {
+                const selected = current === id;
+                const done = completed[id];
+                const completion = getStepCompletionLabel(id, score, done);
+                const completionTone = id === "fit" && score ? getStepScoreTone(score.score) : "bg-emerald-100 text-emerald-800";
+                const index = flatSteps.findIndex(([stepId]) => stepId === id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onSelect(id)}
+                    className={`group flex min-w-max shrink-0 items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-xs font-bold transition md:w-full md:min-w-0 ${
+                      selected ? "bg-brand-700 text-white shadow-card" : done ? "bg-white text-emerald-800 ring-1 ring-emerald-100 hover:border-brand-200 hover:shadow-sm" : "bg-white/70 text-slate-600 ring-1 ring-brand-100 hover:bg-white hover:text-brand-800 hover:shadow-sm"
+                    }`}
+                  >
+                    <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
+                    <span className={`grid h-5 min-w-5 shrink-0 place-items-center whitespace-nowrap rounded-full px-1 text-[10px] ${selected ? "bg-white/20 text-white" : done ? completionTone : "bg-slate-50 text-slate-600"}`}>
+                      {id === "overview" ? "1" : completion || index + 1}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </aside>
   );

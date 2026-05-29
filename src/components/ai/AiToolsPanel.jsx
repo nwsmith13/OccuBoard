@@ -122,7 +122,19 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
             Recruiter message saved. Your outreach is ready when you are.
           </div>
         )}
-        {activeAction === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} />}
+        {activeAction === "fit" && (
+          <>
+            <TailoringSettingsDisclosure
+              intensity={getEffectiveIntensity("resume", intensity, manualIntensity, latestScore)}
+              latestScore={latestScore}
+              onChange={(value) => {
+                setManualIntensity(true);
+                setIntensity(value);
+              }}
+            />
+            <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} onRecruiterView={() => onTabChange?.("recruiterView")} />
+          </>
+        )}
         {activeAction === "resume" && <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
           {activeAction === "message" && <MessageResult message={latestMessage} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
       </section>
@@ -156,7 +168,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
           </div>
         )}
       </div>
-      <div className={`${compact ? "rounded-lg bg-brand-50/70 p-2" : "mt-4 flex flex-col gap-2 rounded-lg bg-brand-50 p-3 sm:flex-row sm:items-center sm:justify-between"}`}>
+      {!compact && <div className="mt-4 flex flex-col gap-2 rounded-lg bg-brand-50 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className={`flex gap-3 ${compact ? "items-center justify-between" : "flex-col sm:flex-row sm:items-center sm:justify-between"}`}>
           <div className={compact ? "hidden lg:block" : ""}>
             <p className="text-sm font-semibold text-brand-900">Tailoring intensity</p>
@@ -184,7 +196,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
             {getIntensityDescription(getEffectiveIntensity("resume", intensity, manualIntensity, latestScore))}
           </p>
         )}
-      </div>
+      </div>}
       {aiState.confirm && (
         <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
           <p className="font-semibold">Create a new version?</p>
@@ -218,7 +230,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       )}
       {!compact && (
         <>
-          {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onRecruiterView={() => onTabChange?.("recruiterView")} />}
           {activeTab === "resume" && <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
           {activeTab === "message" && <MessageResult message={latestMessage} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
@@ -266,6 +278,45 @@ function getIntensityDescription(value) {
   }[value];
 }
 
+function TailoringSettingsDisclosure({ intensity, latestScore, onChange }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="rounded-lg bg-white/85 p-3 shadow-sm ring-1 ring-brand-100">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span>
+          <span className="block text-sm font-bold text-ink">Job settings</span>
+          <span className="block text-xs font-semibold text-slate-500">Tailoring intensity: {intensity}</span>
+        </span>
+        <ChevronDown size={16} className={`shrink-0 text-brand-700 transition duration-200 ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="mt-3 flex flex-col gap-3 rounded-lg bg-brand-50/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-brand-900">Tailoring intensity</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">{getIntensityDescription(intensity)}</p>
+            {latestScore?.recommendation === "Skip" && (
+              <p className="mt-1 text-xs font-semibold text-amber-700">Conservative mode recommended for lower-fit roles.</p>
+            )}
+          </div>
+          <select
+            aria-label="Tailoring intensity"
+            className="min-w-40 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-bold text-brand-900 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+            value={intensity}
+            onChange={(event) => onChange(event.target.value)}
+          >
+            {["Conservative", "Balanced", "Aggressive"].map((option) => <option key={option}>{option}</option>)}
+          </select>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AiAction({ label, fullLabel, action, existing, activeTab, loading, onRun, onView }) {
   const active = loading === action;
   const selected = activeTab === action;
@@ -290,7 +341,7 @@ function CompactGuidedAction({ activeAction, latestScore, latestResume, latestMe
   const existing = state[activeAction];
   const primary = getPrimaryAction(activeAction, existing, { latestScore, latestResume, latestMessage });
   return (
-    <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-1 items-center justify-end">
       <Button
         className="min-h-9 px-4 text-sm"
         variant={primary.variant}
@@ -303,22 +354,6 @@ function CompactGuidedAction({ activeAction, latestScore, latestResume, latestMe
         {loading === activeAction && <Loader2 size={14} className="animate-spin" />}
         {loading === activeAction ? getLoadingLabel(activeAction) : primary.label}
       </Button>
-      <div className="flex flex-wrap gap-1">
-        {[
-          ["fit", "Analysis", latestScore],
-          ["resume", "Resume", latestResume],
-          ["message", "Recruiter", latestMessage],
-        ].map(([id, label, done]) => (
-          <button
-            key={id}
-            type="button"
-            className={`rounded-lg px-2 py-1 text-xs font-semibold ${activeAction === id ? "bg-brand-100 text-brand-900" : done ? "text-emerald-700 hover:bg-emerald-50" : "text-slate-500 hover:bg-brand-50"}`}
-            onClick={() => onTabChange?.(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
@@ -363,36 +398,65 @@ function AiSkeleton({ action }) {
   );
 }
 
-export function FitResult({ score, onGenerate, onRegenerate, onContinue, loading, showAction = true }) {
+export function FitResult({ score, onGenerate, onRegenerate, onContinue, onRecruiterView, loading, showAction = true }) {
   const { isCompact } = useIntelligenceMode();
+  const [showFullAnalysis, setShowFullAnalysis] = useState(false);
   if (!score) return <EmptyAiState title="No fit analysis yet" description="Start with analysis so OccuBoard can identify fit, risks, keywords, and tailoring angles." action={showAction && onGenerate ? "Analyze Fit" : ""} onAction={onGenerate} loading={loading} />;
   const tone = getScoreTone(score.score);
-  const strengths = isCompact ? (score.strengths || []).slice(0, 4) : score.strengths;
+  const allStrengths = score.strengths || [];
+  const strengths = isCompact && !showFullAnalysis ? allStrengths.slice(0, 3) : allStrengths;
+  const fullDetailsVisible = !isCompact || showFullAnalysis;
   return (
-    <div className={`w-full animate-[fadeIn_260ms_ease-out] rounded-lg border p-4 shadow-card sm:p-5 ${tone.panel}`}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className={`grid h-28 w-28 shrink-0 place-items-center rounded-full border-4 ${tone.ring}`}>
-            <span className={`text-5xl font-black ${tone.score}`}>{score.score}</span>
+    <div className={`w-full animate-[fadeIn_260ms_ease-out] rounded-lg border p-4 shadow-card sm:p-4 ${tone.panel}`}>
+      <AnalysisExecutiveSummary score={score} onContinue={onContinue} onRecruiterView={onRecruiterView} />
+      {fullDetailsVisible && (
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className={`grid h-24 w-24 shrink-0 place-items-center rounded-full border-4 ${tone.ring}`}>
+              <span className={`text-4xl font-black ${tone.score}`}>{score.score}</span>
+            </div>
+            <div>
+              <p className={`text-lg font-black ${tone.score}`}>{tone.label}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-500">Fit score</p>
+              <p className="mt-1 text-xs text-slate-500">Saved {formatDate(score.created_at?.slice(0, 10))}</p>
+            </div>
           </div>
-          <div>
-            <p className={`text-lg font-black ${tone.score}`}>{tone.label}</p>
-            <p className="mt-1 text-sm font-semibold text-slate-500">Fit score</p>
-            <p className="mt-1 text-xs text-slate-500">Saved {formatDate(score.created_at?.slice(0, 10))}</p>
-          </div>
+          <RecommendationBadge value={score.recommendation} />
         </div>
-        <RecommendationBadge value={score.recommendation} />
-      </div>
-      <p className="mt-4 rounded-lg bg-white/80 p-3 text-sm font-medium leading-6 text-slate-700">{score.summary}</p>
+      )}
+      <p className="mt-3 rounded-lg bg-white/80 p-3 text-sm font-medium leading-6 text-slate-700">{score.summary}</p>
       <AiList title="Strengths" items={strengths} />
-      <GapList gaps={score.gaps} gapAssessments={score.gapAssessments || score.gap_assessments} mitigationSuggestions={score.mitigationSuggestions || score.mitigation_suggestions} />
+      <GapList gaps={score.gaps} gapAssessments={score.gapAssessments || score.gap_assessments} mitigationSuggestions={score.mitigationSuggestions || score.mitigation_suggestions} limit={isCompact && !showFullAnalysis ? 2 : undefined} />
       <MitigationStrategySummary score={score} />
-      {isCompact && <ApplicationReadinessCard score={score} compact className="mt-3" />}
-      {!isCompact && <TransferableStrengths items={score.transferable_strengths || score.transferableStrengths} />}
-      {!isCompact && <BetterAlignedRoles items={score.better_aligned_roles || score.betterAlignedRoles} />}
-      {!isCompact && <AiList title="Keywords" items={score.keywords} inline />}
-      <div className="mt-5 flex flex-wrap gap-2">
-        {onContinue && <Button onClick={onContinue}>Continue to Resume</Button>}
+      {isCompact && !showFullAnalysis && (
+        <button
+          type="button"
+          className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+          aria-expanded={showFullAnalysis}
+          onClick={() => setShowFullAnalysis(true)}
+        >
+          View full analysis
+          <ChevronDown size={13} aria-hidden="true" />
+        </button>
+      )}
+      {fullDetailsVisible && (
+        <>
+          <TransferableStrengths items={score.transferable_strengths || score.transferableStrengths} />
+          <BetterAlignedRoles items={score.better_aligned_roles || score.betterAlignedRoles} />
+          <AiList title="Keywords" items={score.keywords} inline />
+          {isCompact && (
+            <button
+              type="button"
+              className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+              onClick={() => setShowFullAnalysis(false)}
+            >
+              Hide full analysis
+              <ChevronDown size={13} className="rotate-180" aria-hidden="true" />
+            </button>
+          )}
+        </>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
         {onRegenerate && <RegenerateButton label="Regenerate analysis" onClick={onRegenerate} disabled={Boolean(loading)} />}
       </div>
     </div>
@@ -437,6 +501,48 @@ export function ResumeResult({ resume, score, materials = {}, analysisReady = tr
         <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
       </div>
       {onRegenerate && <RegenerateButton label="Regenerate resume" onClick={onRegenerate} disabled={Boolean(loading)} />}
+    </div>
+  );
+}
+
+function AnalysisExecutiveSummary({ score, onContinue, onRecruiterView }) {
+  const tone = getScoreTone(score.score);
+  const readiness = calculateApplicationReadiness({ score });
+  const considerations = getWeightedGaps(score.gaps, score.gapAssessments || score.gap_assessments, score.mitigationSuggestions || score.mitigation_suggestions);
+  const topStrength = score.strengths?.[0] || readiness.strongestSignal;
+  const mainConsideration = considerations[0]?.gap || readiness.biggestConsideration;
+  const improvedCount = buildMitigationPlan(score).items.length;
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Executive Summary</p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <span className={`text-4xl font-black ${tone.score}`}>{Math.round(Number(score.score))}</span>
+            <span className={`text-lg font-black ${tone.score}`}>{tone.label}</span>
+            <RecommendationBadge value={score.recommendation} />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {onContinue && <Button className="min-h-9 px-3 text-xs" onClick={onContinue}>Continue to Resume</Button>}
+          {onRecruiterView && <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={onRecruiterView}>View Recruiter View</Button>}
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <ExecutiveSummaryItem label="Top strength" value={topStrength} />
+        <ExecutiveSummaryItem label="Main consideration" value={mainConsideration} />
+        <ExecutiveSummaryItem label="Recruiter confidence" value={readiness.tier} />
+        <ExecutiveSummaryItem label="Positioning improved" value={improvedCount ? `${improvedCount} hiring consideration${improvedCount === 1 ? "" : "s"} addressed` : "Ready for targeted tailoring"} />
+      </div>
+    </section>
+  );
+}
+
+function ExecutiveSummaryItem({ label, value }) {
+  return (
+    <div className="rounded-lg bg-brand-50/70 p-3 ring-1 ring-brand-100">
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-bold leading-5 text-slate-800">{value}</p>
     </div>
   );
 }
@@ -1168,9 +1274,10 @@ function AiList({ title, items = [], inline = false }) {
   );
 }
 
-function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] }) {
+function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [], limit }) {
   const { isCompact } = useIntelligenceMode();
   const items = getWeightedGaps(gaps, gapAssessments, mitigationSuggestions);
+  const visibleItems = Number.isFinite(Number(limit)) ? items.slice(0, Number(limit)) : items;
   const [expanded, setExpanded] = useState({});
   if (!items.length) return null;
   return (
@@ -1180,7 +1287,7 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [] })
         <p className="text-xs font-medium text-slate-500">Areas that may benefit from stronger positioning or clarification.</p>
       </div>
       <div className="mt-2 grid gap-2">
-        {items.map((item, index) => {
+        {visibleItems.map((item, index) => {
           const text = item.gap;
           const key = `${normalizeText(text)}-${index}`;
           const coachingId = `gap-coaching-${index}-${normalizeText(text).slice(0, 28)}`;
