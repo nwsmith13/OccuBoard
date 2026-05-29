@@ -4,14 +4,7 @@ const STORAGE_KEY = "occuboard-intelligence-mode";
 const IntelligenceModeContext = createContext(null);
 
 export function IntelligenceModeProvider({ children }) {
-  const [mode, setModeState] = useState(() => {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      return saved === "strategic" ? "strategic" : "compact";
-    } catch {
-      return "compact";
-    }
-  });
+  const [mode, setModeState] = useState("compact");
 
   function setMode(nextMode) {
     const normalized = nextMode === "strategic" ? "strategic" : "compact";

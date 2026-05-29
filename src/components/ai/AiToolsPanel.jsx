@@ -137,7 +137,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
           <p className="mt-2 text-sm text-slate-600">Generate controlled drafts from your saved profile, base resume, and this job description.</p>
         </>
       )}
-      <div className={`${compact ? "flex flex-col gap-2 rounded-lg border border-brand-100 bg-white/80 p-2 sm:flex-row sm:items-center sm:justify-between" : "mt-4 grid gap-3 md:grid-cols-3"}`}>
+      <div className={`${compact ? "flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" : "mt-4 grid gap-3 md:grid-cols-3"}`}>
         {compact ? (
           <CompactGuidedAction
             activeAction={activeAction}
@@ -157,8 +157,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         )}
       </div>
       <div className={`${compact ? "rounded-lg bg-brand-50/70 p-2" : "mt-4 flex flex-col gap-2 rounded-lg bg-brand-50 p-3 sm:flex-row sm:items-center sm:justify-between"}`}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+        <div className={`flex gap-3 ${compact ? "items-center justify-between" : "flex-col sm:flex-row sm:items-center sm:justify-between"}`}>
+          <div className={compact ? "hidden lg:block" : ""}>
             <p className="text-sm font-semibold text-brand-900">Tailoring intensity</p>
             <p className={`text-xs text-slate-600 ${compact ? "hidden" : ""}`}>
               Controls how strongly resume wording is optimized for this role.
@@ -168,7 +168,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
             )}
           </div>
           <select
-            className="min-w-44 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-bold text-brand-900 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+            aria-label="Tailoring intensity"
+            className="min-w-36 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-bold text-brand-900 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
             value={getEffectiveIntensity("resume", intensity, manualIntensity, latestScore)}
             onChange={(event) => {
               setManualIntensity(true);
@@ -598,24 +599,25 @@ export function AppliedMitigationList({ material, items, className = "" }) {
   );
 }
 
-export function ApplicationReadinessCard({ score, profile, resume, coverLetter, recruiterMessage, rewriteSections = [], compact = false, className = "" }) {
+export function ApplicationReadinessCard({ score, profile, resume, coverLetter, recruiterMessage, rewriteSections = [], compact = false, forceStrategic = false, className = "" }) {
   const readiness = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage, rewriteSections });
   const [expanded, setExpanded] = useState(false);
   const { isStrategic } = useIntelligenceMode();
-  const showDetails = isStrategic || expanded;
+  const strategicView = forceStrategic || isStrategic;
+  const showDetails = strategicView || expanded;
   if (!score && !resume && !coverLetter && !recruiterMessage) return null;
 
   return (
-    <section className={`rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 ${isStrategic ? "bg-gradient-to-br from-brand-950 via-brand-900 to-slate-900 text-white ring-brand-800" : ""} ${className}`}>
+    <section className={`rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 ${strategicView ? "bg-gradient-to-br from-brand-950 via-brand-900 to-slate-900 text-white ring-brand-800" : ""} ${className}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className={`text-xs font-bold uppercase tracking-[0.12em] ${isStrategic ? "text-cyan-100" : "text-brand-600"}`}>Recruiter Confidence</p>
-          <h3 className={`mt-1 text-lg font-bold ${isStrategic ? "text-white" : "text-ink"}`}>{readiness.tier}</h3>
-          <p className={`mt-1 text-sm leading-6 ${isStrategic ? "text-cyan-50/85" : "text-slate-600"}`}>Recruiter-aware estimate based on fit, materials, recovery, and skim readability.</p>
+          <p className={`text-xs font-bold uppercase tracking-[0.12em] ${strategicView ? "text-cyan-100" : "text-brand-600"}`}>Recruiter Confidence</p>
+          <h3 className={`mt-1 text-lg font-bold ${strategicView ? "text-white" : "text-ink"}`}>{readiness.tier}</h3>
+          <p className={`mt-1 text-sm leading-6 ${strategicView ? "text-cyan-50/85" : "text-slate-600"}`}>Recruiter-aware estimate based on fit, materials, recovery, and skim readability.</p>
         </div>
         <div className="min-w-36">
           <div className="flex items-center justify-between gap-3">
-            <span className={`text-3xl font-black ${isStrategic ? "text-white" : "text-brand-900"}`}>{readiness.readiness}%</span>
+            <span className={`text-3xl font-black ${strategicView ? "text-white" : "text-brand-900"}`}>{readiness.readiness}%</span>
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getReadinessTone(readiness.readiness)}`}>{readiness.tier}</span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.readiness}% recruiter confidence`}>
@@ -631,9 +633,9 @@ export function ApplicationReadinessCard({ score, profile, resume, coverLetter, 
         <ReadinessSignal label="Interview likelihood" value={readiness.interviewLikelihood} tone="success" />
       </div>
 
-      <div className={`mt-3 grid gap-2 rounded-lg p-3 ring-1 ${isStrategic ? "bg-white/10 ring-white/10" : "bg-brand-50/70 ring-brand-100"} ${compact ? "" : "sm:grid-cols-2"}`}>
-        <RecruiterPreviewLine label="What recruiters will likely notice first" value={readiness.strongestSignal} inverse={isStrategic} />
-        <RecruiterPreviewLine label="Possible hesitation point" value={readiness.biggestConsideration} inverse={isStrategic} />
+      <div className={`mt-3 grid gap-2 rounded-lg p-3 ring-1 ${strategicView ? "bg-white/10 ring-white/10" : "bg-brand-50/70 ring-brand-100"} ${compact ? "" : "sm:grid-cols-2"}`}>
+        <RecruiterPreviewLine label="What recruiters will likely notice first" value={readiness.strongestSignal} inverse={strategicView} />
+        <RecruiterPreviewLine label="Possible hesitation point" value={readiness.biggestConsideration} inverse={strategicView} />
       </div>
 
       {readiness.recoveryHighlights.length > 0 && (
@@ -647,7 +649,7 @@ export function ApplicationReadinessCard({ score, profile, resume, coverLetter, 
         </div>
       )}
 
-      {!isStrategic && !compact && (
+      {!strategicView && !compact && (
         <button
           type="button"
           className="mt-3 inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
@@ -698,9 +700,10 @@ function RecruiterPreviewLine({ label, value, inverse = false }) {
   );
 }
 
-export function RewriteVisibilityPanel({ material, materials = {}, score, originalText = "", generatedText = "", materialType = "resume", className = "" }) {
+export function RewriteVisibilityPanel({ material, materials = {}, score, originalText = "", generatedText = "", materialType = "resume", forceStrategic = false, className = "" }) {
   const [expanded, setExpanded] = useState({});
   const { isCompact } = useIntelligenceMode();
+  const compactView = isCompact && !forceStrategic;
   const mitigationPlan = buildMitigationPlan(score);
   const insights = buildRewriteInsights({
     originalText,
@@ -725,7 +728,7 @@ export function RewriteVisibilityPanel({ material, materials = {}, score, origin
     rewriteSections: insights,
   });
   const restraint = assessRewriteRestraint(originalText, generatedText);
-  const maxRecoveryItems = isCompact ? 2 : materialType === "resume" ? 4 : 2;
+  const maxRecoveryItems = compactView ? 2 : materialType === "resume" ? 4 : 2;
   const meaningfulRecovery = (strategicRecovery.length ? strategicRecovery : recovery).filter((item) => item.score > 0 || item.recovery !== "Unchanged").slice(0, maxRecoveryItems);
   const showPreservation = materialType === "resume" && restraint.preservationScore > 0;
   const strongRecoveries = meaningfulRecovery.filter((item) => item.recovery.startsWith("Strong")).length;
@@ -776,22 +779,22 @@ export function RewriteVisibilityPanel({ material, materials = {}, score, origin
         </div>
       )}
 
-      {isCompact && (
+      {compactView && (
         <div className="mt-3 rounded-lg bg-brand-50/70 p-3 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">
           OccuBoard strengthened operational positioning while preserving your original experience and tone.
         </div>
       )}
 
       {showPreservation && (
-        <div className={`mt-3 rounded-lg bg-brand-50/70 p-3 text-sm text-slate-700 ring-1 ring-brand-100 ${isCompact ? "hidden" : ""}`}>
+        <div className={`mt-3 rounded-lg bg-brand-50/70 p-3 text-sm text-slate-700 ring-1 ring-brand-100 ${compactView ? "hidden" : ""}`}>
           <p className="font-bold text-brand-900">{restraint.summary || preservation.label}</p>
           <p className="mt-1 text-sm leading-5 text-slate-600">{restraint.preservationScore}% wording retained · tone {String(restraint.tonePreserved || "").toLowerCase()} · {String(restraint.keywordInjectionLevel || "light").toLowerCase()} keyword enhancement.</p>
         </div>
       )}
 
       {insights.length > 0 && (
-        <div className={`mt-3 grid gap-2 ${isCompact ? "" : "gap-3"}`}>
-          {insights.slice(0, isCompact ? (materialType === "resume" ? 2 : 1) : insights.length).map((section) => (
+        <div className={`mt-3 grid gap-2 ${compactView ? "" : "gap-3"}`}>
+          {insights.slice(0, compactView ? (materialType === "resume" ? 2 : 1) : insights.length).map((section) => (
             <RewriteInsightCard
               key={section.id}
               section={section}
@@ -805,7 +808,7 @@ export function RewriteVisibilityPanel({ material, materials = {}, score, origin
       )}
 
       {meaningfulRecovery.length > 0 && (
-        <div className={`mt-3 rounded-lg bg-white p-3 ring-1 ring-slate-100 ${isCompact ? "hidden" : ""}`}>
+        <div className={`mt-3 rounded-lg bg-white p-3 ring-1 ring-slate-100 ${compactView ? "hidden" : ""}`}>
           <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Gap recovery</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">Recovery reflects improved positioning, not newly invented experience.</p>
           <div className="mt-3 grid gap-3">
@@ -818,8 +821,8 @@ export function RewriteVisibilityPanel({ material, materials = {}, score, origin
           </div>
         </div>
       )}
-      {!isCompact && strategicRecovery.length > 0 && <CoverageMatrix rows={strategicRecovery.slice(0, materialType === "resume" ? 4 : 3)} />}
-      {!isCompact && materialType === "resume" && (fitEstimate || appliedLabels.length > 0) && <RecoveryTimeline fitEstimate={fitEstimate} hasMessage={Boolean(materials.message)} hasResume={Boolean(materials.resume)} />}
+      {!compactView && strategicRecovery.length > 0 && <CoverageMatrix rows={strategicRecovery.slice(0, materialType === "resume" ? 4 : 3)} />}
+      {!compactView && materialType === "resume" && (fitEstimate || appliedLabels.length > 0) && <RecoveryTimeline fitEstimate={fitEstimate} hasMessage={Boolean(materials.message)} hasResume={Boolean(materials.resume)} />}
     </section>
   );
 }

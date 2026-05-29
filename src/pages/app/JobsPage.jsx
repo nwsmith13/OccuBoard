@@ -1,7 +1,6 @@
 import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiToolsPanel, ApplicationReadinessCard, CopyButton, RecruiterConfidenceIndicator, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
-import { IntelligenceModeToggle } from "../../components/ai/IntelligenceModeToggle.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
 import { Button } from "../../components/ui/Button.jsx";
@@ -277,7 +276,7 @@ function getAiToolsTab(activeTab) {
   return "fit";
 }
 
-export function JobDetail({ job: initialJob, initialTab = "overview", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onMove, onJobUpdate }) {
+export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onMove, onJobUpdate }) {
   const { user } = useAuth();
   const toast = useToast();
   const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, updateMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
@@ -315,6 +314,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
     coverLetter: Boolean(latestCoverLetter),
     interview: Boolean(prep),
     export: Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id)),
+    recruiterView: Boolean(latestScore || latestResume || latestMessage || latestCoverLetter),
   };
 
   useEffect(() => {
@@ -427,10 +427,10 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
   }, [activeTab, initialFocus, initialContactId]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink/35 p-0 sm:p-4" onMouseDown={requestClose}>
-      <section className="mx-auto flex h-[100dvh] max-w-[1200px] flex-col overflow-hidden bg-white shadow-soft sm:h-[calc(100dvh-2rem)] sm:rounded-lg" onMouseDown={(event) => event.stopPropagation()}>
-        <header className="sticky top-0 z-20 border-b border-brand-100 bg-white/95 shadow-sm backdrop-blur">
-          <div className="px-4 py-3 sm:px-5">
+    <div className="fixed inset-0 z-50 bg-ink/35 p-0 lg:p-4" onMouseDown={requestClose}>
+      <section className="mx-auto flex h-[100dvh] max-w-[1600px] flex-col overflow-hidden bg-white shadow-soft lg:h-[calc(100dvh-2rem)] lg:w-[96vw] lg:rounded-lg" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="shrink-0 border-b border-brand-100 bg-white/95 shadow-sm backdrop-blur">
+          <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
             <div className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3">
                 <CompanyLogo companyName={getDisplayCompanyName(job)} companyDomain={job.company_domain} companyLogoUrl={job.company_logo_url} sourceUrl={job.source_url} size="lg" className="mt-0.5" />
@@ -445,26 +445,26 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
                   <RecruiterConfidenceHeroSummary score={latestScore} profile={profile} resume={latestResume} coverLetter={latestCoverLetter} recruiterMessage={latestMessage} />
                 </div>
               </div>
-              <button type="button" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50" onClick={requestClose} aria-label="Close job details">
+              <button type="button" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50 lg:hidden" onClick={requestClose} aria-label="Close job details">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex min-w-0 items-center gap-3 lg:max-w-[620px]">
+              <div className="min-w-0 flex-1">
+                <AiToolsPanel compact job={job} activeTab={getAiToolsTab(activeTab)} onTabChange={requestTabChange} />
+              </div>
+              <button type="button" className="hidden shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50 lg:inline-flex" onClick={requestClose} aria-label="Close job details">
                 <X size={20} />
               </button>
             </div>
           </div>
-          <WorkflowSteps
-            activeTab={activeTab}
-            completed={completedSteps}
-            score={latestScore}
-            onSelect={requestTabChange}
-            rightSlot={["fit", "resume", "coverLetter", "message"].includes(activeTab) ? <IntelligenceModeToggle /> : null}
-          />
-          <div className="border-t border-brand-100 px-4 py-1.5 sm:px-5">
-            <AiToolsPanel compact job={job} activeTab={getAiToolsTab(activeTab)} onTabChange={requestTabChange} />
-          </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          <WorkspaceRail activeTab={activeTab} completed={completedSteps} score={latestScore} onSelect={requestTabChange} />
+          <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
           {activeTab === "overview" && (
-            <div className="mx-auto grid max-w-5xl gap-5">
+            <div className="mx-auto grid max-w-6xl gap-5">
               <NextBestActionCard action={nextBestAction} onAction={handleNextBestAction} />
 
               <section className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
@@ -555,12 +555,12 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
           )}
 
           {activeTab === "fit" && (
-            <div ref={fitSectionRef} className="mx-auto max-w-5xl scroll-mt-44">
+            <div ref={fitSectionRef} className="mx-auto max-w-6xl scroll-mt-6">
               <AiToolsPanel contentOnly job={job} activeTab="fit" onTabChange={requestTabChange} />
             </div>
           )}
           {activeTab === "resume" && (
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-6xl">
               <AiToolsPanel
                 contentOnly
                 job={job}
@@ -573,7 +573,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
             </div>
           )}
           {activeTab === "export" && (
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-6xl">
               <ApplicationMaterialsWorkspace
                 job={job}
                 profile={profile}
@@ -595,12 +595,23 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
             </div>
           )}
           {activeTab === "message" && (
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-6xl">
               <AiToolsPanel contentOnly job={job} activeTab="message" onTabChange={requestTabChange} />
             </div>
           )}
+          {activeTab === "recruiterView" && (
+            <div className="mx-auto max-w-6xl">
+              <RecruiterViewWorkspace
+                score={latestScore}
+                profile={profile}
+                resume={latestResume}
+                coverLetter={latestCoverLetter}
+                recruiterMessage={latestMessage}
+              />
+            </div>
+          )}
           {activeTab === "coverLetter" && (
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-6xl">
               <CoverLetterWorkspace
                 job={job}
                 profile={profile}
@@ -618,10 +629,11 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
             </div>
           )}
           {activeTab === "interview" && (
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-6xl">
               <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} updateJob={updateJob} onJobUpdate={mergeJobUpdate} onSavePrep={saveInterviewPrep} onLogActivity={logJobActivity} onUnsavedChange={setHasUnsavedChanges} />
             </div>
           )}
+          </main>
         </div>
       </section>
     </div>
@@ -1343,6 +1355,68 @@ function MaterialCard({ title, status, description, children }) {
           <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
         </div>
         <div>{children}</div>
+      </div>
+    </section>
+  );
+}
+
+function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiterMessage }) {
+  if (!score && !resume && !coverLetter && !recruiterMessage) {
+    return (
+      <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Recruiter View</p>
+        <h3 className="mt-1 text-xl font-bold text-ink">Recruiter perspective will appear after analysis</h3>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Analyze the role first, then OccuBoard can summarize what a recruiter is likely to notice and where positioning has been strengthened.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="grid gap-4">
+      <ApplicationReadinessCard
+        score={score}
+        profile={profile}
+        resume={resume}
+        coverLetter={coverLetter}
+        recruiterMessage={recruiterMessage}
+        forceStrategic
+      />
+
+      {resume && (
+        <RewriteVisibilityPanel
+          material={resume}
+          materials={{ resume, coverLetter, message: recruiterMessage }}
+          score={score}
+          originalText={profile?.base_resume_text}
+          generatedText={resume.content}
+          materialType="resume"
+          forceStrategic
+        />
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {coverLetter && (
+          <RewriteVisibilityPanel
+            material={coverLetter}
+            materials={{ resume, coverLetter, message: recruiterMessage }}
+            score={score}
+            originalText={profile?.base_resume_text}
+            generatedText={coverLetter.content}
+            materialType="coverLetter"
+            forceStrategic
+          />
+        )}
+        {recruiterMessage && (
+          <RewriteVisibilityPanel
+            material={recruiterMessage}
+            materials={{ resume, coverLetter, message: recruiterMessage }}
+            score={score}
+            originalText={profile?.base_resume_text}
+            generatedText={recruiterMessage.content}
+            materialType="message"
+            forceStrategic
+          />
+        )}
       </div>
     </section>
   );
@@ -2114,46 +2188,44 @@ function formatDateTime(value) {
   return date.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function WorkflowSteps({ activeTab, completed, score, onSelect, rightSlot = null }) {
+function WorkspaceRail({ activeTab, completed, score, onSelect }) {
   const steps = [
     ["overview", "Overview"],
     ["fit", "Analysis"],
     ["resume", "Resume"],
     ["coverLetter", "Cover Letter"],
     ["message", "Recruiter Message"],
+    ["recruiterView", "Recruiter View"],
     ["interview", "Interview Prep"],
     ["export", "Export"],
   ];
   const current = activeTab;
   return (
-    <div className="border-t border-brand-100 bg-white/90 px-4 py-2 sm:px-5">
-      <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-        <div className="kanban-scroll flex min-w-0 gap-2 overflow-x-auto pb-1">
-          {steps.map(([id, label], index) => {
-            const selected = current === id;
-            const done = completed[id];
-            const completion = getStepCompletionLabel(id, score, done);
-            const completionTone = id === "fit" && score ? getStepScoreTone(score.score) : "bg-emerald-100 text-emerald-800";
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => onSelect(id)}
-                className={`flex min-w-max shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-bold transition ${
-                  selected ? "bg-brand-700 text-white shadow-card" : done ? "bg-emerald-50 text-emerald-800" : "bg-brand-50 text-slate-600 hover:bg-brand-100"
-                }`}
-              >
-                <span className={`grid h-5 min-w-5 place-items-center whitespace-nowrap rounded-full px-1 text-[10px] ${selected ? "bg-white/20 text-white" : done ? completionTone : "bg-white text-slate-600"}`}>
-                  {id === "overview" ? "1" : completion || index + 1}
-                </span>
-                <span className="whitespace-nowrap">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-        {rightSlot && <div className="shrink-0">{rightSlot}</div>}
+    <aside className="shrink-0 border-b border-brand-100 bg-slate-50/80 md:w-56 md:border-b-0 md:border-r">
+      <div className="kanban-scroll flex gap-2 overflow-x-auto p-3 md:sticky md:top-0 md:block md:h-full md:space-y-1 md:overflow-y-auto">
+        {steps.map(([id, label], index) => {
+          const selected = current === id;
+          const done = completed[id];
+          const completion = getStepCompletionLabel(id, score, done);
+          const completionTone = id === "fit" && score ? getStepScoreTone(score.score) : "bg-emerald-100 text-emerald-800";
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onSelect(id)}
+              className={`group flex min-w-max shrink-0 items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-xs font-bold transition md:w-full md:min-w-0 ${
+                selected ? "bg-brand-700 text-white shadow-card" : done ? "bg-white text-emerald-800 ring-1 ring-emerald-100 hover:border-brand-200 hover:shadow-sm" : "bg-white/70 text-slate-600 ring-1 ring-brand-100 hover:bg-white hover:text-brand-800 hover:shadow-sm"
+              }`}
+            >
+              <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
+              <span className={`grid h-5 min-w-5 shrink-0 place-items-center whitespace-nowrap rounded-full px-1 text-[10px] ${selected ? "bg-white/20 text-white" : done ? completionTone : "bg-slate-50 text-slate-600"}`}>
+                {id === "overview" ? "1" : completion || index + 1}
+              </span>
+            </button>
+          );
+        })}
       </div>
-    </div>
+    </aside>
   );
 }
 
