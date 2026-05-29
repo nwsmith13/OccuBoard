@@ -23,7 +23,7 @@ export function calculateApplicationReadiness({
   const severePenalty = getSeverityPenalty(mitigationPlan.items);
   const materialBonus = [resume, coverLetter, recruiterMessage].filter(Boolean).length * 3;
 
-  const readiness = clamp(Math.round(
+  const rawReadiness = Math.round(
     baseFit * 0.46 +
     recoveryAverage * 9 +
     keywordCoverage * 12 +
@@ -31,7 +31,9 @@ export function calculateApplicationReadiness({
     Math.min(8, materialBonus) +
     Math.min(8, restraint.preservationScore * 0.08) -
     severePenalty,
-  ), 18, 96);
+  );
+  const readinessFloor = getFitBasedReadinessFloor(baseFit, materialBonus);
+  const readiness = clamp(Math.max(rawReadiness, readinessFloor), 42, 96);
 
   const strongestSignal = getStrongestSignal({ score, profile, generatedText });
   const biggestConsideration = getBiggestConsideration(mitigationPlan.items);
@@ -56,10 +58,10 @@ export function calculateApplicationReadiness({
 
 export function getReadinessTier(readiness = 0) {
   if (readiness >= 88) return "Ready to apply";
-  if (readiness >= 78) return "Strong candidate";
-  if (readiness >= 66) return "Competitive";
-  if (readiness >= 50) return "Improving";
-  return "Needs work";
+  if (readiness >= 78) return "Recruiter-ready";
+  if (readiness >= 66) return "Strong operational alignment";
+  if (readiness >= 54) return "Operationally competitive";
+  return "Emerging alignment";
 }
 
 export function getInterviewLikelihood({ readiness = 0, fitScore = 0, recoveryAverage = 0 } = {}) {
@@ -76,6 +78,15 @@ function getRecruiterSkimReadability(score) {
   if (score >= 72) return "Strong";
   if (score >= 55) return "Fair";
   return "Weak";
+}
+
+function getFitBasedReadinessFloor(fitScore, materialBonus) {
+  const score = Number(fitScore) || 0;
+  const materialsGenerated = materialBonus > 0;
+  if (score >= 88) return materialsGenerated ? 82 : 72;
+  if (score >= 78) return materialsGenerated ? 72 : 64;
+  if (score >= 68) return materialsGenerated ? 62 : 54;
+  return 42;
 }
 
 function getReadabilityMetrics(text = "") {

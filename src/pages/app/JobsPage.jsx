@@ -1,6 +1,6 @@
 import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AiToolsPanel, CopyButton, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
+import { AiToolsPanel, ApplicationReadinessCard, CopyButton, RecruiterConfidenceIndicator, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
 import { IntelligenceModeToggle } from "../../components/ai/IntelligenceModeToggle.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
@@ -15,6 +15,7 @@ import { priorities, remoteTypes, stages } from "../../data/seedData.js";
 import { formatDate, isOverdue, todayIso } from "../../lib/date.js";
 import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, getFollowUpNote, getFollowUpSnoozedUntil, getFollowUpStatus, getFollowUpTone } from "../../lib/followUp.js";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
+import { calculateApplicationReadiness } from "../../lib/applicationReadiness.js";
 import { buildFollowUpCalendarEvent, buildGoogleCalendarUrl, buildInterviewCalendarEvent, buildOutlookCalendarUrl, downloadIcsEvent } from "../../lib/calendarExport.js";
 import { exportCoverLetterDocx, exportCoverLetterPdf } from "../../lib/coverLetterExport.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
@@ -441,6 +442,7 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
                   </div>
                   <h2 className="mt-2 text-lg font-bold text-ink sm:text-xl">{getDisplayJobTitle(job)}</h2>
                   <p className="mt-0.5 text-sm font-semibold text-brand-800">{getDisplayCompanyName(job)}</p>
+                  <RecruiterConfidenceHeroSummary score={latestScore} profile={profile} resume={latestResume} coverLetter={latestCoverLetter} recruiterMessage={latestMessage} />
                 </div>
               </div>
               <button type="button" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50" onClick={requestClose} aria-label="Close job details">
@@ -448,15 +450,16 @@ export function JobDetail({ job: initialJob, initialTab = "overview", initialFoc
               </button>
             </div>
           </div>
-          <div className="border-t border-brand-100 px-4 py-2 sm:px-5">
+          <WorkflowSteps
+            activeTab={activeTab}
+            completed={completedSteps}
+            score={latestScore}
+            onSelect={requestTabChange}
+            rightSlot={["fit", "resume", "coverLetter", "message"].includes(activeTab) ? <IntelligenceModeToggle /> : null}
+          />
+          <div className="border-t border-brand-100 px-4 py-1.5 sm:px-5">
             <AiToolsPanel compact job={job} activeTab={getAiToolsTab(activeTab)} onTabChange={requestTabChange} />
           </div>
-          <WorkflowSteps activeTab={activeTab} completed={completedSteps} score={latestScore} onSelect={requestTabChange} />
-          {["fit", "resume", "coverLetter", "message"].includes(activeTab) && (
-            <div className="border-t border-brand-100 bg-white/90 px-4 py-2 sm:px-5">
-              <IntelligenceModeToggle />
-            </div>
-          )}
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
@@ -651,6 +654,27 @@ function NextBestActionCard({ action, onAction }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function RecruiterConfidenceHeroSummary({ score, profile, resume, coverLetter, recruiterMessage }) {
+  if (!score) return null;
+  const confidence = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage });
+  const addressedCount = confidence.recoveryHighlights.length;
+  const summary = addressedCount
+    ? `${addressedCount} hiring consideration${addressedCount === 1 ? "" : "s"} strategically addressed`
+    : confidence.readiness >= 78
+      ? "Recruiter-ready positioning generated"
+      : "Operational positioning optimized";
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">
+        {confidence.tier}
+      </span>
+      <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">
+        {summary}
+      </span>
+    </div>
   );
 }
 
@@ -1258,6 +1282,14 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
       </div>
 
+      <ApplicationReadinessCard
+        score={score}
+        profile={profile}
+        resume={resume}
+        coverLetter={coverLetter}
+        recruiterMessage={recruiterMessage}
+      />
+
       <MaterialCard title="Resume" status={resume ? "Ready" : "Not generated"} description={resume ? "Preview or download your tailored resume." : "Create a tailored resume before exporting your application package."}>
         {resume ? (
           <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
@@ -1457,6 +1489,7 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
         </div>
         {showSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
+        <RecruiterConfidenceIndicator label="Cover letter positioning improved" className="mt-3" />
       </div>
 
       <div className="rounded-xl bg-slate-50/80 p-4 shadow-card ring-1 ring-brand-100 sm:p-6">
@@ -2081,7 +2114,7 @@ function formatDateTime(value) {
   return date.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function WorkflowSteps({ activeTab, completed, score, onSelect }) {
+function WorkflowSteps({ activeTab, completed, score, onSelect, rightSlot = null }) {
   const steps = [
     ["overview", "Overview"],
     ["fit", "Analysis"],
@@ -2093,29 +2126,32 @@ function WorkflowSteps({ activeTab, completed, score, onSelect }) {
   ];
   const current = activeTab;
   return (
-    <div className="border-t border-brand-100 bg-white/90 px-4 py-3 sm:px-5">
-      <div className="kanban-scroll flex gap-2 overflow-x-auto pb-1">
-        {steps.map(([id, label], index) => {
-          const selected = current === id;
-          const done = completed[id];
-          const completion = getStepCompletionLabel(id, score, done);
-          const completionTone = id === "fit" && score ? getStepScoreTone(score.score) : "bg-emerald-100 text-emerald-800";
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onSelect(id)}
-              className={`flex min-w-max shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold transition ${
-                selected ? "bg-brand-700 text-white shadow-card" : done ? "bg-emerald-50 text-emerald-800" : "bg-brand-50 text-slate-600 hover:bg-brand-100"
-              }`}
-            >
-              <span className={`grid h-5 min-w-5 place-items-center whitespace-nowrap rounded-full px-1 text-[10px] ${selected ? "bg-white/20 text-white" : done ? completionTone : "bg-white text-slate-600"}`}>
-                {id === "overview" ? "1" : completion || index + 1}
-              </span>
-              <span className="whitespace-nowrap">{label}</span>
-            </button>
-          );
-        })}
+    <div className="border-t border-brand-100 bg-white/90 px-4 py-2 sm:px-5">
+      <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+        <div className="kanban-scroll flex min-w-0 gap-2 overflow-x-auto pb-1">
+          {steps.map(([id, label], index) => {
+            const selected = current === id;
+            const done = completed[id];
+            const completion = getStepCompletionLabel(id, score, done);
+            const completionTone = id === "fit" && score ? getStepScoreTone(score.score) : "bg-emerald-100 text-emerald-800";
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onSelect(id)}
+                className={`flex min-w-max shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-bold transition ${
+                  selected ? "bg-brand-700 text-white shadow-card" : done ? "bg-emerald-50 text-emerald-800" : "bg-brand-50 text-slate-600 hover:bg-brand-100"
+                }`}
+              >
+                <span className={`grid h-5 min-w-5 place-items-center whitespace-nowrap rounded-full px-1 text-[10px] ${selected ? "bg-white/20 text-white" : done ? completionTone : "bg-white text-slate-600"}`}>
+                  {id === "overview" ? "1" : completion || index + 1}
+                </span>
+                <span className="whitespace-nowrap">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+        {rightSlot && <div className="shrink-0">{rightSlot}</div>}
       </div>
     </div>
   );

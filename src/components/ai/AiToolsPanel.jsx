@@ -156,11 +156,11 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
           </div>
         )}
       </div>
-      <div className={`${compact ? "rounded-lg bg-brand-50/70 p-3" : "mt-4 flex flex-col gap-2 rounded-lg bg-brand-50 p-3 sm:flex-row sm:items-center sm:justify-between"}`}>
+      <div className={`${compact ? "rounded-lg bg-brand-50/70 p-2" : "mt-4 flex flex-col gap-2 rounded-lg bg-brand-50 p-3 sm:flex-row sm:items-center sm:justify-between"}`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-brand-900">Tailoring intensity</p>
-            <p className="text-xs text-slate-600">
+            <p className={`text-xs text-slate-600 ${compact ? "hidden" : ""}`}>
               Controls how strongly resume wording is optimized for this role.
             </p>
             {latestScore?.recommendation === "Skip" && (
@@ -422,6 +422,7 @@ export function ResumeResult({ resume, score, materials = {}, analysisReady = tr
           <p className="mt-2">{whyThisFits}</p>
         </div>
       )}
+      <RecruiterConfidenceIndicator label="Recruiter-ready positioning improved" />
       <RewriteVisibilityPanel material={resume} materials={materials} score={score} originalText={profile?.base_resume_text} generatedText={resume.content} materialType="resume" className="mt-3" />
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
@@ -510,6 +511,7 @@ export function MessageResult({ message, score, materials = {}, analysisReady = 
       </div>
       <MessageReadiness readiness={readiness} />
       <ContactSelector contacts={contacts} selectedContactId={selectedContactId} onContactChange={onContactChange} />
+      <RecruiterConfidenceIndicator label="Outreach positioning strengthened" className="mt-3" />
       {editing ? (
         <textarea
           className="mt-4 min-h-52 w-full rounded-lg border border-brand-100 bg-white p-4 text-sm leading-6 text-slate-700 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
@@ -604,19 +606,19 @@ export function ApplicationReadinessCard({ score, profile, resume, coverLetter, 
   if (!score && !resume && !coverLetter && !recruiterMessage) return null;
 
   return (
-    <section className={`rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 ${className}`}>
+    <section className={`rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 ${isStrategic ? "bg-gradient-to-br from-brand-950 via-brand-900 to-slate-900 text-white ring-brand-800" : ""} ${className}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application readiness</p>
-          <h3 className="mt-1 text-lg font-bold text-ink">{readiness.tier}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">A recruiter-aware estimate based on fit, materials, recovery, and skim readability.</p>
+          <p className={`text-xs font-bold uppercase tracking-[0.12em] ${isStrategic ? "text-cyan-100" : "text-brand-600"}`}>Recruiter Confidence</p>
+          <h3 className={`mt-1 text-lg font-bold ${isStrategic ? "text-white" : "text-ink"}`}>{readiness.tier}</h3>
+          <p className={`mt-1 text-sm leading-6 ${isStrategic ? "text-cyan-50/85" : "text-slate-600"}`}>Recruiter-aware estimate based on fit, materials, recovery, and skim readability.</p>
         </div>
         <div className="min-w-36">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-3xl font-black text-brand-900">{readiness.readiness}%</span>
+            <span className={`text-3xl font-black ${isStrategic ? "text-white" : "text-brand-900"}`}>{readiness.readiness}%</span>
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getReadinessTone(readiness.readiness)}`}>{readiness.tier}</span>
           </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.readiness}% application readiness`}>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.readiness}% recruiter confidence`}>
             <div className={`h-full rounded-full ${getReadinessBarTone(readiness.readiness)}`} style={{ width: `${readiness.readiness}%` }} />
           </div>
         </div>
@@ -627,6 +629,11 @@ export function ApplicationReadinessCard({ score, profile, resume, coverLetter, 
         <ReadinessSignal label="Main hiring consideration" value={readiness.biggestConsideration} tone="neutral" />
         <ReadinessSignal label="Recruiter skim readability" value={readiness.recruiterSkimReadability} tone="info" />
         <ReadinessSignal label="Interview likelihood" value={readiness.interviewLikelihood} tone="success" />
+      </div>
+
+      <div className={`mt-3 grid gap-2 rounded-lg p-3 ring-1 ${isStrategic ? "bg-white/10 ring-white/10" : "bg-brand-50/70 ring-brand-100"} ${compact ? "" : "sm:grid-cols-2"}`}>
+        <RecruiterPreviewLine label="What recruiters will likely notice first" value={readiness.strongestSignal} inverse={isStrategic} />
+        <RecruiterPreviewLine label="Possible hesitation point" value={readiness.biggestConsideration} inverse={isStrategic} />
       </div>
 
       {readiness.recoveryHighlights.length > 0 && (
@@ -647,7 +654,7 @@ export function ApplicationReadinessCard({ score, profile, resume, coverLetter, 
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
         >
-          {expanded ? "Hide readiness detail" : "Show readiness detail"}
+          {expanded ? "Hide confidence detail" : "Show confidence detail"}
           <ChevronDown size={13} className={`transition duration-200 ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
       )}
@@ -669,6 +676,24 @@ function ReadinessSignal({ label, value, tone }) {
     <div className="rounded-lg bg-slate-50/80 p-3 ring-1 ring-slate-100">
       <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">{label}</p>
       <p className={`mt-1 text-sm font-bold ${tone === "success" ? "text-emerald-800" : tone === "info" ? "text-brand-800" : "text-slate-700"}`}>{value}</p>
+    </div>
+  );
+}
+
+export function RecruiterConfidenceIndicator({ label = "Positioning improved", className = "" }) {
+  return (
+    <div className={`inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100 ${className}`}>
+      <CheckCircle2 size={12} aria-hidden="true" />
+      {label}
+    </div>
+  );
+}
+
+function RecruiterPreviewLine({ label, value, inverse = false }) {
+  return (
+    <div className="min-w-0">
+      <p className={`text-[11px] font-bold uppercase tracking-[0.1em] ${inverse ? "text-cyan-100/80" : "text-slate-500"}`}>{label}</p>
+      <p className={`mt-1 text-sm font-semibold leading-5 ${inverse ? "text-white" : "text-slate-700"}`}>{value}</p>
     </div>
   );
 }
