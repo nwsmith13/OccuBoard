@@ -714,16 +714,16 @@ export function ApplicationReadinessCard({ score, profile, resume, coverLetter, 
   if (!score && !resume && !coverLetter && !recruiterMessage) return null;
 
   return (
-    <section className={`rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 ${strategicView ? "bg-gradient-to-br from-brand-950 via-brand-900 to-slate-900 text-white ring-brand-800" : ""} ${className}`}>
+    <section className={`rounded-xl bg-white/95 p-4 shadow-sm ring-1 ${strategicView ? "ring-brand-200" : "ring-brand-100"} ${className}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className={`text-xs font-bold uppercase tracking-[0.12em] ${strategicView ? "text-cyan-100" : "text-brand-600"}`}>Recruiter Confidence</p>
-          <h3 className={`mt-1 text-lg font-bold ${strategicView ? "text-white" : "text-ink"}`}>{readiness.tier}</h3>
-          <p className={`mt-1 text-sm leading-6 ${strategicView ? "text-cyan-50/85" : "text-slate-600"}`}>Recruiter-aware estimate based on fit, materials, recovery, and skim readability.</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Recruiter Confidence</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">{readiness.tier}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-700">Recruiter-aware estimate based on fit, materials, recovery, and skim readability.</p>
         </div>
         <div className="min-w-36">
           <div className="flex items-center justify-between gap-3">
-            <span className={`text-3xl font-black ${strategicView ? "text-white" : "text-brand-900"}`}>{readiness.readiness}%</span>
+            <span className="text-3xl font-black text-brand-950">{readiness.readiness}%</span>
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getReadinessTone(readiness.readiness)}`}>{readiness.tier}</span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.readiness}% recruiter confidence`}>
@@ -739,9 +739,9 @@ export function ApplicationReadinessCard({ score, profile, resume, coverLetter, 
         <ReadinessSignal label="Interview likelihood" value={readiness.interviewLikelihood} tone="success" />
       </div>
 
-      <div className={`mt-3 grid gap-2 rounded-lg p-3 ring-1 ${strategicView ? "bg-white/10 ring-white/10" : "bg-brand-50/70 ring-brand-100"} ${compact ? "" : "sm:grid-cols-2"}`}>
-        <RecruiterPreviewLine label="What recruiters will likely notice first" value={readiness.strongestSignal} inverse={strategicView} />
-        <RecruiterPreviewLine label="Possible hesitation point" value={readiness.biggestConsideration} inverse={strategicView} />
+      <div className={`mt-3 grid gap-2 rounded-lg bg-brand-50/70 p-3 ring-1 ring-brand-100 ${compact ? "" : "sm:grid-cols-2"}`}>
+        <RecruiterPreviewLine label="What recruiters will likely notice first" value={readiness.strongestSignal} />
+        <RecruiterPreviewLine label="Possible hesitation point" value={readiness.biggestConsideration} />
       </div>
 
       {readiness.recoveryHighlights.length > 0 && (
@@ -768,7 +768,7 @@ export function ApplicationReadinessCard({ score, profile, resume, coverLetter, 
       )}
 
       {showDetails && (
-        <div className="mt-3 grid gap-2 rounded-lg bg-slate-50/80 p-3 text-xs font-semibold text-slate-600 ring-1 ring-slate-100 sm:grid-cols-2">
+        <div className="mt-3 grid gap-2 rounded-lg bg-slate-50/90 p-3 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 sm:grid-cols-2">
           <span>Keyword coverage: {Math.round(readiness.metrics.keywordCoverage * 100)}%</span>
           <span>Readability score: {Math.round(readiness.metrics.readabilityScore)}%</span>
           <span>Recovery strength: {readiness.metrics.recoveryAverage.toFixed(1)} / 4</span>
@@ -797,11 +797,11 @@ export function RecruiterConfidenceIndicator({ label = "Positioning improved", c
   );
 }
 
-function RecruiterPreviewLine({ label, value, inverse = false }) {
+function RecruiterPreviewLine({ label, value }) {
   return (
     <div className="min-w-0">
-      <p className={`text-[11px] font-bold uppercase tracking-[0.1em] ${inverse ? "text-cyan-100/80" : "text-slate-500"}`}>{label}</p>
-      <p className={`mt-1 text-sm font-semibold leading-5 ${inverse ? "text-white" : "text-slate-700"}`}>{value}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-600">{label}</p>
+      <p className="mt-1 text-sm font-semibold leading-5 text-slate-800">{value}</p>
     </div>
   );
 }
@@ -933,7 +933,7 @@ export function RewriteVisibilityPanel({ material, materials = {}, score, origin
   );
 }
 
-function RewriteInsightCard({ section, materialType, recovery, expanded, onToggle, compact = false }) {
+export function RewriteInsightCard({ section, materialType, recovery, expanded, onToggle, compact = false }) {
   const changeId = `rewrite-change-${section.id}`;
   const addedItems = getAddedImprovementItems(section.category);
   return (
@@ -986,7 +986,7 @@ function SummaryChip({ children }) {
   return <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{children}</span>;
 }
 
-function RecoveryBar({ recovery, confidence }) {
+export function RecoveryBar({ recovery, confidence }) {
   const percent = getRecoveryPercent(recovery);
   return (
     <div className="min-w-0" aria-label={recovery}>
@@ -1001,7 +1001,7 @@ function RecoveryBar({ recovery, confidence }) {
   );
 }
 
-function CoverageMatrix({ rows }) {
+export function CoverageMatrix({ rows }) {
   if (!rows.length) return null;
   return (
     <div className="mt-3 rounded-lg bg-white p-3 ring-1 ring-slate-100" title="Shows where OccuBoard strengthened positioning.">

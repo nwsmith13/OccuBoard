@@ -1,6 +1,6 @@
 import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AiToolsPanel, ApplicationReadinessCard, CopyButton, RecruiterConfidenceIndicator, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
+import { AiToolsPanel, ApplicationReadinessCard, CopyButton, CoverageMatrix, RecruiterConfidenceIndicator, RecoveryBar, RewriteInsightCard, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
 import { Button } from "../../components/ui/Button.jsx";
@@ -21,6 +21,7 @@ import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
 import { getJobAiStatus, isCoverLetter, isRecruiterMessage } from "../../lib/jobAiStatus.js";
 import { buildMitigationPlan, getAppliedMitigations } from "../../lib/mitigationPlan.js";
+import { buildMaterialRecoveryScores, buildRewriteInsights } from "../../lib/rewriteInsights.js";
 import { getResumeExportHistory } from "../../lib/resumeExport.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { getNextBestAction, getNextBestActionTone } from "../../utils/nextBestAction.js";
@@ -1361,6 +1362,7 @@ function MaterialCard({ title, status, description, children }) {
 }
 
 function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiterMessage }) {
+  const [section, setSection] = useState("overview");
   if (!score && !resume && !coverLetter && !recruiterMessage) {
     return (
       <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
@@ -1371,60 +1373,175 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
     );
   }
 
+  const readiness = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage });
+  const mitigationPlan = buildMitigationPlan(score);
+  const rewriteItems = buildRecruiterViewRewriteItems({ score, profile, resume, coverLetter, recruiterMessage, mitigationPlan });
+  const allInsights = rewriteItems.flatMap((item) => item.insights);
+  const recoveryScores = buildMaterialRecoveryScores({
+    mitigationPlan,
+    materials: { resume, coverLetter, message: recruiterMessage },
+    rewriteSections: allInsights,
+  });
+  const strongRecoveryCount = recoveryScores.filter((item) => item.score >= 3).length;
+  const coveredInTwoMaterials = recoveryScores.filter((item) => Object.values(item.coverage || {}).filter(Boolean).length >= 2).length;
+  const tabs = [
+    ["overview", "Overview"],
+    ["recovery", "Recovery"],
+    ["coverage", "Coverage"],
+    ["changes", "Changes"],
+  ];
+
   return (
     <section className="grid gap-4">
       <div className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Recruiter View</p>
-        <h3 className="mt-1 text-xl font-bold text-ink">Hiring-team perspective</h3>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">A focused view of recruiter confidence, likely first impressions, hesitation points, and how OccuBoard strengthened the application strategy.</p>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Recruiter View</p>
+            <h3 className="mt-1 text-xl font-bold text-ink">Hiring-team perspective</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">A focused view of recruiter confidence, first impressions, hesitation points, and strategic recovery.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">{readiness.tier}</span>
+            {strongRecoveryCount > 0 && <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{strongRecoveryCount} strong recover{strongRecoveryCount === 1 ? "y" : "ies"}</span>}
+            {mitigationPlan.items.length > 0 && <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200">{mitigationPlan.items.length} considerations addressed</span>}
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="Recruiter View sections">
+          {tabs.map(([id, label]) => {
+            const selected = section === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${
+                  selected ? "bg-brand-700 text-white shadow-sm" : "bg-brand-50 text-brand-800 ring-1 ring-brand-100 hover:bg-brand-100"
+                }`}
+                onClick={() => setSection(id)}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <ApplicationReadinessCard
-        score={score}
-        profile={profile}
-        resume={resume}
-        coverLetter={coverLetter}
-        recruiterMessage={recruiterMessage}
-        forceStrategic
-      />
-
-      {resume && (
-        <RewriteVisibilityPanel
-          material={resume}
-          materials={{ resume, coverLetter, message: recruiterMessage }}
-          score={score}
-          originalText={profile?.base_resume_text}
-          generatedText={resume.content}
-          materialType="resume"
-          forceStrategic
-        />
+      {section === "overview" && (
+        <RecruiterViewOverview score={score} profile={profile} resume={resume} coverLetter={coverLetter} recruiterMessage={recruiterMessage} strategyItems={mitigationPlan.items} />
       )}
+      {section === "recovery" && <RecruiterViewRecovery rows={recoveryScores} strongCount={strongRecoveryCount} />}
+      {section === "coverage" && <RecruiterViewCoverage rows={recoveryScores} coveredInTwoMaterials={coveredInTwoMaterials} />}
+      {section === "changes" && <RecruiterViewChanges rewriteItems={rewriteItems} recoveryScores={recoveryScores} />}
+    </section>
+  );
+}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {coverLetter && (
-          <RewriteVisibilityPanel
-            material={coverLetter}
-            materials={{ resume, coverLetter, message: recruiterMessage }}
-            score={score}
-            originalText={profile?.base_resume_text}
-            generatedText={coverLetter.content}
-            materialType="coverLetter"
-            forceStrategic
-          />
-        )}
-        {recruiterMessage && (
-          <RewriteVisibilityPanel
-            material={recruiterMessage}
-            materials={{ resume, coverLetter, message: recruiterMessage }}
-            score={score}
-            originalText={profile?.base_resume_text}
-            generatedText={recruiterMessage.content}
-            materialType="message"
-            forceStrategic
-          />
-        )}
+function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterMessage, strategyItems }) {
+  const readiness = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage });
+  return (
+    <section className="grid gap-4">
+      <ApplicationReadinessCard score={score} profile={profile} resume={resume} coverLetter={coverLetter} recruiterMessage={recruiterMessage} />
+      {strategyItems.length > 0 && (
+        <div className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Strategy highlights</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {strategyItems.slice(0, 4).map((item) => (
+              <span key={item.id} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{item.appliedLabel}</span>
+            ))}
+          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-700">Recruiters are likely to notice {readiness.strongestSignal.toLowerCase()}. The main place to stay clear and confident is {readiness.biggestConsideration.toLowerCase()}.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function RecruiterViewRecovery({ rows, strongCount }) {
+  if (!rows.length) return <RecruiterViewEmpty message="Recovery details will appear after analysis-backed materials are generated." />;
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Hiring consideration recovery</p>
+      <h3 className="mt-1 text-lg font-bold text-ink">{strongCount} of {rows.length} considerations have strong or full recovery.</h3>
+      <p className="mt-1 text-sm leading-6 text-slate-700">Recovery reflects improved positioning, not newly invented experience.</p>
+      <div className="mt-4 grid gap-3">
+        {rows.map((row) => (
+          <div key={row.gapId} className="grid gap-2 rounded-lg bg-slate-50/80 p-3 ring-1 ring-slate-100 md:grid-cols-[minmax(0,1fr)_240px] md:items-center">
+            <div>
+              <p className="text-sm font-bold text-slate-800">{row.label}</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">{row.confidence}</p>
+            </div>
+            <RecoveryBar recovery={row.recovery} confidence="" />
+          </div>
+        ))}
       </div>
     </section>
   );
+}
+
+function RecruiterViewCoverage({ rows, coveredInTwoMaterials }) {
+  if (!rows.length) return <RecruiterViewEmpty message="Coverage details will appear once resume, cover letter, or recruiter message positioning is generated." />;
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Strategic coverage</p>
+      <h3 className="mt-1 text-lg font-bold text-ink">{coveredInTwoMaterials ? `${coveredInTwoMaterials} concerns are covered across at least two materials.` : "Coverage is starting to build across materials."}</h3>
+      <p className="mt-1 text-sm leading-6 text-slate-700">Shows where OccuBoard strengthened each positioning concern.</p>
+      <CoverageMatrix rows={rows} />
+    </section>
+  );
+}
+
+function RecruiterViewChanges({ rewriteItems, recoveryScores }) {
+  const [expanded, setExpanded] = useState({});
+  const items = rewriteItems.flatMap((item) => item.insights.map((section) => ({ ...section, materialType: item.materialType })));
+  if (!items.length) return <RecruiterViewEmpty message="Rewrite details will appear after generated materials include analysis-backed improvements." />;
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Strengthened from analysis</p>
+      <h3 className="mt-1 text-lg font-bold text-ink">What changed in the generated materials</h3>
+      <p className="mt-1 text-sm leading-6 text-slate-700">Compact rewrite cards show the strategic changes. Wording comparisons stay collapsed until opened.</p>
+      <div className="mt-4 grid gap-3">
+        {items.map((section) => (
+          <RewriteInsightCard
+            key={`${section.materialType}-${section.id}`}
+            section={section}
+            materialType={section.materialType}
+            recovery={recoveryScores.find((item) => item.label === section.mitigationSource)}
+            expanded={Boolean(expanded[`${section.materialType}-${section.id}`])}
+            onToggle={() => setExpanded((current) => ({ ...current, [`${section.materialType}-${section.id}`]: !current[`${section.materialType}-${section.id}`] }))}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RecruiterViewEmpty({ message }) {
+  return (
+    <section className="rounded-xl bg-white/90 p-5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-brand-100">
+      {message}
+    </section>
+  );
+}
+
+function buildRecruiterViewRewriteItems({ score, profile, resume, coverLetter, recruiterMessage, mitigationPlan }) {
+  return [
+    ["resume", resume],
+    ["coverLetter", coverLetter],
+    ["message", recruiterMessage],
+  ].filter(([, material]) => material?.content).map(([materialType, material]) => ({
+    materialType,
+    material,
+    insights: buildRewriteInsights({
+      originalText: profile?.base_resume_text,
+      generatedText: material.content,
+      mitigationPlan,
+      analysis: score,
+      gaps: score?.gaps,
+      strengths: score?.strengths,
+      keywords: score?.keywords,
+      materialType,
+    }).sections,
+  }));
 }
 
 function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, recruiterMessage, user, onSave, onUpdate, onLogActivity, onUnsavedChange }) {
