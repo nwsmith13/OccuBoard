@@ -614,6 +614,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 resume={latestResume}
                 coverLetter={latestCoverLetter}
                 recruiterMessage={latestMessage}
+                onContinue={() => requestTabChange("interview")}
               />
             </div>
           )}
@@ -1367,7 +1368,7 @@ function MaterialCard({ title, status, description, children }) {
   );
 }
 
-function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiterMessage }) {
+function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiterMessage, onContinue }) {
   const [section, setSection] = useState("overview");
   if (!score && !resume && !coverLetter && !recruiterMessage) {
     return (
@@ -1442,6 +1443,7 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
           strategyItems={mitigationPlan.items}
           recoveryScores={recoveryScores}
           onSelectSection={setSection}
+          onContinue={onContinue}
           hasIntelligenceData={hasIntelligenceData}
         />
       )}
@@ -1452,14 +1454,23 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
   );
 }
 
-function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterMessage, strategyItems, recoveryScores, onSelectSection, hasIntelligenceData }) {
+function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterMessage, strategyItems, recoveryScores, onSelectSection, onContinue, hasIntelligenceData }) {
   const readiness = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage });
   const recommendation = getApplicationRecommendation({ readiness, strategyItems, recoveryScores, resume, recruiterMessage });
   const outlook = getHiringOutlook({ readiness, strategyItems, recoveryScores });
+  const addressedCount = recoveryScores.filter((item) => item.score >= 3).length;
+  const totalConsiderations = strategyItems.length || recoveryScores.length;
   return (
     <section className="grid gap-4">
-      <HiringOutlookCard outlook={outlook} recommendation={recommendation} />
-      <ApplicationRecommendationCard recommendation={recommendation} onSelectSection={onSelectSection} />
+      <HiringOutlookCard
+        outlook={outlook}
+        recommendation={recommendation}
+        readiness={readiness}
+        addressedCount={addressedCount}
+        totalConsiderations={totalConsiderations}
+        onSelectSection={onSelectSection}
+        onContinue={onContinue}
+      />
       <ApplicationReadinessCard score={score} profile={profile} resume={resume} coverLetter={coverLetter} recruiterMessage={recruiterMessage} />
       {strategyItems.length > 0 && (
         <div className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
@@ -1481,13 +1492,25 @@ function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterM
   );
 }
 
-function HiringOutlookCard({ outlook, recommendation }) {
+function HiringOutlookCard({ outlook, recommendation, readiness, addressedCount, totalConsiderations, onSelectSection, onContinue }) {
   return (
     <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
       <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Hiring Outlook</p>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <h3 className="text-2xl font-black text-ink">{outlook.label}</h3>
         <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{recommendation.label}</span>
+        <Button className="min-h-8 px-3 text-xs" onClick={onContinue}>Continue to Interview Prep</Button>
+        {recommendation.action && (
+          <Button variant={recommendation.actionVariant} className="min-h-8 px-3 text-xs" onClick={() => onSelectSection?.(recommendation.actionSection)}>
+            {recommendation.action}
+          </Button>
+        )}
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <HiringOutlookMetric label="Hiring Probability" value={outlook.label} />
+        <HiringOutlookMetric label="Recommendation" value={recommendation.label} />
+        <HiringOutlookMetric label="Recruiter Confidence" value={`${readiness.readiness}%`} />
+        <HiringOutlookMetric label="Considerations Addressed" value={totalConsiderations ? `${addressedCount}/${totalConsiderations}` : "None flagged"} />
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div>
@@ -1507,23 +1530,12 @@ function HiringOutlookCard({ outlook, recommendation }) {
   );
 }
 
-function ApplicationRecommendationCard({ recommendation, onSelectSection }) {
+function HiringOutlookMetric({ label, value }) {
   return (
-    <section className={`rounded-xl p-4 shadow-card ring-1 ${recommendation.tone}`}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600">Application recommendation</p>
-          <h3 className="mt-1 text-2xl font-black text-ink">{recommendation.label}</h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">{recommendation.description}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-600">{recommendation.note}</p>
-        </div>
-        {recommendation.action && (
-          <Button variant={recommendation.actionVariant} className="w-fit shrink-0" onClick={() => onSelectSection?.(recommendation.actionSection)}>
-            {recommendation.action}
-          </Button>
-        )}
-      </div>
-    </section>
+    <div className="rounded-lg bg-slate-50/90 p-3 ring-1 ring-slate-100">
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-black text-slate-900">{value}</p>
+    </div>
   );
 }
 
@@ -1593,7 +1605,7 @@ function RecruiterViewCoverage({ rows, coveredInTwoMaterials }) {
 function RecruiterViewChanges({ rewriteItems, recoveryScores }) {
   const [expanded, setExpanded] = useState({});
   const [showDetails, setShowDetails] = useState(false);
-  const items = rewriteItems.flatMap((item) => item.insights.map((section) => ({ ...section, materialType: item.materialType })));
+  const items = dedupeRewriteSections(rewriteItems.flatMap((item) => item.insights.map((section) => ({ ...section, materialType: item.materialType }))));
   if (!items.length) return <RecruiterViewEmpty message="Rewrite details will appear after generated materials include analysis-backed improvements." />;
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
@@ -1681,6 +1693,17 @@ function buildRecruiterViewRewriteItems({ score, profile, resume, coverLetter, r
       materialType,
     }).sections,
   }));
+}
+
+function dedupeRewriteSections(items = []) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = [item.title, item.category, item.mitigationSource].filter(Boolean).join("|").toLowerCase();
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function getApplicationRecommendation({ readiness, strategyItems = [], recoveryScores = [], resume, recruiterMessage }) {
@@ -1959,6 +1982,8 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [prepTab, setPrepTab] = useState("overview");
+  const [practiceIndex, setPracticeIndex] = useState(0);
   const [openQuestion, setOpenQuestion] = useState("");
   const [openStory, setOpenStory] = useState("");
   const [interviewDetails, setInterviewDetails] = useState(() => getInterviewDetails(job, contacts));
@@ -2172,13 +2197,21 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     );
   }
 
+  const questions = Array.isArray(content.questions) ? content.questions : [];
+  const focusAreas = Array.isArray(content.focusAreas) ? content.focusAreas : [];
+  const talkingPoints = Array.isArray(content.talkingPoints) ? content.talkingPoints : [];
+  const stories = Array.isArray(content.starStories) ? content.starStories : [];
+  const questionsToAsk = Array.isArray(content.questionsToAsk) ? content.questionsToAsk : [];
+  const readiness = getInterviewReadinessScore({ content, practicedCount: practiced.size, interviewDetails, thankYouDraft });
+  const currentPracticeQuestion = questions[practiceIndex % Math.max(questions.length, 1)];
+
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-4">
       {scheduleCard}
-      <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+      <div className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Snapshot</p>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Prep</p>
             <h3 className="mt-1 text-xl font-bold text-ink">{getDisplayJobTitle(job)}</h3>
             <p className="mt-1 text-sm font-semibold text-brand-800">{getDisplayCompanyName(job)}</p>
           </div>
@@ -2189,66 +2222,194 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
         </div>
         {showPrepSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Detail label="Readiness score" value={`${readiness.score}%`} />
           <Detail label="Fit score" value={score ? `${Math.round(Number(score.score))}%` : "Not analyzed"} />
-          <Detail label="Stage" value={getDisplayStage(job.status)} />
           <Detail label="Interview date" value={interviewDetails.interview_date ? formatDate(interviewDetails.interview_date) : "Not scheduled"} />
           <Detail label="Preparation level" value={getPrepLevel(content, practiced.size)} />
         </div>
         {contacts[0] && <p className="mt-3 text-sm text-slate-600">Contact: <span className="font-semibold text-slate-800">{contacts[0].name}</span></p>}
+        <InterviewPrepTabs active={prepTab} onSelect={setPrepTab} />
       </div>
 
-      <PrepSection title="Likely Interview Focus Areas">
+      {prepTab === "overview" && (
+        <InterviewPrepOverview focusAreas={focusAreas} questions={questions} readiness={readiness} />
+      )}
+
+      {prepTab === "questions" && (
+        <InterviewPrepQuestions
+          questions={questions}
+          openQuestion={openQuestion}
+          setOpenQuestion={setOpenQuestion}
+          draftNotes={draftNotes}
+          notes={notes}
+          saveNote={saveNote}
+          persistNote={persistNote}
+          noteSaveStatus={noteSaveStatus}
+          practiced={practiced}
+          togglePracticed={togglePracticed}
+        />
+      )}
+
+      {prepTab === "stories" && (
+        <InterviewPrepStories stories={stories} openStory={openStory} setOpenStory={setOpenStory} talkingPoints={talkingPoints} />
+      )}
+
+      {prepTab === "research" && (
+        <InterviewPrepResearch job={job} focusAreas={focusAreas} questionsToAsk={questionsToAsk} />
+      )}
+
+      {prepTab === "practice" && (
+        <InterviewPrepPractice
+          question={currentPracticeQuestion}
+          questionIndex={practiceIndex % Math.max(questions.length, 1)}
+          totalQuestions={questions.length}
+          practiced={practiced}
+          onMarkPracticed={togglePracticed}
+          onNext={() => setPracticeIndex((index) => (questions.length ? (index + 1) % questions.length : 0))}
+          thankYouCopied={thankYouCopied}
+          thankYouSaved={thankYouSaved}
+          interviewCompleted={interviewCompleted}
+          thankYouDraft={thankYouDraft}
+          setThankYouDraft={setThankYouDraft}
+          copyThankYou={copyThankYou}
+          saveThankYouEdits={saveThankYouEdits}
+          markInterviewComplete={markInterviewComplete}
+          lastSavedThankYou={lastSavedThankYou}
+        />
+      )}
+    </section>
+  );
+}
+
+function NoteSaveStatus({ status }) {
+  const label = {
+    saving: "Saving...",
+    saved: "Saved",
+    error: "Could not save",
+  }[status];
+  const tone = {
+    saving: "text-brand-700",
+    saved: "text-emerald-700",
+    error: "text-rose-700",
+  }[status];
+  return <p className={`text-xs font-semibold transition ${tone}`}>{label}</p>;
+}
+
+function InterviewPrepTabs({ active, onSelect }) {
+  const tabs = [
+    ["overview", "Overview"],
+    ["questions", "Questions"],
+    ["stories", "Stories"],
+    ["research", "Research"],
+    ["practice", "Practice"],
+  ];
+  return (
+    <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="Interview Prep sections">
+      {tabs.map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={active === id}
+          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${
+            active === id ? "bg-brand-700 text-white shadow-sm" : "bg-brand-50 text-brand-800 ring-1 ring-brand-100 hover:bg-brand-100"
+          }`}
+          onClick={() => onSelect(id)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function InterviewPrepOverview({ focusAreas, questions, readiness }) {
+  const areasToPrepare = getInterviewAreasToPrepare(focusAreas, questions);
+  return (
+    <section className="grid gap-4">
+      <PrepSection title="Interview Readiness">
+        <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+          <div>
+            <p className="text-4xl font-black text-brand-900">{readiness.score}%</p>
+            <p className="mt-1 text-sm font-bold text-slate-700">{readiness.label}</p>
+          </div>
+          <div>
+            <div className="h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.score}% interview readiness`}>
+              <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${readiness.score}%` }} />
+            </div>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{readiness.description}</p>
+          </div>
+        </div>
+      </PrepSection>
+      <PrepSection title="Likely Focus Areas">
         <div className="grid gap-3 md:grid-cols-2">
-          {content.focusAreas.map((area) => (
-            <div key={area.title} className="rounded-lg bg-brand-50/80 p-3">
+          {focusAreas.slice(0, 6).map((area) => (
+            <div key={area.title || area.emphasize} className="rounded-lg bg-brand-50/80 p-3">
               <p className="font-bold text-ink">{area.title}</p>
               <p className="mt-1 text-sm leading-5 text-slate-600">{area.whyItMatters}</p>
-              <p className="mt-2 text-xs font-semibold text-brand-800">Emphasize: {area.emphasize}</p>
+              {area.emphasize && <p className="mt-2 text-xs font-semibold text-brand-800">Emphasize: {area.emphasize}</p>}
             </div>
           ))}
         </div>
       </PrepSection>
-
-      <PrepSection title="Likely Questions">
-        <div className="grid gap-2">
-          {content.questions.map((question, index) => (
-            <div key={`${question.category}-${question.question}`} className="rounded-lg bg-brand-50/70 p-3">
-              <button type="button" className="flex w-full items-start justify-between gap-3 text-left" onClick={() => setOpenQuestion(openQuestion === index ? "" : index)}>
-                <span>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{question.category}</span>
-                  <span className="mt-1 block font-bold text-ink">{question.question}</span>
-                </span>
-                <span className="text-xs font-bold text-brand-700">{openQuestion === index ? "Close" : "Open"}</span>
-              </button>
-              {openQuestion === index && (
-                <div className="mt-3 grid gap-3">
-                  <p className="text-sm leading-6 text-slate-600">{question.guidance}</p>
-                  <div className="grid gap-1">
-                    <textarea className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" rows="2" placeholder="Optional answer notes" value={draftNotes[index] ?? notes[index] ?? ""} onChange={(event) => saveNote(index, event.target.value)} onBlur={() => persistNote(index)} />
-                    {noteSaveStatus[index] && <NoteSaveStatus status={noteSaveStatus[index]} />}
-                  </div>
-                  <Button variant={practiced.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => togglePracticed(index)}>{practiced.has(index) ? "Practiced" : "Mark practiced"}</Button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </PrepSection>
-
-      <PrepSection title="Your Best Talking Points">
-        <ul className="grid gap-2">
-          {content.talkingPoints.map((point) => <li key={point} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold leading-6 text-emerald-900">{point}</li>)}
+      <PrepSection title="Areas To Prepare">
+        <ul className="grid gap-2 md:grid-cols-2">
+          {areasToPrepare.map((area) => <li key={area} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-700 ring-1 ring-brand-100">{area}</li>)}
         </ul>
       </PrepSection>
+    </section>
+  );
+}
 
-      <PrepSection title="STAR Story Builder">
+function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draftNotes, notes, saveNote, persistNote, noteSaveStatus, practiced, togglePracticed }) {
+  return (
+    <PrepSection title="Top Interview Questions">
+      <div className="grid gap-2">
+        {questions.map((question, index) => (
+          <div key={`${question.category}-${question.question}`} className="rounded-lg bg-brand-50/70 p-3">
+            <button type="button" className="flex w-full items-start justify-between gap-3 text-left" onClick={() => setOpenQuestion(openQuestion === index ? "" : index)} aria-expanded={openQuestion === index}>
+              <span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{question.category || "Interview"}</span>
+                <span className="mt-1 block font-bold text-ink">{question.question}</span>
+                <span className="mt-1 block text-xs font-semibold text-slate-600">Likelihood: {getQuestionLikelihood(index)}</span>
+              </span>
+              <span className="text-xs font-bold text-brand-700">{openQuestion === index ? "Close" : "Open"}</span>
+            </button>
+            {openQuestion === index && (
+              <div className="mt-3 grid gap-3">
+                <div className="grid gap-2 md:grid-cols-2">
+                  <PrepInfoBlock label="Why they will ask" value={question.whyTheyAsk || getQuestionWhy(question)} />
+                  <PrepInfoBlock label="Preparation guidance" value={question.guidance} />
+                </div>
+                <div className="grid gap-1">
+                  <textarea className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" rows="2" placeholder="Optional answer notes" value={draftNotes[index] ?? notes[index] ?? ""} onChange={(event) => saveNote(index, event.target.value)} onBlur={() => persistNote(index)} />
+                  {noteSaveStatus[index] && <NoteSaveStatus status={noteSaveStatus[index]} />}
+                </div>
+                <Button variant={practiced.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => togglePracticed(index)}>{practiced.has(index) ? "Practiced" : "Mark practiced"}</Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </PrepSection>
+  );
+}
+
+function InterviewPrepStories({ stories, openStory, setOpenStory, talkingPoints }) {
+  return (
+    <section className="grid gap-4">
+      <PrepSection title="Recommended Stories">
         <div className="grid gap-3">
-          {content.starStories.map((story, index) => (
+          {stories.map((story, index) => (
             <div key={story.title} className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
-              <button type="button" className="flex w-full items-center justify-between gap-3 text-left font-bold" onClick={() => setOpenStory(openStory === index ? "" : index)}>
+              <button type="button" className="flex w-full items-center justify-between gap-3 text-left font-bold" onClick={() => setOpenStory(openStory === index ? "" : index)} aria-expanded={openStory === index}>
                 {story.title}
                 <span className="text-xs text-brand-700">{openStory === index ? "Close" : "Open"}</span>
               </button>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                <PrepInfoBlock label="Best use cases" value={getStoryUseCases(story)} />
+                <PrepInfoBlock label="Key strengths demonstrated" value={getStoryStrengths(story, talkingPoints)} />
+              </div>
               {openStory === index && (
                 <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-600">
                   <p><strong>Situation:</strong> {story.situation}</p>
@@ -2262,13 +2423,53 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           ))}
         </div>
       </PrepSection>
-
-      <PrepSection title="Questions To Ask Them">
+      <PrepSection title="Best Talking Points">
         <ul className="grid gap-2">
-          {content.questionsToAsk.map((question) => <li key={question} className="rounded-lg bg-brand-50 px-3 py-2 text-sm leading-6 text-slate-700">{question}</li>)}
+          {talkingPoints.map((point) => <li key={point} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold leading-6 text-emerald-900">{point}</li>)}
         </ul>
       </PrepSection>
+    </section>
+  );
+}
 
+function InterviewPrepResearch({ job, focusAreas, questionsToAsk }) {
+  return (
+    <section className="grid gap-4">
+      <PrepSection title="Company Snapshot">
+        <p className="text-sm leading-6 text-slate-700">{getDisplayCompanyName(job)} is the hiring context for this role. Use the job description and company materials to connect your systems, implementation, and stakeholder examples to the team&apos;s operating needs.</p>
+      </PrepSection>
+      <PrepSection title="Likely Role Objectives">
+        <ul className="grid gap-2">
+          {getLikelyRoleObjectives(job, focusAreas).map((objective) => <li key={objective} className="rounded-lg bg-brand-50 px-3 py-2 text-sm leading-6 text-slate-700">{objective}</li>)}
+        </ul>
+      </PrepSection>
+      <PrepSection title="Suggested Questions To Ask">
+        <ul className="grid gap-2">
+          {questionsToAsk.map((question) => <li key={question} className="rounded-lg bg-white px-3 py-2 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">{question}</li>)}
+        </ul>
+      </PrepSection>
+    </section>
+  );
+}
+
+function InterviewPrepPractice({ question, questionIndex, totalQuestions, practiced, onMarkPracticed, onNext, thankYouCopied, thankYouSaved, interviewCompleted, thankYouDraft, setThankYouDraft, copyThankYou, saveThankYouEdits, markInterviewComplete, lastSavedThankYou }) {
+  return (
+    <section className="grid gap-4">
+      <PrepSection title="Mock Interview Practice">
+        {question ? (
+          <div className="rounded-xl bg-brand-50/70 p-4 ring-1 ring-brand-100">
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Question {questionIndex + 1} of {totalQuestions}</p>
+            <h3 className="mt-2 text-lg font-black text-ink">{question.question}</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-700">{question.guidance}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant={practiced.has(questionIndex) ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={() => onMarkPracticed(questionIndex)}>{practiced.has(questionIndex) ? "Practiced" : "Mark practiced"}</Button>
+              <Button className="min-h-8 px-3 text-xs" onClick={onNext}>Next question</Button>
+            </div>
+          </div>
+        ) : (
+          <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-slate-700">Generate interview prep to practice likely questions.</p>
+        )}
+      </PrepSection>
       <PrepSection title="Post-Interview Follow-up">
         {(thankYouCopied || thankYouSaved || interviewCompleted) && (
           <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
@@ -2287,18 +2488,13 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   );
 }
 
-function NoteSaveStatus({ status }) {
-  const label = {
-    saving: "Saving...",
-    saved: "Saved",
-    error: "Could not save",
-  }[status];
-  const tone = {
-    saving: "text-brand-700",
-    saved: "text-emerald-700",
-    error: "text-rose-700",
-  }[status];
-  return <p className={`text-xs font-semibold transition ${tone}`}>{label}</p>;
+function PrepInfoBlock({ label, value }) {
+  return (
+    <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm leading-6 text-slate-700">{value || "Use a concise example grounded in your resume."}</p>
+    </div>
+  );
 }
 
 function InterviewScheduleCard({ job, contacts, details, message, saving, onChange, onSave, onDownload, onOpenCalendar }) {
@@ -2385,6 +2581,72 @@ function getPrepLevel(content, practicedCount) {
   if (practicedCount >= Math.min(3, content.questions.length)) return "Ready";
   if (content) return "In progress";
   return "Not started";
+}
+
+function getInterviewReadinessScore({ content, practicedCount, interviewDetails, thankYouDraft }) {
+  const questionCount = Array.isArray(content?.questions) ? content.questions.length : 0;
+  const practicedRatio = questionCount ? Math.min(practicedCount / Math.min(questionCount, 4), 1) : 0;
+  const score =
+    35 +
+    (Array.isArray(content?.focusAreas) && content.focusAreas.length ? 18 : 0) +
+    (questionCount ? 16 : 0) +
+    (Array.isArray(content?.starStories) && content.starStories.length ? 14 : 0) +
+    (interviewDetails.interview_date ? 8 : 0) +
+    (thankYouDraft?.trim() ? 4 : 0) +
+    Math.round(practicedRatio * 5);
+  const clamped = Math.min(100, score);
+  return {
+    score: clamped,
+    label: clamped >= 85 ? "Ready" : clamped >= 70 ? "In progress" : "Getting prepared",
+    description: clamped >= 85
+      ? "Core focus areas, questions, stories, and follow-up support are in place."
+      : "Prep is structured. Practice the strongest questions and tighten your examples before the interview.",
+  };
+}
+
+function getQuestionLikelihood(index) {
+  if (index < 3) return "High";
+  if (index < 6) return "Medium";
+  return "Possible";
+}
+
+function getQuestionWhy(question = {}) {
+  const category = String(question.category || "").toLowerCase();
+  if (category.includes("behavior")) return "This checks communication style, ownership, and judgment under realistic workplace pressure.";
+  if (category.includes("technical")) return "This checks whether your systems experience transfers to the tools and workflows in the role.";
+  if (category.includes("fit")) return "This helps the interviewer understand motivation, collaboration style, and team alignment.";
+  return "This connects the role requirements to your strongest examples and working style.";
+}
+
+function getInterviewAreasToPrepare(focusAreas = [], questions = []) {
+  const focus = focusAreas.map((area) => area.title || area.emphasize).filter(Boolean);
+  const categories = questions.map((question) => question.category).filter(Boolean);
+  return [...new Set([...focus, ...categories])].slice(0, 6);
+}
+
+function getStoryUseCases(story = {}) {
+  const text = `${story.title || ""} ${story.action || ""}`.toLowerCase();
+  if (text.includes("implementation") || text.includes("launch")) return "Implementation, rollout, ownership, stakeholder coordination";
+  if (text.includes("customer") || text.includes("client")) return "Client communication, support recovery, expectation setting";
+  if (text.includes("data") || text.includes("system")) return "Systems coordination, data/process quality, operational problem solving";
+  return "Behavioral examples, ownership questions, cross-functional collaboration";
+}
+
+function getStoryStrengths(story = {}, talkingPoints = []) {
+  if (talkingPoints.length) return talkingPoints.slice(0, 2).join("; ");
+  const text = `${story.action || ""} ${story.result || ""}`.toLowerCase();
+  if (text.includes("document")) return "Documentation, enablement, follow-through";
+  if (text.includes("stakeholder")) return "Stakeholder communication, prioritization";
+  return "Ownership, communication, practical execution";
+}
+
+function getLikelyRoleObjectives(job = {}, focusAreas = []) {
+  const title = getDisplayJobTitle(job).toLowerCase();
+  const objectives = [];
+  if (title.includes("system") || title.includes("implementation")) objectives.push("Coordinate systems, workflows, and implementation details across stakeholders.");
+  if (title.includes("client") || title.includes("customer")) objectives.push("Support customer-facing communication, onboarding, and issue follow-through.");
+  objectives.push(...focusAreas.slice(0, 3).map((area) => area.emphasize || area.title).filter(Boolean));
+  return [...new Set(objectives)].slice(0, 5);
 }
 
 function getInterviewDetails(job = {}, contacts = []) {
@@ -2626,6 +2888,9 @@ function getStepScoreTone(score) {
 
 function getWorkflowReadiness(completed = {}) {
   const keys = ["overview", "fit", "resume", "coverLetter", "message", "recruiterView", "export"];
+  if (completed.recruiterView) {
+    return { complete: keys.length, total: keys.length, percent: 100 };
+  }
   const complete = keys.filter((key) => Boolean(completed[key])).length;
   return {
     complete,
