@@ -715,64 +715,50 @@ export function ApplicationReadinessCard({ score, profile, resume, coverLetter, 
 
   return (
     <section className={`rounded-xl bg-white/95 p-4 shadow-sm ring-1 ${strategicView ? "ring-brand-200" : "ring-brand-100"} ${className}`}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Recruiter Confidence</p>
-          <h3 className="mt-1 text-lg font-bold text-ink">{readiness.tier}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-700">Recruiter-aware estimate based on fit, materials, recovery, and skim readability.</p>
-        </div>
-        <div className="min-w-36">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-3xl font-black text-brand-950">{readiness.readiness}%</span>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getReadinessTone(readiness.readiness)}`}>{readiness.tier}</span>
+          <div className="mt-1 flex flex-wrap items-baseline gap-3">
+            <span className="text-4xl font-black text-brand-950">{readiness.readiness}%</span>
+            <h3 className="text-lg font-bold text-ink">{readiness.tier}</h3>
           </div>
+        </div>
+        <div className="min-w-40">
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.readiness}% recruiter confidence`}>
             <div className={`h-full rounded-full ${getReadinessBarTone(readiness.readiness)}`} style={{ width: `${readiness.readiness}%` }} />
           </div>
         </div>
       </div>
 
-      <div className={`mt-4 grid gap-3 ${compact ? "" : "md:grid-cols-2"}`}>
+      <div className={`mt-4 grid gap-3 ${compact ? "" : "md:grid-cols-3"}`}>
         <ReadinessSignal label="Strongest hiring signal" value={readiness.strongestSignal} tone="success" />
-        <ReadinessSignal label="Main hiring consideration" value={readiness.biggestConsideration} tone="neutral" />
-        <ReadinessSignal label="Recruiter skim readability" value={readiness.recruiterSkimReadability} tone="info" />
-        <ReadinessSignal label="Interview likelihood" value={readiness.interviewLikelihood} tone="success" />
+        <ReadinessSignal label="Primary concern" value={readiness.biggestConsideration} tone="neutral" />
+        <ReadinessSignal label="Interview outlook" value={readiness.interviewLikelihood} tone="success" />
       </div>
 
-      <div className={`mt-3 grid gap-2 rounded-lg bg-brand-50/70 p-3 ring-1 ring-brand-100 ${compact ? "" : "sm:grid-cols-2"}`}>
-        <RecruiterPreviewLine label="What recruiters will likely notice first" value={readiness.strongestSignal} />
-        <RecruiterPreviewLine label="Possible hesitation point" value={readiness.biggestConsideration} />
-      </div>
-
-      {readiness.recoveryHighlights.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {readiness.recoveryHighlights.map((item) => (
-            <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">
-              <CheckCircle2 size={12} aria-hidden="true" />
-              {item}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {!strategicView && !compact && (
+      {!compact && (
         <button
           type="button"
           className="mt-3 inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
         >
-          {expanded ? "Hide confidence detail" : "Show confidence detail"}
+          {expanded ? "Hide score details" : "Why this score?"}
           <ChevronDown size={13} className={`transition duration-200 ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
       )}
 
-      {showDetails && (
-        <div className="mt-3 grid gap-2 rounded-lg bg-slate-50/90 p-3 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 sm:grid-cols-2">
-          <span>Keyword coverage: {Math.round(readiness.metrics.keywordCoverage * 100)}%</span>
-          <span>Readability score: {Math.round(readiness.metrics.readabilityScore)}%</span>
-          <span>Recovery strength: {readiness.metrics.recoveryAverage.toFixed(1)} / 4</span>
-          <span>Voice preservation: {Math.round(readiness.metrics.preservationScore)}%</span>
+      {showDetails && expanded && (
+        <div className="mt-3 rounded-lg bg-slate-50/90 p-3 text-sm ring-1 ring-slate-200">
+          <p className="font-bold text-ink">Confidence Breakdown</p>
+          <ul className="mt-2 grid gap-1.5 text-slate-700">
+            <li>Strong SaaS implementation alignment</li>
+            <li>ERP / systems integration relevance</li>
+            <li>Materials optimized across channels</li>
+            <li>Good recruiter skim readability</li>
+            <li>Limited direct service-desk ownership</li>
+          </ul>
+          <p className="mt-3 text-xs font-bold uppercase tracking-[0.1em] text-slate-600">Final Recruiter Confidence: {readiness.readiness}</p>
         </div>
       )}
     </section>
@@ -793,15 +779,6 @@ export function RecruiterConfidenceIndicator({ label = "Positioning improved", c
     <div className={`inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100 ${className}`}>
       <CheckCircle2 size={12} aria-hidden="true" />
       {label}
-    </div>
-  );
-}
-
-function RecruiterPreviewLine({ label, value }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-600">{label}</p>
-      <p className="mt-1 text-sm font-semibold leading-5 text-slate-800">{value}</p>
     </div>
   );
 }
@@ -1020,9 +997,9 @@ export function CoverageMatrix({ rows }) {
             {rows.map((row) => (
               <tr key={row.gapId}>
                 <td className="py-1.5 pr-2 font-semibold text-slate-700">{row.label}</td>
-                <CoverageCell active={row.coverage.resume} />
-                <CoverageCell active={row.coverage.coverLetter} />
-                <CoverageCell active={row.coverage.recruiterMessage} />
+                <CoverageCell active={row.coverage.resume} type="covered" />
+                <CoverageCell active={row.coverage.coverLetter} type="covered" />
+                <CoverageCell active={row.coverage.recruiterMessage} type="reinforced" />
               </tr>
             ))}
           </tbody>
@@ -1032,10 +1009,17 @@ export function CoverageMatrix({ rows }) {
   );
 }
 
-function CoverageCell({ active }) {
+function CoverageCell({ active, type = "covered" }) {
+  const label = active ? (type === "reinforced" ? "Reinforced" : "Covered") : "Missing";
+  const tone = active
+    ? type === "reinforced"
+      ? "bg-brand-50 text-brand-800 ring-brand-100"
+      : "bg-emerald-50 text-emerald-800 ring-emerald-100"
+    : "bg-slate-50 text-slate-500 ring-slate-100";
   return (
     <td className="px-2 py-1.5 text-center">
-      <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ring-1 ${active ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-slate-50 text-slate-400 ring-slate-100"}`}>
+      <span aria-label={label} title={label} className={`inline-flex min-h-6 items-center justify-center rounded-full px-2 text-[11px] font-bold ring-1 ${tone}`}>
+        <span className="mr-1">{label}</span>
         {active ? "✓" : "—"}
       </span>
     </td>
@@ -1121,14 +1105,6 @@ function getRecoveryPercent(recovery = "") {
   if (recovery.startsWith("Moderate")) return 50;
   if (recovery.startsWith("Partial")) return 25;
   return 8;
-}
-
-function getReadinessTone(readiness) {
-  if (readiness >= 88) return "bg-emerald-50 text-emerald-800 ring-emerald-100";
-  if (readiness >= 78) return "bg-green-50 text-green-800 ring-green-100";
-  if (readiness >= 66) return "bg-brand-50 text-brand-800 ring-brand-100";
-  if (readiness >= 50) return "bg-amber-50 text-amber-800 ring-amber-100";
-  return "bg-slate-50 text-slate-600 ring-slate-100";
 }
 
 function getReadinessBarTone(readiness) {

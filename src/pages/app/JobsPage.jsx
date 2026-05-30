@@ -289,6 +289,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [exportedResumeIds, setExportedResumeIds] = useState(() => new Set(getResumeExportHistory().map((item) => item.resumeId).filter(Boolean)));
   const [showDescription, setShowDescription] = useState(false);
+  const [reviewedRecruiterView, setReviewedRecruiterView] = useState(initialTab === "recruiterView");
   const latestScore = [...jobScores].filter((score) => score.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const latestResume = [...resumeVersions].filter((version) => version.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const allMessageHistory = messages.filter((message) => message.job_id === job.id);
@@ -309,13 +310,14 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   );
   const nextBestAction = getNextBestAction(job, { score: latestScore, aiStatus, messages, activityEvents: timelineEvents });
   const completedSteps = {
+    overview: true,
     fit: Boolean(latestScore),
     resume: Boolean(latestResume),
     message: Boolean(latestMessage),
     coverLetter: Boolean(latestCoverLetter),
     interview: Boolean(prep),
     export: Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id)),
-    recruiterView: Boolean(latestScore || latestResume || latestMessage || latestCoverLetter),
+    recruiterView: reviewedRecruiterView,
   };
 
   useEffect(() => {
@@ -419,6 +421,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
       window.setTimeout(() => fitSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
     }
   }, [activeTab, latestScore]);
+
+  useEffect(() => {
+    if (activeTab === "recruiterView") setReviewedRecruiterView(true);
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== "overview" || !initialFocus) return;
@@ -1439,7 +1445,7 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
           hasIntelligenceData={hasIntelligenceData}
         />
       )}
-      {section === "recovery" && <RecruiterViewRecovery rows={recoveryScores} strongCount={strongRecoveryCount} />}
+      {section === "recovery" && <RecruiterViewRecovery rows={recoveryScores} strategyItems={mitigationPlan.items} strongCount={strongRecoveryCount} />}
       {section === "coverage" && <RecruiterViewCoverage rows={recoveryScores} coveredInTwoMaterials={coveredInTwoMaterials} />}
       {section === "changes" && <RecruiterViewChanges rewriteItems={rewriteItems} recoveryScores={recoveryScores} />}
     </section>
@@ -1449,8 +1455,10 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
 function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterMessage, strategyItems, recoveryScores, onSelectSection, hasIntelligenceData }) {
   const readiness = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage });
   const recommendation = getApplicationRecommendation({ readiness, strategyItems, recoveryScores, resume, recruiterMessage });
+  const outlook = getHiringOutlook({ readiness, strategyItems, recoveryScores });
   return (
     <section className="grid gap-4">
+      <HiringOutlookCard outlook={outlook} recommendation={recommendation} />
       <ApplicationRecommendationCard recommendation={recommendation} onSelectSection={onSelectSection} />
       <ApplicationReadinessCard score={score} profile={profile} resume={resume} coverLetter={coverLetter} recruiterMessage={recruiterMessage} />
       {strategyItems.length > 0 && (
@@ -1469,6 +1477,32 @@ function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterM
           No major hiring considerations were identified for this role.
         </div>
       )}
+    </section>
+  );
+}
+
+function HiringOutlookCard({ outlook, recommendation }) {
+  return (
+    <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Hiring Outlook</p>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <h3 className="text-2xl font-black text-ink">{outlook.label}</h3>
+        <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{recommendation.label}</span>
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div>
+          <p className="text-sm font-bold text-slate-800">Recruiters are likely to focus on:</p>
+          <ul className="mt-2 grid gap-1.5 text-sm text-slate-700">
+            {outlook.focus.map((item) => <li key={item}>• {item}</li>)}
+          </ul>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-slate-800">Potential hesitation:</p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">• {outlook.hesitation}</p>
+          <p className="mt-3 text-xs font-bold uppercase tracking-[0.1em] text-slate-500">Recommendation</p>
+          <p className="mt-1 text-sm font-black text-brand-900">{recommendation.label}</p>
+        </div>
+      </div>
     </section>
   );
 }
@@ -1493,24 +1527,45 @@ function ApplicationRecommendationCard({ recommendation, onSelectSection }) {
   );
 }
 
-function RecruiterViewRecovery({ rows, strongCount }) {
+function RecruiterViewRecovery({ rows, strategyItems = [], strongCount }) {
   if (!rows.length) return <RecruiterViewEmpty message="Recovery details will appear after analysis-backed materials are generated." />;
+  const prioritizedRows = rows
+    .map((row) => ({ ...row, priority: getRecoveryPriority(row, strategyItems.find((item) => item.id === row.gapId)) }))
+    .sort((a, b) => getRecoveryPriorityRank(a.priority) - getRecoveryPriorityRank(b.priority) || b.score - a.score);
+  const [topRow, ...otherRows] = prioritizedRows;
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
       <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Hiring consideration recovery</p>
       <h3 className="mt-1 text-lg font-bold text-ink">{strongCount} of {rows.length} considerations have strong or full recovery.</h3>
       <p className="mt-1 text-sm leading-6 text-slate-700">Recovery reflects improved positioning, not newly invented experience.</p>
-      <div className="mt-4 grid gap-3">
-        {rows.map((row) => (
-          <div key={row.gapId} className="grid gap-2 rounded-lg bg-slate-50/80 p-3 ring-1 ring-slate-100 md:grid-cols-[minmax(0,1fr)_240px] md:items-center">
+      {topRow && (
+        <div className="mt-4 rounded-xl bg-brand-50/70 p-4 ring-1 ring-brand-100">
+          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-brand-700">Highest Impact Recovery</p>
+          <div className="mt-2 grid gap-2 md:grid-cols-[minmax(0,1fr)_260px] md:items-center">
             <div>
-              <p className="text-sm font-bold text-slate-800">{row.label}</p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">{row.confidence}</p>
+              <p className="text-base font-black text-ink">{topRow.label}</p>
+              <p className="mt-1 text-xs font-semibold text-brand-800">{topRow.priority} priority · {topRow.confidence}</p>
             </div>
-            <RecoveryBar recovery={row.recovery} confidence="" />
+            <RecoveryBar recovery={topRow.recovery} confidence="" />
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+      {otherRows.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Additional Improvements</p>
+          <div className="mt-2 grid gap-3">
+            {otherRows.map((row) => (
+              <div key={row.gapId} className="grid gap-2 rounded-lg bg-slate-50/80 p-3 ring-1 ring-slate-100 md:grid-cols-[minmax(0,1fr)_240px] md:items-center">
+                <div>
+                  <p className="text-sm font-bold text-slate-800">{row.label}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">{row.priority} priority · {row.confidence}</p>
+                </div>
+                <RecoveryBar recovery={row.recovery} confidence="" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -1565,7 +1620,7 @@ function RecruiterViewChanges({ rewriteItems, recoveryScores }) {
               return (
                 <tr key={`${section.materialType}-summary-${section.id}`}>
                   <td className="px-3 py-2 font-bold text-slate-800">{section.title}</td>
-                  <td className="px-3 py-2 text-slate-700">{recovery?.recovery || section.confidence}</td>
+                  <td className="px-3 py-2 text-slate-700">{formatImpactLevel(section.impactLevel)} Impact | {recovery?.recovery || section.confidence}</td>
                 </tr>
               );
             })}
@@ -1639,9 +1694,9 @@ function getApplicationRecommendation({ readiness, strategyItems = [], recoveryS
     return {
       label: "Submit as-is",
       description: "All major hiring considerations have been addressed. Recruiter confidence is strong and no blocking concerns remain.",
-      note: `${readiness.readiness} recruiter confidence with ${strongOrFullRecoveryCount}/${total || 0} considerations strongly addressed.`,
-      action: "Continue to Export",
-      actionSection: "coverage",
+      note: `Confidence: High. ${readiness.readiness} recruiter confidence with ${strongOrFullRecoveryCount}/${total || 0} considerations strongly addressed.`,
+      action: "",
+      actionSection: "overview",
       actionVariant: "primary",
       tone: "bg-emerald-50 ring-emerald-100",
     };
@@ -1649,9 +1704,9 @@ function getApplicationRecommendation({ readiness, strategyItems = [], recoveryS
 
   if (readiness.readiness >= 75) {
     return {
-      label: "Worth minor review",
+      label: "Apply after quick review",
       description: "This application is competitive. A quick review of the remaining positioning notes may improve confidence.",
-      note: `${readiness.tier}; review recovery if you want one last confidence check.`,
+      note: `Confidence: Moderate. ${readiness.tier}; review recovery if you want one last confidence check.`,
       action: "Review Recovery",
       actionSection: recoveryScores.length ? "recovery" : "overview",
       actionVariant: "secondary",
@@ -1660,9 +1715,9 @@ function getApplicationRecommendation({ readiness, strategyItems = [], recoveryS
   }
 
   return {
-    label: "Address remaining concerns",
+    label: "Address remaining concerns before applying",
     description: "Strengthen the remaining positioning points before submitting this application.",
-    note: missingCoreMaterials ? "Core application materials are still being built." : "A few positioning points may need more attention.",
+    note: missingCoreMaterials ? "Confidence: Low. Core application materials are still being built." : "Confidence: Low. A few positioning points may need more attention.",
     action: recoveryScores.length ? "Review Considerations" : "",
     actionSection: "recovery",
     actionVariant: "secondary",
@@ -1683,6 +1738,43 @@ function getCoverageSummary(rows = []) {
     totalCovered: rows.filter((row) => Object.values(row.coverage || {}).some(Boolean)).length,
     outreachReinforced: recruiterMessage,
   };
+}
+
+function getHiringOutlook({ readiness, strategyItems = [], recoveryScores = [] }) {
+  const highRecovery = recoveryScores.filter((item) => item.score >= 3).length;
+  const total = recoveryScores.length || strategyItems.length || 1;
+  const ratio = highRecovery / total;
+  const label = readiness.readiness >= 88 && ratio >= 0.7
+    ? "High Probability"
+    : readiness.readiness >= 75
+      ? "Competitive"
+      : "Developing";
+  const focus = [
+    readiness.strongestSignal,
+    "SaaS implementation ownership",
+    "Systems coordination background",
+  ].filter(Boolean).slice(0, 3);
+  return {
+    label,
+    focus,
+    hesitation: readiness.biggestConsideration || "No major unresolved hesitation identified",
+  };
+}
+
+function getRecoveryPriority(row, strategyItem = {}) {
+  if (strategyItem.severity === "critical") return "Critical";
+  if (strategyItem.severity === "moderate" || row.category === "itsm_ticketing") return "High";
+  if (["uat_validation", "platform_familiarity", "documentation_training"].includes(row.category)) return "Medium";
+  return "Low";
+}
+
+function getRecoveryPriorityRank(priority) {
+  return { Critical: 0, High: 1, Medium: 2, Low: 3 }[priority] ?? 4;
+}
+
+function formatImpactLevel(value = "") {
+  const normalized = String(value || "medium").toLowerCase();
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, recruiterMessage, user, onSave, onUpdate, onLogActivity, onUnsavedChange }) {
@@ -2469,9 +2561,20 @@ function WorkspaceRail({ activeTab, completed, score, onSelect }) {
     ]],
   ];
   const current = activeTab;
+  const readiness = getWorkflowReadiness(completed);
   return (
     <aside className="shrink-0 border-b border-brand-100 bg-slate-50/80 md:w-56 md:border-b-0 md:border-r">
       <div className="kanban-scroll flex gap-2 overflow-x-auto p-3 md:sticky md:top-0 md:block md:h-full md:space-y-4 md:overflow-y-auto">
+        <div className="hidden rounded-xl bg-white p-3 shadow-sm ring-1 ring-brand-100 md:block">
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">Application Readiness</p>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.percent}% application readiness`}>
+              <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${readiness.percent}%` }} />
+            </div>
+            <span className="text-xs font-black text-brand-900">{readiness.percent}%</span>
+          </div>
+          <p className="mt-2 text-xs font-semibold text-slate-600">{readiness.complete} of {readiness.total} sections complete</p>
+        </div>
         <p className="hidden px-2 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 md:block">Application Workflow</p>
         {groups.map(([groupLabel, steps]) => (
           <div key={groupLabel} className="contents md:block">
@@ -2519,6 +2622,16 @@ function getStepScoreTone(score) {
   if (value >= 75) return "bg-emerald-100 text-emerald-800";
   if (value >= 45) return "bg-amber-100 text-amber-800";
   return "bg-rose-100 text-rose-700";
+}
+
+function getWorkflowReadiness(completed = {}) {
+  const keys = ["overview", "fit", "resume", "coverLetter", "message", "recruiterView", "export"];
+  const complete = keys.filter((key) => Boolean(completed[key])).length;
+  return {
+    complete,
+    total: keys.length,
+    percent: Math.round((complete / keys.length) * 100),
+  };
 }
 
 const descriptionPreviewLength = 520;
