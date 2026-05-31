@@ -309,7 +309,6 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     jobActivityLogs.filter((event) => event.job_id === job.id),
     getDerivedGenerationEvents({ job, scores: jobScoreHistory, resumes: resumeHistory, messages: allMessageHistory }),
   );
-  const nextBestAction = getNextBestAction(job, { score: latestScore, aiStatus, messages, activityEvents: timelineEvents });
   const recruiterViewReady = hasRecruiterViewReadinessData({
     score: latestScore,
     resume: latestResume,
@@ -321,9 +320,11 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const packageReady = hasApplicationPackageReady({
     score: latestScore,
     resume: latestResume,
+    coverLetter: latestCoverLetter,
     recruiterMessage: latestMessage,
   });
   const exportReady = Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id)) || packageReady;
+  const nextBestAction = getNextBestAction(job, { score: latestScore, aiStatus, messages, activityEvents: timelineEvents, hasInterviewPrep: interviewPrepReady, exportReady });
   const completedSteps = {
     overview: true,
     fit: Boolean(latestScore),
@@ -395,6 +396,9 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     if (nextBestAction.actionType === "move_to_interview") {
       const updated = await updateJob(user, job.id, { status: "Interview" });
       if (updated) mergeJobUpdate(updated);
+    }
+    if (nextBestAction.actionType === "export_package") {
+      requestTabChange("export");
     }
   }
 
@@ -519,11 +523,13 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
               <NextBestActionCard action={nextBestAction} onAction={handleNextBestAction} />
 
               <ApplicationPackageOverview
+                score={latestScore}
                 resume={latestResume}
                 coverLetter={latestCoverLetter}
                 recruiterMessage={latestMessage}
                 prep={prep}
                 exportReady={exportReady}
+                onOpenAnalysis={() => requestTabChange("fit")}
                 onOpenResume={() => requestTabChange("resume")}
                 onOpenCoverLetter={() => requestTabChange("coverLetter")}
                 onOpenMessage={() => requestTabChange("message")}
@@ -798,43 +804,49 @@ function OverviewDisclosure({ title, summary, open, onToggle, children }) {
   );
 }
 
-function ApplicationPackageOverview({ resume, coverLetter, recruiterMessage, prep, exportReady, onOpenResume, onOpenCoverLetter, onOpenMessage, onOpenInterview, onOpenExport }) {
+function ApplicationPackageOverview({ score, resume, coverLetter, recruiterMessage, prep, exportReady, onOpenAnalysis, onOpenResume, onOpenCoverLetter, onOpenMessage, onOpenInterview, onOpenExport }) {
+  const assets = [
+    { title: "Resume", status: resume ? "Ready" : "Not Generated", actionLabel: resume ? "Open" : "Generate", onAction: onOpenResume, ready: Boolean(resume) },
+    { title: "Cover Letter", status: coverLetter ? "Ready" : "Not Generated", actionLabel: coverLetter ? "Open" : "Generate", onAction: onOpenCoverLetter, ready: Boolean(coverLetter) },
+    { title: "Recruiter Message", status: recruiterMessage ? "Ready" : "Not Generated", actionLabel: recruiterMessage ? "Open" : "Draft", onAction: onOpenMessage, ready: Boolean(recruiterMessage) },
+    { title: "Interview Prep", status: prep ? "Ready" : "Not Started", actionLabel: prep ? "Open" : "Prepare", onAction: onOpenInterview, ready: Boolean(prep) },
+  ];
+  const next = getAssetProgressAction({ score, resume, coverLetter, recruiterMessage, prep, exportReady, onOpenAnalysis, onOpenResume, onOpenCoverLetter, onOpenMessage, onOpenInterview, onOpenExport });
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Package</p>
-          <h3 className="mt-1 text-lg font-bold text-ink">Preparation assets</h3>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Assets</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">{getAssetProgressLabel(assets)}</h3>
         </div>
-        <Button className="w-fit min-h-8 px-3 text-xs" onClick={onOpenExport}>Export Package</Button>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <CommandPackageCard title="Resume" status={resume ? "Ready" : "Missing"} actionLabel={resume ? "Open Resume" : "Generate Resume"} onAction={onOpenResume} />
-        <CommandPackageCard title="Cover Letter" status={coverLetter ? "Ready" : "Optional"} actionLabel={coverLetter ? "Open Cover Letter" : "Open Cover Letter"} onAction={onOpenCoverLetter} />
-        <CommandPackageCard title="Recruiter Message" status={recruiterMessage ? "Ready" : "Missing"} actionLabel={recruiterMessage ? "Open Message" : "Draft Message"} onAction={onOpenMessage} />
-        <CommandPackageCard title="Interview Prep" status={prep ? "Ready" : "Not started"} actionLabel="Open Interview Prep" onAction={onOpenInterview} />
+        {assets.map((asset) => <CommandPackageCard key={asset.title} {...asset} />)}
       </div>
-      <div className="mt-4 flex flex-col gap-2 rounded-xl bg-brand-900 px-4 py-3 text-white sm:flex-row sm:items-center sm:justify-between">
+      <div className={`mt-4 flex flex-col gap-2 rounded-xl px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${next.variant === "export" ? "bg-brand-900 text-white" : "bg-brand-50 text-ink ring-1 ring-brand-100"}`}>
         <div>
-          <p className="text-sm font-black">Export Application Package</p>
-          <p className="text-xs font-semibold text-brand-100">{exportReady ? "A package has already been exported for this resume." : "Export when the application materials are ready."}</p>
+          <p className="text-sm font-black">{next.title}</p>
+          <p className={`text-xs font-semibold ${next.variant === "export" ? "text-brand-100" : "text-slate-600"}`}>{next.description}</p>
         </div>
-        <Button className="w-fit min-h-8 bg-white px-3 text-xs text-brand-900 hover:bg-brand-50" onClick={onOpenExport}>Export Package</Button>
+        <Button className={`w-fit min-h-8 px-3 text-xs ${next.variant === "export" ? "bg-white text-brand-900 hover:bg-brand-50" : ""}`} variant={next.variant === "export" ? "primary" : "secondary"} onClick={next.onAction}>{next.label}</Button>
       </div>
     </section>
   );
 }
 
-function CommandPackageCard({ title, status, actionLabel, onAction }) {
+function CommandPackageCard({ title, status, actionLabel, onAction, ready }) {
   return (
-    <div className="rounded-xl bg-brand-50/70 p-3 ring-1 ring-brand-100">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-xl bg-brand-50/60 px-3 py-2.5 ring-1 ring-brand-100">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h4 className="text-sm font-bold text-ink">{title}</h4>
+          <p className={`mt-0.5 text-xs font-black ${ready ? "text-emerald-700" : "text-slate-500"}`}>{status}</p>
         </div>
         <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getPackageStatusTone(status)}`}>{status}</span>
       </div>
-      <Button variant="secondary" className="mt-3 w-full min-h-8 px-2 text-xs" onClick={onAction}>{actionLabel}</Button>
+      <button type="button" className="mt-2 inline-flex text-xs font-bold text-brand-700 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200" onClick={onAction}>
+        {actionLabel} <span aria-hidden="true" className="ml-1">-&gt;</span>
+      </button>
     </div>
   );
 }
@@ -916,8 +928,70 @@ function InterviewReadinessOverview({ job, contacts, score, prep, onOpenIntervie
 
 function getPackageStatusTone(status) {
   if (["Ready", "Exported"].includes(status)) return "bg-emerald-50 text-emerald-800 ring-emerald-100";
-  if (status === "Optional" || status === "Ready when needed") return "bg-brand-50 text-brand-800 ring-brand-100";
+  if (status === "Not Started" || status === "Not Generated") return "bg-slate-50 text-slate-600 ring-slate-200";
   return "bg-slate-50 text-slate-600 ring-slate-200";
+}
+
+function getAssetProgressLabel(assets = []) {
+  const readyCount = assets.filter((asset) => asset.ready).length;
+  if (readyCount === 0) return "Not started";
+  if (readyCount === assets.length) return "Ready to apply";
+  return "In progress";
+}
+
+function getAssetProgressAction({ score, resume, coverLetter, recruiterMessage, prep, exportReady, onOpenAnalysis, onOpenResume, onOpenCoverLetter, onOpenMessage, onOpenInterview, onOpenExport }) {
+  if (!score) {
+    return {
+      title: "Start with analysis",
+      description: "Analyze the role first so OccuBoard can guide the strongest materials.",
+      label: "Generate Analysis",
+      onAction: onOpenAnalysis,
+      variant: "prepare",
+    };
+  }
+  if (!resume) {
+    return {
+      title: "Generate missing assets",
+      description: "Resume is the next required preparation step.",
+      label: "Generate Missing Assets",
+      onAction: onOpenResume,
+      variant: "prepare",
+    };
+  }
+  if (!coverLetter) {
+    return {
+      title: "Continue preparation",
+      description: "Cover letter is not generated yet.",
+      label: "Generate Missing Assets",
+      onAction: onOpenCoverLetter,
+      variant: "prepare",
+    };
+  }
+  if (!recruiterMessage) {
+    return {
+      title: "Continue preparation",
+      description: "Draft the recruiter message after the materials are ready.",
+      label: "Generate Missing Assets",
+      onAction: onOpenMessage,
+      variant: "prepare",
+    };
+  }
+  if (!prep) {
+    return {
+      title: "Application assets are nearly ready",
+      description: "Interview prep is the remaining preparation step.",
+      label: "Continue Interview Prep",
+      onAction: onOpenInterview,
+      variant: "prepare",
+    };
+  }
+  return {
+    title: exportReady ? "Application package ready" : "Ready to export",
+    description: exportReady ? "Your application package is ready to use." : "Resume, cover letter, message, and prep assets are ready.",
+    label: "Export Application Package",
+    onAction: onOpenExport,
+    variant: "export",
+  };
 }
 
 function loadJobCommandTasks(jobId) {
@@ -1177,6 +1251,7 @@ function getNextBestActionIcon(icon) {
     document: FileTextIcon,
     "message-circle": MessageCircle,
     "arrow-right-circle": ArrowRightCircle,
+    download: Download,
     search: Search,
     sparkles: Sparkles,
   }[icon] ?? Sparkles;
@@ -1194,6 +1269,7 @@ function getNextBestActionCtaLabel(actionType) {
     prepare_interview: "Prepare interview",
     review_high_fit: "Review match",
     move_to_interview: "Move to Interview",
+    export_package: "Export package",
   }[actionType];
 }
 
@@ -1601,6 +1677,54 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         recruiterMessage={recruiterMessage}
       />
 
+      <ExportPackageSummary
+        resume={resume}
+        coverLetter={coverLetter}
+        recruiterMessage={recruiterMessage}
+        prepContent={prepContent}
+        interviewAssets={interviewAssets}
+      />
+
+      <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Extras</p>
+        <h3 className="mt-1 text-lg font-bold text-ink">Optional prep assets</h3>
+        <p className="mt-1 text-sm leading-6 text-slate-600">{prepContent ? "Choose the interview prep assets to include before exporting." : "Generate interview prep to add cheat sheets, stories, questions, and research notes."}</p>
+        {prepContent ? (
+          <div className="mt-3 grid gap-3">
+            <div className="grid gap-2 md:grid-cols-2">
+              {[
+                ["cheatSheet", "Interview Cheat Sheet"],
+                ["questions", "Interview Questions"],
+                ["stories", "STAR Stories"],
+                ["research", "Research Notes"],
+              ].map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-brand-100">
+                  <input type="checkbox" checked={interviewAssets[key]} onChange={(event) => setInterviewAssets((current) => ({ ...current, [key]: event.target.checked }))} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <Button className="w-fit min-h-8 px-3 text-xs" onClick={() => printInterviewCheatSheet({
+              job,
+              score,
+              content: prepContent,
+              interviewDetails: getInterviewDetails(job, contacts),
+              questions: interviewAssets.questions ? prepContent.questions || [] : [],
+              stories: interviewAssets.stories ? prepContent.starStories || [] : [],
+              focusAreas: interviewAssets.research ? prepContent.focusAreas || [] : [],
+              questionsToAsk: interviewAssets.research ? prepContent.questionsToAsk || [] : [],
+              concerns: interviewAssets.cheatSheet ? getInterviewConcernAreas(score) : [],
+            })}>
+              <Download size={13} /> Export Complete Package
+            </Button>
+          </div>
+        ) : (
+          <Button variant="secondary" className="mt-3 w-fit min-h-8 px-3 text-xs" onClick={onGoToInterview}>Open Interview Prep</Button>
+        )}
+      </section>
+
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Application Files</p>
+
       <MaterialCard title="Resume" status={resume ? "Ready" : "Not generated"} description={resume ? "Preview or download your tailored resume." : "Create a tailored resume before exporting your application package."}>
         {resume ? (
           <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
@@ -1635,44 +1759,51 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
       </MaterialCard>
 
       <MaterialCard title="Recruiter Message" status={recruiterMessage ? "Ready" : "Not generated"} description={recruiterMessage ? "Copy your outreach note when you are ready to contact someone." : "Draft this after your application materials are ready."}>
-        {recruiterMessage ? <CopyButton text={recruiterMessage.content} /> : <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToMessage}>Open Recruiter Message</Button>}
-      </MaterialCard>
-
-      <MaterialCard title="Interview Prep Assets" status={prepContent ? "Available" : "Not generated"} description={prepContent ? "Include interview prep materials in your final application package." : "Generate interview prep to add coaching assets to this export workspace."}>
-        {prepContent ? (
-          <div className="grid gap-3">
-            <div className="grid gap-2 md:grid-cols-2">
-              {[
-                ["cheatSheet", "Include Interview Cheat Sheet"],
-                ["questions", "Include Interview Questions"],
-                ["stories", "Include STAR Stories"],
-                ["research", "Include Research Notes"],
-              ].map(([key, label]) => (
-                <label key={key} className="flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-brand-100">
-                  <input type="checkbox" checked={interviewAssets[key]} onChange={(event) => setInterviewAssets((current) => ({ ...current, [key]: event.target.checked }))} />
-                  {label}
-                </label>
-              ))}
-            </div>
-            <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={() => printInterviewCheatSheet({
-              job,
-              score,
-              content: prepContent,
-              interviewDetails: getInterviewDetails(job, contacts),
-              questions: interviewAssets.questions ? prepContent.questions || [] : [],
-              stories: interviewAssets.stories ? prepContent.starStories || [] : [],
-              focusAreas: interviewAssets.research ? prepContent.focusAreas || [] : [],
-              questionsToAsk: interviewAssets.research ? prepContent.questionsToAsk || [] : [],
-              concerns: interviewAssets.cheatSheet ? getInterviewConcernAreas(score) : [],
-            })}>
-              <Download size={13} /> Export selected prep assets
-            </Button>
-          </div>
-        ) : (
-          <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToInterview}>Open Interview Prep</Button>
-        )}
+        {recruiterMessage ? <CopyButton text={recruiterMessage.content} /> : <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToMessage}>Draft Recruiter Message</Button>}
       </MaterialCard>
     </section>
+  );
+}
+
+function ExportPackageSummary({ resume, coverLetter, recruiterMessage, prepContent, interviewAssets }) {
+  const included = [
+    ["Resume", Boolean(resume)],
+    ["Cover Letter", Boolean(coverLetter)],
+    ["Recruiter Message", Boolean(recruiterMessage)],
+  ];
+  const optional = [
+    ["Interview Cheat Sheet", Boolean(prepContent && interviewAssets.cheatSheet)],
+    ["Interview Questions", Boolean(prepContent && interviewAssets.questions)],
+    ["STAR Stories", Boolean(prepContent && interviewAssets.stories)],
+    ["Research Notes", Boolean(prepContent && interviewAssets.research)],
+  ];
+  return (
+    <section className="rounded-xl bg-brand-50/80 p-4 shadow-sm ring-1 ring-brand-100">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Export Summary</p>
+      <h3 className="mt-1 text-lg font-bold text-ink">What will be included?</h3>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.1em] text-slate-500">Included</p>
+          <div className="mt-2 grid gap-1.5">
+            {included.map(([label, ready]) => <ExportSummaryRow key={label} label={label} ready={ready} />)}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.1em] text-slate-500">Optional</p>
+          <div className="mt-2 grid gap-1.5">
+            {optional.map(([label, ready]) => <ExportSummaryRow key={label} label={label} ready={ready} optional />)}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ExportSummaryRow({ label, ready, optional = false }) {
+  return (
+    <p className={`text-sm font-semibold ${ready ? "text-emerald-800" : "text-slate-500"}`}>
+      <span aria-hidden="true">{ready ? "\u2713" : optional ? "\u2610" : "\u25CB"}</span> {label}
+    </p>
   );
 }
 
@@ -3742,8 +3873,8 @@ function hasInterviewPrepData(prep) {
   );
 }
 
-function hasApplicationPackageReady({ score, resume, recruiterMessage } = {}) {
-  return Boolean(score && resume && recruiterMessage);
+function hasApplicationPackageReady({ score, resume, coverLetter, recruiterMessage } = {}) {
+  return Boolean(score && resume && coverLetter && recruiterMessage);
 }
 
 function getWorkflowReadiness(completed = {}) {

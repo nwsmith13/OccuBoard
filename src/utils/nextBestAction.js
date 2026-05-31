@@ -58,6 +58,13 @@ const actionDefaults = {
     priority: 2,
     icon: "sparkles",
   },
+  export_package: {
+    label: "Export application package",
+    description: "Your preparation assets are ready. Export the package when you are ready to apply.",
+    tone: "success",
+    priority: 2,
+    icon: "download",
+  },
   review_high_fit: {
     label: "Review strong match",
     description: "This strong match has been quiet for a few days. Revisit the next step.",
@@ -96,6 +103,7 @@ export function getNextBestAction(job = {}, options = {}) {
   const hasResume = Boolean(options.hasResume ?? aiStatus.resumeDrafted);
   const hasMessage = Boolean(options.hasMessage ?? aiStatus.messageDrafted);
   const hasCoverLetter = Boolean(options.hasCoverLetter ?? aiStatus.coverLetterDrafted ?? options.messages?.some((message) => message.job_id === job.id && message.type === "Cover Letter"));
+  const hasInterviewPrep = Boolean(options.hasInterviewPrep);
   const hasFollowUpMessage = Boolean(options.hasFollowUpMessage ?? options.messages?.some((message) => message.job_id === job.id && message.type === "Follow-up Message"));
   const shouldSuggestCoverLetter = shouldRecommendCoverLetter(job, scoreValue);
 
@@ -125,18 +133,19 @@ export function getNextBestAction(job = {}, options = {}) {
 
   if (stage === "Saved") {
     if (!hasResume) return buildAction("generate_resume");
-    if (!hasCoverLetter && shouldSuggestCoverLetter) {
+    if (!hasCoverLetter) {
       return buildAction("generate_cover_letter", {
         description: asksForCoverLetter(job.job_description)
           ? "The job description asks for a cover letter. Draft a concise version before outreach."
-          : "This strong, client-facing role may benefit from a short tailored cover letter.",
+          : shouldSuggestCoverLetter
+            ? "This strong, client-facing role may benefit from a short tailored cover letter."
+            : "Generate a concise cover letter now, or use this step to confirm one is not needed.",
         priority: 3,
       });
     }
     if (!hasMessage) return buildAction("generate_message", { label: "Draft recruiter message", description: "Create a short outreach note to pair with your tailored resume." });
-    if (scoreValue >= 85) return buildAction("apply_now");
-    if (scoreValue >= 75 && isStaleHighFit(job, options)) return buildAction("review_high_fit");
-    return buildAction("apply_now", { label: "Ready to apply", priority: 3, description: "Your materials are ready. Give everything one pass, then apply." });
+    if (!hasInterviewPrep) return buildAction("prepare_interview", { label: "Continue Interview Prep", description: "Prepare likely questions, stories, and talking points before exporting your package.", priority: 3 });
+    return buildAction("export_package");
   }
 
   if (stage === "Applied") {
