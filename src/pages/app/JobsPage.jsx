@@ -271,12 +271,6 @@ function getDisplayStage(status) {
   return status || "Saved";
 }
 
-function getAiToolsTab(activeTab) {
-  if (activeTab === "resume" || activeTab === "export") return "resume";
-  if (activeTab === "message") return "message";
-  return "fit";
-}
-
 export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onMove, onJobUpdate }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -458,7 +452,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
             </div>
             <div className="flex min-w-0 items-center gap-3 lg:max-w-[620px]">
               <div className="min-w-0 flex-1">
-                <AiToolsPanel compact job={job} activeTab={getAiToolsTab(activeTab)} onTabChange={requestTabChange} />
+                <JobHeaderCta activeTab={activeTab} onTabChange={requestTabChange} />
               </div>
               <button type="button" className="hidden shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50 lg:inline-flex" onClick={requestClose} aria-label="Close job details">
                 <X size={20} />
@@ -595,6 +589,8 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 onGoToResume={() => requestTabChange("resume")}
                 onGoToCoverLetter={() => requestTabChange("coverLetter")}
                 onGoToMessage={() => requestTabChange("message")}
+                onGoToInterview={() => requestTabChange("interview")}
+                prep={prep}
                 onExportComplete={(resume) => {
                   if (resume?.id) setExportedResumeIds((current) => new Set([...current, resume.id]));
                 }}
@@ -644,6 +640,26 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
           </main>
         </div>
       </section>
+    </div>
+  );
+}
+
+function JobHeaderCta({ activeTab, onTabChange }) {
+  const config = {
+    overview: { label: "Continue to Resume", tab: "resume", variant: "primary" },
+    fit: { label: "Continue to Resume", tab: "resume", variant: "primary" },
+    resume: { label: "Continue to Cover Letter", tab: "coverLetter", variant: "primary" },
+    coverLetter: { label: "Continue to Recruiter Message", tab: "message", variant: "primary" },
+    message: { label: "View Recruiter View", tab: "recruiterView", variant: "secondary" },
+    recruiterView: { label: "Continue to Interview Prep", tab: "interview", variant: "primary" },
+    interview: { label: "Continue to Export", tab: "export", variant: "primary" },
+    export: { label: "Ready to Export", tab: "export", variant: "secondary" },
+  }[activeTab] || { label: "Continue to Resume", tab: "resume", variant: "primary" };
+  return (
+    <div className="flex justify-end">
+      <Button className="min-h-9 px-4 text-sm whitespace-nowrap" variant={config.variant} onClick={() => onTabChange?.(config.tab)}>
+        {config.label}
+      </Button>
     </div>
   );
 }
@@ -1220,13 +1236,20 @@ function useSlowLoading(active) {
   return show;
 }
 
-function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onExportComplete }) {
+function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, prep, onExportComplete }) {
   const toast = useToast();
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverExporting, setCoverExporting] = useState("");
   const [coverCopied, setCoverCopied] = useState(false);
   const [error, setError] = useState("");
+  const [interviewAssets, setInterviewAssets] = useState({
+    cheatSheet: true,
+    questions: true,
+    stories: true,
+    research: true,
+  });
   const showSlowHint = useSlowLoading(coverLoading);
+  const prepContent = prep?.content;
 
   async function generateCoverLetter() {
     if (coverLoading) return;
@@ -1345,6 +1368,41 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
 
       <MaterialCard title="Recruiter Message" status={recruiterMessage ? "Ready" : "Not generated"} description={recruiterMessage ? "Copy your outreach note when you are ready to contact someone." : "Draft this after your application materials are ready."}>
         {recruiterMessage ? <CopyButton text={recruiterMessage.content} /> : <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToMessage}>Open Recruiter Message</Button>}
+      </MaterialCard>
+
+      <MaterialCard title="Interview Prep Assets" status={prepContent ? "Available" : "Not generated"} description={prepContent ? "Include interview prep materials in your final application package." : "Generate interview prep to add coaching assets to this export workspace."}>
+        {prepContent ? (
+          <div className="grid gap-3">
+            <div className="grid gap-2 md:grid-cols-2">
+              {[
+                ["cheatSheet", "Include Interview Cheat Sheet"],
+                ["questions", "Include Interview Questions"],
+                ["stories", "Include STAR Stories"],
+                ["research", "Include Research Notes"],
+              ].map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-brand-100">
+                  <input type="checkbox" checked={interviewAssets[key]} onChange={(event) => setInterviewAssets((current) => ({ ...current, [key]: event.target.checked }))} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={() => printInterviewCheatSheet({
+              job,
+              score,
+              content: prepContent,
+              interviewDetails: getInterviewDetails(job, contacts),
+              questions: interviewAssets.questions ? prepContent.questions || [] : [],
+              stories: interviewAssets.stories ? prepContent.starStories || [] : [],
+              focusAreas: interviewAssets.research ? prepContent.focusAreas || [] : [],
+              questionsToAsk: interviewAssets.research ? prepContent.questionsToAsk || [] : [],
+              concerns: interviewAssets.cheatSheet ? getInterviewConcernAreas(score) : [],
+            })}>
+              <Download size={13} /> Export selected prep assets
+            </Button>
+          </div>
+        ) : (
+          <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToInterview}>Open Interview Prep</Button>
+        )}
       </MaterialCard>
     </section>
   );
@@ -1996,9 +2054,11 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const [thankYouCopied, setThankYouCopied] = useState(false);
   const [thankYouSaved, setThankYouSaved] = useState(false);
   const [interviewCompleted, setInterviewCompleted] = useState(false);
+  const [mockStarted, setMockStarted] = useState(false);
   const showPrepSlowHint = useSlowLoading(loading);
   const content = prep?.content;
   const practiced = new Set(prep?.practiced_questions ?? []);
+  const confident = new Set(prep?.confident_questions ?? []);
   const notes = prep?.answer_notes ?? {};
 
   useEffect(() => {
@@ -2054,6 +2114,14 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     if (next.has(index)) next.delete(index);
     else next.add(index);
     updatePrepPatch({ practiced_questions: [...next] });
+  }
+
+  function markConfident(index) {
+    const nextPracticed = new Set(practiced);
+    nextPracticed.add(index);
+    const nextConfident = new Set(confident);
+    nextConfident.add(index);
+    updatePrepPatch({ practiced_questions: [...nextPracticed], confident_questions: [...nextConfident] });
   }
 
   function saveNote(index, value) {
@@ -2164,22 +2232,6 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     window.setTimeout(() => setInterviewMessage(""), 2200);
   }
 
-  function exportCheatSheet() {
-    const exported = printInterviewCheatSheet({
-      job,
-      score,
-      content,
-      interviewDetails,
-      questions,
-      stories,
-      focusAreas,
-      questionsToAsk,
-      concerns: getInterviewConcernAreas(score),
-    });
-    if (exported) toast.success("Interview cheat sheet opened.");
-    else toast.error("Could not open cheat sheet.");
-  }
-
   const scheduleCard = (
     <InterviewScheduleCard
       job={job}
@@ -2221,6 +2273,19 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const concerns = getInterviewConcernAreas(score);
   const readiness = getInterviewReadinessScore({ content, practicedCount: practiced.size, interviewDetails, thankYouDraft, concerns });
   const currentPracticeQuestion = questions[practiceIndex % Math.max(questions.length, 1)];
+  const cheatSheetPayload = { job, score, content, interviewDetails, questions, stories, focusAreas, questionsToAsk, concerns };
+
+  function exportCheatSheet() {
+    const exported = printInterviewCheatSheet(cheatSheetPayload);
+    if (exported) toast.success("Interview cheat sheet opened.");
+    else toast.error("Could not open cheat sheet.");
+  }
+
+  function downloadCheatSheet() {
+    const downloaded = downloadInterviewCheatSheet(cheatSheetPayload);
+    if (downloaded) toast.success("Interview cheat sheet downloaded.");
+    else toast.error("Could not download cheat sheet.");
+  }
 
   return (
     <section className="grid gap-4">
@@ -2249,7 +2314,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       </div>
 
       {prepTab === "overview" && (
-        <InterviewPrepOverview focusAreas={focusAreas} questions={questions} readiness={readiness} concerns={concerns} onExportCheatSheet={exportCheatSheet} />
+        <InterviewPrepOverview focusAreas={focusAreas} questions={questions} questionsToAsk={questionsToAsk} readiness={readiness} concerns={concerns} onPrintCheatSheet={exportCheatSheet} onDownloadCheatSheet={downloadCheatSheet} />
       )}
 
       {prepTab === "questions" && (
@@ -2263,7 +2328,9 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           persistNote={persistNote}
           noteSaveStatus={noteSaveStatus}
           practiced={practiced}
+          confident={confident}
           togglePracticed={togglePracticed}
+          markConfident={markConfident}
           stories={stories}
         />
       )}
@@ -2282,8 +2349,13 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           questionIndex={practiceIndex % Math.max(questions.length, 1)}
           totalQuestions={questions.length}
           practiced={practiced}
+          confident={confident}
           onMarkPracticed={togglePracticed}
+          onMarkConfident={markConfident}
           onNext={() => setPracticeIndex((index) => (questions.length ? (index + 1) % questions.length : 0))}
+          onRandom={() => setPracticeIndex(() => (questions.length ? Math.floor(Math.random() * questions.length) : 0))}
+          mockStarted={mockStarted}
+          onStart={() => setMockStarted(true)}
           thankYouCopied={thankYouCopied}
           thankYouSaved={thankYouSaved}
           interviewCompleted={interviewCompleted}
@@ -2341,8 +2413,10 @@ function InterviewPrepTabs({ active, onSelect }) {
   );
 }
 
-function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, onExportCheatSheet }) {
+function InterviewPrepOverview({ focusAreas, questions, questionsToAsk, readiness, concerns, onPrintCheatSheet, onDownloadCheatSheet }) {
   const fastestWays = getFastestInterviewImprovements(readiness, concerns, questions);
+  const talkingPointsText = focusAreas.map((area) => area.emphasize || area.title).filter(Boolean).join("\n");
+  const questionsText = questionsToAsk.map((question) => question).filter(Boolean).join("\n");
   return (
     <section className="grid gap-4">
       <PrepSection title="Interview Readiness">
@@ -2356,11 +2430,6 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, onE
               <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${readiness.score}%` }} />
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-600">{readiness.description}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onExportCheatSheet}>
-                <Download size={13} /> Export cheat sheet
-              </Button>
-            </div>
           </div>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-4">
@@ -2368,6 +2437,17 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, onE
             <ReadinessSubscore key={label} label={label} value={value} />
           ))}
         </div>
+      </PrepSection>
+      <PrepSection title="Interview Toolkit">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onDownloadCheatSheet}>
+            <Download size={13} /> Download Cheat Sheet
+          </Button>
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onPrintCheatSheet}>Print Cheat Sheet</Button>
+          <CopyButton text={talkingPointsText || "No talking points available yet."} label="Copy Talking Points" />
+          <CopyButton text={questionsText || "No questions available yet."} label="Copy Questions To Ask" />
+        </div>
+        <p className="mt-2 text-xs font-semibold text-slate-500">Use these right before the interview for a quick final pass.</p>
       </PrepSection>
       <PrepSection title="Fastest Way To Improve">
         <div className="grid gap-2 md:grid-cols-3">
@@ -2400,10 +2480,19 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, onE
   );
 }
 
-function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draftNotes, notes, saveNote, persistNote, noteSaveStatus, practiced, togglePracticed, stories }) {
+function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draftNotes, notes, saveNote, persistNote, noteSaveStatus, practiced, confident, togglePracticed, markConfident, stories }) {
   const grouped = groupInterviewQuestions(questions);
   return (
     <PrepSection title="Top Interview Questions">
+      <div className="mb-3 rounded-lg bg-white p-3 ring-1 ring-brand-100">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-bold text-ink">Questions Practiced</p>
+          <p className="text-sm font-black text-brand-900">{practiced.size} / {questions.length}</p>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${practiced.size} of ${questions.length} questions practiced`}>
+          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${questions.length ? Math.round((practiced.size / questions.length) * 100) : 0}%` }} />
+        </div>
+      </div>
       <div className="grid gap-4">
         {grouped.map((group) => (
           <div key={group.label} className="grid gap-2">
@@ -2412,14 +2501,25 @@ function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draf
               const relatedStory = getRelatedStory(question, stories);
               return (
                 <div key={`${question.category}-${question.question}`} className="rounded-lg bg-brand-50/70 p-3">
-                  <button type="button" className="flex w-full items-start justify-between gap-3 text-left" onClick={() => setOpenQuestion(openQuestion === index ? "" : index)} aria-expanded={openQuestion === index}>
-                    <span>
+                  <div className="grid grid-cols-[minmax(0,1fr)_96px] items-start gap-3">
+                    <button type="button" className="min-w-0 text-left" onClick={() => setOpenQuestion(openQuestion === index ? "" : index)} aria-expanded={openQuestion === index}>
+                      <span>
                       <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{question.category || "Interview"}</span>
                       <span className="mt-1 block font-bold text-ink">{question.question}</span>
+                      <span className="mt-1 block text-xs font-semibold text-slate-600">Question {index + 1}</span>
+                      <span className="mt-1 block text-xs font-semibold text-slate-600">Status: {getQuestionStatus(index, practiced, confident)}</span>
                       {relatedStory && <span className="mt-1 block text-xs font-semibold text-emerald-700">Related story: {relatedStory.title}</span>}
-                    </span>
-                    <span className="text-xs font-bold text-brand-700">{openQuestion === index ? "Close" : "Open"}</span>
-                  </button>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex w-24 shrink-0 justify-center whitespace-nowrap rounded-full bg-white px-3 py-1.5 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                      onClick={() => setOpenQuestion(openQuestion === index ? "" : index)}
+                      aria-expanded={openQuestion === index}
+                    >
+                      {openQuestion === index ? "Close ▴" : "Open ▾"}
+                    </button>
+                  </div>
                   {openQuestion === index && (
                     <div className="mt-3 grid gap-3">
                       <div className="grid gap-2 md:grid-cols-3">
@@ -2431,7 +2531,10 @@ function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draf
                         <textarea className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" rows="2" placeholder="Optional answer notes" value={draftNotes[index] ?? notes[index] ?? ""} onChange={(event) => saveNote(index, event.target.value)} onBlur={() => persistNote(index)} />
                         {noteSaveStatus[index] && <NoteSaveStatus status={noteSaveStatus[index]} />}
                       </div>
-                      <Button variant={practiced.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => togglePracticed(index)}>{practiced.has(index) ? "Practiced" : "Mark practiced"}</Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant={practiced.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => togglePracticed(index)}>{practiced.has(index) ? "Practiced" : "Mark practiced"}</Button>
+                        <Button variant={confident.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => markConfident(index)}>{confident.has(index) ? "Confident" : "Mark confident"}</Button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2452,8 +2555,8 @@ function InterviewPrepStories({ stories, openStory, setOpenStory, talkingPoints 
           {stories.map((story, index) => (
             <div key={story.title} className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
               <button type="button" className="flex w-full items-center justify-between gap-3 text-left font-bold" onClick={() => setOpenStory(openStory === index ? "" : index)} aria-expanded={openStory === index}>
-                {story.title}
-                <span className="text-xs text-brand-700">{openStory === index ? "Close" : "Open"}</span>
+                <span>{story.title}</span>
+                <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 ring-1 ring-emerald-100">{getStoryReadinessScore(story)}% Ready</span>
               </button>
               <div className="mt-2 flex flex-wrap gap-2">
                 {getStoryTags(story).map((tag) => <span key={tag} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{tag}</span>)}
@@ -2502,6 +2605,21 @@ function InterviewPrepResearch({ job, focusAreas, questionsToAsk }) {
           {getLikelyRoleObjectives(job, focusAreas).map((objective) => <li key={objective} className="rounded-lg bg-brand-50 px-3 py-2 text-sm leading-6 text-slate-700">{objective}</li>)}
         </ul>
       </PrepSection>
+      <PrepSection title="What They Care About">
+        <ul className="grid gap-2">
+          {getKeyResponsibilities(job, focusAreas).map((item) => <li key={item} className="rounded-lg bg-white px-3 py-2 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">{item}</li>)}
+        </ul>
+      </PrepSection>
+      <PrepSection title="Likely Success Metrics">
+        <ul className="grid gap-2 md:grid-cols-2">
+          {getLikelySuccessMetrics(job).map((item) => <li key={item} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold leading-6 text-emerald-900 ring-1 ring-emerald-100">{item}</li>)}
+        </ul>
+      </PrepSection>
+      <PrepSection title="How Your Experience Connects">
+        <div className="grid gap-2">
+          {getExperienceConnections(job, focusAreas).map((item) => <PrepInfoBlock key={item.label} label={item.label} value={item.value} />)}
+        </div>
+      </PrepSection>
       <PrepSection title="Suggested Questions To Ask">
         <ul className="grid gap-2">
           {questionsToAsk.map((question) => <li key={question} className="rounded-lg bg-white px-3 py-2 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">{question}</li>)}
@@ -2511,17 +2629,29 @@ function InterviewPrepResearch({ job, focusAreas, questionsToAsk }) {
   );
 }
 
-function InterviewPrepPractice({ question, questionIndex, totalQuestions, practiced, onMarkPracticed, onNext, thankYouCopied, thankYouSaved, interviewCompleted, thankYouDraft, setThankYouDraft, copyThankYou, saveThankYouEdits, markInterviewComplete, lastSavedThankYou }) {
+function InterviewPrepPractice({ question, questionIndex, totalQuestions, practiced, confident, onMarkPracticed, onMarkConfident, onNext, onRandom, mockStarted, onStart, thankYouCopied, thankYouSaved, interviewCompleted, thankYouDraft, setThankYouDraft, copyThankYou, saveThankYouEdits, markInterviewComplete, lastSavedThankYou }) {
   return (
     <section className="grid gap-4">
       <PrepSection title="Mock Interview Practice">
+        <div className="mb-3 rounded-lg bg-white p-3 ring-1 ring-brand-100">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-bold text-ink">Mock Interview Progress</p>
+            <p className="text-sm font-black text-brand-900">{practiced.size} / {totalQuestions} Questions Practiced</p>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${practiced.size} of ${totalQuestions} questions practiced`}>
+            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${totalQuestions ? Math.round((practiced.size / totalQuestions) * 100) : 0}%` }} />
+          </div>
+        </div>
         {question ? (
           <div className="rounded-xl bg-brand-50/70 p-4 ring-1 ring-brand-100">
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Question {questionIndex + 1} of {totalQuestions}</p>
             <h3 className="mt-2 text-lg font-black text-ink">{question.question}</h3>
             <p className="mt-3 text-sm leading-6 text-slate-700">{question.guidance}</p>
             <div className="mt-4 flex flex-wrap gap-2">
+              {!mockStarted && <Button className="min-h-8 px-3 text-xs" onClick={onStart}>Start Mock Interview</Button>}
+              <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onRandom}>Random Question</Button>
               <Button variant={practiced.has(questionIndex) ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={() => onMarkPracticed(questionIndex)}>{practiced.has(questionIndex) ? "Practiced" : "Mark practiced"}</Button>
+              <Button variant={confident.has(questionIndex) ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={() => onMarkConfident(questionIndex)}>{confident.has(questionIndex) ? "Confident" : "Mark confident"}</Button>
               <Button className="min-h-8 px-3 text-xs" onClick={onNext}>Next question</Button>
             </div>
           </div>
@@ -2800,6 +2930,12 @@ function getQuestionEvaluation(question = {}) {
   return "Whether your examples are specific, relevant, and grounded in real outcomes.";
 }
 
+function getQuestionStatus(index, practiced, confident) {
+  if (confident.has(index)) return "Confident ✓";
+  if (practiced.has(index)) return "Practiced ✓";
+  return "Not Practiced";
+}
+
 function getRelatedStory(question = {}, stories = []) {
   if (!stories.length) return null;
   const questionText = `${question.question || ""} ${question.category || ""}`.toLowerCase();
@@ -2843,6 +2979,12 @@ function getStoryConfidence(story = {}) {
   return "Draft";
 }
 
+function getStoryReadinessScore(story = {}) {
+  const sections = [story.situation, story.task, story.action, story.result].filter((value) => String(value || "").trim().length > 20).length;
+  const followUps = getStoryFollowUps(story).length ? 1 : 0;
+  return Math.min(100, 20 + sections * 18 + followUps * 8);
+}
+
 function getStoryFollowUps(story = {}) {
   if (Array.isArray(story.followUpQuestions) && story.followUpQuestions.length) return story.followUpQuestions.slice(0, 3);
   if (Array.isArray(story.follow_up_questions) && story.follow_up_questions.length) return story.follow_up_questions.slice(0, 3);
@@ -2870,14 +3012,65 @@ function getLikelyRoleObjectives(job = {}, focusAreas = []) {
   return [...new Set(objectives)].slice(0, 5);
 }
 
+function getKeyResponsibilities(job = {}, focusAreas = []) {
+  const description = String(job.job_description || "").toLowerCase();
+  const responsibilities = [];
+  if (description.includes("implement") || description.includes("onboard")) responsibilities.push("Own implementation, onboarding, or rollout coordination details.");
+  if (description.includes("support") || description.includes("ticket")) responsibilities.push("Coordinate issue follow-through, support requests, and stakeholder communication.");
+  if (description.includes("document") || description.includes("training")) responsibilities.push("Create documentation, training, or enablement materials that make workflows repeatable.");
+  responsibilities.push(...focusAreas.slice(0, 3).map((area) => area.title || area.emphasize).filter(Boolean));
+  return [...new Set(responsibilities)].slice(0, 6);
+}
+
+function getLikelySuccessMetrics(job = {}) {
+  const description = String(job.job_description || "").toLowerCase();
+  const metrics = ["Clear stakeholder communication", "Reliable follow-through on assigned work"];
+  if (description.includes("implementation") || description.includes("onboarding")) metrics.unshift("Successful go-live or onboarding milestones");
+  if (description.includes("support") || description.includes("ticket")) metrics.unshift("Timely issue resolution and escalation clarity");
+  if (description.includes("process") || description.includes("workflow")) metrics.unshift("Cleaner workflows and fewer handoff gaps");
+  return [...new Set(metrics)].slice(0, 5);
+}
+
+function getExperienceConnections(job = {}, focusAreas = []) {
+  const title = getDisplayJobTitle(job);
+  const firstFocus = focusAreas[0]?.title || "role priorities";
+  return [
+    { label: "Role need", value: `${title} will likely require practical coordination across systems, people, and follow-through.` },
+    { label: "Experience bridge", value: `Connect your SaaS implementation, onboarding, documentation, and workflow coordination examples to ${firstFocus}.` },
+    { label: "Interview framing", value: "Use concrete examples that show what you owned, who depended on it, and how you kept the work moving." },
+  ];
+}
+
 function printInterviewCheatSheet({ job, score, content, interviewDetails, questions, stories, focusAreas, questionsToAsk, concerns }) {
   const preview = window.open("", "_blank", "noopener,noreferrer,width=900,height=1100");
   if (!preview) return false;
+  const html = buildInterviewCheatSheetHtml({ job, score, content, interviewDetails, questions, stories, focusAreas, questionsToAsk, concerns });
+  preview.document.open();
+  preview.document.write(html);
+  preview.document.close();
+  window.setTimeout(() => preview.print(), 400);
+  return true;
+}
+
+function downloadInterviewCheatSheet(payload) {
+  const html = buildInterviewCheatSheetHtml(payload);
+  const blob = new window.Blob([html], { type: "text/html;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = window.URL.createObjectURL(blob);
+  link.download = `interview-cheat-sheet-${slugify(getDisplayJobTitle(payload.job))}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(link.href);
+  return true;
+}
+
+function buildInterviewCheatSheetHtml({ job, score, content, interviewDetails, questions, stories, focusAreas, questionsToAsk, concerns }) {
   const topStrengths = [
     ...(Array.isArray(score?.strengths) ? score.strengths : []),
     ...(Array.isArray(content?.talkingPoints) ? content.talkingPoints : []),
   ].filter(Boolean).slice(0, 5);
-  const html = `
+  return `
     <!doctype html>
     <html>
       <head>
@@ -2929,11 +3122,6 @@ function printInterviewCheatSheet({ job, score, content, interviewDetails, quest
       </body>
     </html>
   `;
-  preview.document.open();
-  preview.document.write(html);
-  preview.document.close();
-  window.setTimeout(() => preview.print(), 400);
-  return true;
 }
 
 function renderPrintList(items = []) {
@@ -2949,6 +3137,14 @@ function escapeHtml(value = "") {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function slugify(value = "") {
+  return String(value || "interview")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "interview";
 }
 
 function getInterviewDetails(job = {}, contacts = []) {

@@ -1588,7 +1588,7 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-export function CopyButton({ text }) {
+export function CopyButton({ text, label = "Copy" }) {
   const [copied, setCopied] = useState(false);
   const toast = useToast();
   async function copy() {
@@ -1603,7 +1603,7 @@ export function CopyButton({ text }) {
   }
   return (
     <button type="button" onClick={copy} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-white">
-      <Clipboard size={14} /> {copied ? "Copied" : "Copy"}
+      <Clipboard size={14} /> {copied ? "Copied" : label}
     </button>
   );
 }
