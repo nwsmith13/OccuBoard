@@ -283,10 +283,15 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const followUpSectionRef = useRef(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [exportedResumeIds, setExportedResumeIds] = useState(() => new Set(getResumeExportHistory().map((item) => item.resumeId).filter(Boolean)));
-  const [showDescription, setShowDescription] = useState(false);
   const [reviewedRecruiterView, setReviewedRecruiterView] = useState(initialTab === "recruiterView");
   const [notesDraft, setNotesDraft] = useState(initialJob.notes || "");
   const [tasks, setTasks] = useState(() => loadJobCommandTasks(initialJob.id));
+  const [overviewPanels, setOverviewPanels] = useState({
+    role: false,
+    description: false,
+    notes: false,
+    followup: false,
+  });
   const latestScore = [...jobScores].filter((score) => score.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const latestResume = [...resumeVersions].filter((version) => version.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const allMessageHistory = messages.filter((message) => message.job_id === job.id);
@@ -300,7 +305,6 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const prep = interviewPrep.find((item) => item.job_id === job.id);
   const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
   const descriptionPreview = getDescriptionPreview(job.job_description);
-  const descriptionIsTruncated = isDescriptionTruncated(job.job_description);
   const timelineEvents = mergeTimelineEvents(
     jobActivityLogs.filter((event) => event.job_id === job.id),
     getDerivedGenerationEvents({ job, scores: jobScoreHistory, resumes: resumeHistory, messages: allMessageHistory }),
@@ -451,6 +455,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     setTasks((current) => [...current, { id: window.crypto?.randomUUID?.() || `${Date.now()}`, label: label.trim(), done: false }]);
   }
 
+  function toggleOverviewPanel(panel) {
+    setOverviewPanels((current) => ({ ...current, [panel]: !current[panel] }));
+  }
+
   return (
     <div className={pageMode ? "min-h-[calc(100dvh-5rem)]" : "fixed inset-0 z-50 bg-ink/35 p-0 lg:p-4"} onMouseDown={pageMode ? undefined : requestClose}>
       <section className={`${pageMode ? "min-h-[calc(100dvh-5rem)]" : "mx-auto h-[100dvh] max-w-[1600px] lg:h-[calc(100dvh-2rem)] lg:w-[96vw] lg:rounded-lg"} flex flex-col overflow-hidden bg-white shadow-soft`} onMouseDown={(event) => event.stopPropagation()}>
@@ -520,77 +528,63 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 />
               </div>
 
-              <section className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Opportunity Details</p>
-                    <h3 className="mt-1 text-lg font-bold text-ink">Role snapshot</h3>
-                  </div>
-                  {job.source_url && (
-                    <a className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-900" href={job.source_url} target="_blank" rel="noreferrer">
-                      Open source link <ExternalLink size={15} />
-                    </a>
-                  )}
-                </div>
-
-                <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <Detail label="Location" value={`${job.location || "Not listed"} | ${job.remote_type || "Not set"}`} />
-                  <Detail label="Salary" value={job.salary_range || "Not listed"} />
-                  <Detail label="Date saved" value={formatDate(job.date_saved)} />
-                  <Detail label="Stage" value={getDisplayStage(job.status)} />
-                  <Detail label="Fit score" value={latestScore ? `${Math.round(Number(latestScore.score))}%` : "Not analyzed"} />
-                  {job.interview_date && <Detail label="Interview date" value={formatDate(job.interview_date)} />}
-                  {getFollowUpDate(job) && <Detail label="Follow-up" value={formatDate(getFollowUpDate(job))} />}
-                </dl>
-
-                <section className="mt-5">
-                  <h4 className="font-bold">Notes</h4>
-                  <p className="mt-2 whitespace-pre-wrap rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">{job.notes || "No notes yet."}</p>
-                </section>
-
-                <section className="mt-5">
-                  <h4 className="font-bold">Job description</h4>
-                  <div className="mt-2 overflow-hidden rounded-lg bg-brand-50">
-                    {showDescription ? (
-                      <div className="max-h-[460px] overflow-y-auto p-4 text-sm leading-6 text-slate-700">
-                        <p className="whitespace-pre-wrap">{job.job_description || "No description saved."}</p>
-                        {descriptionIsTruncated && (
-                          <button
-                            type="button"
-                            className="mt-2 inline-flex rounded-md px-1 font-semibold text-brand-700 transition hover:bg-white/70 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
-                            onClick={() => setShowDescription(false)}
-                            aria-expanded={showDescription}
-                          >
-                            Show less
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="whitespace-pre-wrap p-4 text-sm leading-6 text-slate-700">
-                        {descriptionPreview || "No description saved."}
-                        {descriptionIsTruncated && (
-                          <>
-                            {" "}
-                            <button
-                              type="button"
-                              className="inline-flex rounded-md px-1 font-semibold text-brand-700 transition hover:bg-white/70 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
-                              onClick={() => setShowDescription(true)}
-                              aria-expanded={showDescription}
-                            >
-                              See more...
-                            </button>
-                          </>
-                        )}
-                      </p>
+              <div className="grid gap-3">
+                <OverviewDisclosure
+                  title="Role Snapshot"
+                  summary={`${getDisplayStage(job.status)} · ${latestScore ? `${Math.round(Number(latestScore.score))}% fit` : "Fit not analyzed"} · saved ${formatDate(job.date_saved)}`}
+                  open={overviewPanels.role}
+                  onToggle={() => toggleOverviewPanel("role")}
+                >
+                  <div className="flex justify-end">
+                    {job.source_url && (
+                      <a className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-900" href={job.source_url} target="_blank" rel="noreferrer">
+                        Open source link <ExternalLink size={15} />
+                      </a>
                     )}
                   </div>
-                </section>
-              </section>
+                  <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <Detail label="Location" value={`${job.location || "Not listed"} | ${job.remote_type || "Not set"}`} />
+                    <Detail label="Salary" value={job.salary_range || "Not listed"} />
+                    <Detail label="Date saved" value={formatDate(job.date_saved)} />
+                    <Detail label="Stage" value={getDisplayStage(job.status)} />
+                    <Detail label="Fit score" value={latestScore ? `${Math.round(Number(latestScore.score))}%` : "Not analyzed"} />
+                    {job.interview_date && <Detail label="Interview date" value={formatDate(job.interview_date)} />}
+                    {getFollowUpDate(job) && <Detail label="Follow-up" value={formatDate(getFollowUpDate(job))} />}
+                  </dl>
+                </OverviewDisclosure>
 
-              <section ref={followUpSectionRef} className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Follow-up</p>
-                <FollowUpControls job={job} user={user} profile={profile} messages={messages} contacts={contacts} updateJob={updateJob} saveMessage={saveMessage} logJobActivity={logJobActivity} onJobUpdate={mergeJobUpdate} />
-              </section>
+                <OverviewDisclosure
+                  title="Job Description"
+                  summary={descriptionPreview || "No description saved."}
+                  open={overviewPanels.description}
+                  onToggle={() => toggleOverviewPanel("description")}
+                >
+                  <div className="max-h-[420px] overflow-y-auto rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">
+                    <p className="whitespace-pre-wrap">{job.job_description || "No description saved."}</p>
+                  </div>
+                </OverviewDisclosure>
+
+                <OverviewDisclosure
+                  title="Notes"
+                  summary={job.notes ? `${job.notes.slice(0, 120)}${job.notes.length > 120 ? "..." : ""}` : "No notes yet."}
+                  open={overviewPanels.notes}
+                  onToggle={() => toggleOverviewPanel("notes")}
+                >
+                  <textarea className="min-h-32 w-full rounded-lg border border-brand-100 bg-white p-3 text-sm leading-6 text-slate-700 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={notesDraft} onChange={(event) => setNotesDraft(event.target.value)} placeholder="Interview feedback, recruiter comments, salary discussion, follow-up reminders..." />
+                  <Button className="mt-3 min-h-8 px-3 text-xs" onClick={saveCommandNotes}>Save notes</Button>
+                </OverviewDisclosure>
+
+                <div ref={followUpSectionRef}>
+                  <OverviewDisclosure
+                    title="Follow-Up"
+                    summary={getFollowUpLabel(job) || "No follow-up scheduled."}
+                    open={overviewPanels.followup}
+                    onToggle={() => toggleOverviewPanel("followup")}
+                  >
+                    <FollowUpControls job={job} user={user} profile={profile} messages={messages} contacts={contacts} updateJob={updateJob} saveMessage={saveMessage} logJobActivity={logJobActivity} onJobUpdate={mergeJobUpdate} />
+                  </OverviewDisclosure>
+                </div>
+              </div>
 
               <div className="flex flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
                 <Button onClick={onMove}>Move to Applied</Button>
@@ -768,6 +762,28 @@ function CommandTasksWorkspace({ tasks, setTasks, onAdd }) {
   );
 }
 
+function OverviewDisclosure({ title, summary, open, onToggle, children }) {
+  return (
+    <section className="rounded-xl bg-white/90 shadow-sm ring-1 ring-brand-100">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-brand-50/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+        onClick={onToggle}
+        aria-expanded={open}
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-black text-ink">{title}</span>
+          <span className="mt-0.5 block truncate text-xs font-semibold text-slate-500">{summary}</span>
+        </span>
+        <span className="shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">
+          {open ? "Collapse" : "Expand"}
+        </span>
+      </button>
+      {open && <div className="border-t border-brand-100 px-4 py-4">{children}</div>}
+    </section>
+  );
+}
+
 function ApplicationPackageOverview({ resume, coverLetter, recruiterMessage, prep, exportReady, onOpenResume, onOpenCoverLetter, onOpenMessage, onOpenInterview, onOpenExport }) {
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
@@ -778,12 +794,18 @@ function ApplicationPackageOverview({ resume, coverLetter, recruiterMessage, pre
         </div>
         <Button className="w-fit min-h-8 px-3 text-xs" onClick={onOpenExport}>Export Package</Button>
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <CommandPackageCard title="Resume" status={resume ? "Ready" : "Missing"} actionLabel={resume ? "Open Resume" : "Generate Resume"} onAction={onOpenResume} />
         <CommandPackageCard title="Cover Letter" status={coverLetter ? "Ready" : "Optional"} actionLabel={coverLetter ? "Open Cover Letter" : "Open Cover Letter"} onAction={onOpenCoverLetter} />
         <CommandPackageCard title="Recruiter Message" status={recruiterMessage ? "Ready" : "Missing"} actionLabel={recruiterMessage ? "Open Message" : "Draft Message"} onAction={onOpenMessage} />
         <CommandPackageCard title="Interview Prep" status={prep ? "Ready" : "Not started"} actionLabel="Open Interview Prep" onAction={onOpenInterview} />
-        <CommandPackageCard title="Export" status={exportReady ? "Exported" : "Ready when needed"} actionLabel="Export Package" onAction={onOpenExport} />
+      </div>
+      <div className="mt-4 flex flex-col gap-2 rounded-xl bg-brand-900 px-4 py-3 text-white sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-black">Export Application Package</p>
+          <p className="text-xs font-semibold text-brand-100">{exportReady ? "A package has already been exported for this resume." : "Export when the application materials are ready."}</p>
+        </div>
+        <Button className="w-fit min-h-8 bg-white px-3 text-xs text-brand-900 hover:bg-brand-50" onClick={onOpenExport}>Export Package</Button>
       </div>
     </section>
   );
@@ -3693,10 +3715,6 @@ function getWorkflowReadiness(completed = {}) {
 }
 
 const descriptionPreviewLength = 520;
-
-function isDescriptionTruncated(description = "") {
-  return description.trim().length > descriptionPreviewLength;
-}
 
 function getDescriptionPreview(description = "") {
   const trimmed = description.trim();
