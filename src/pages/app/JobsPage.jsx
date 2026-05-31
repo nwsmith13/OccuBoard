@@ -645,6 +645,15 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
 }
 
 function JobHeaderCta({ activeTab, onTabChange }) {
+  if (activeTab === "export") {
+    return (
+      <div className="flex justify-end">
+        <span className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-800 ring-1 ring-emerald-100">
+          Ready to Export ✓
+        </span>
+      </div>
+    );
+  }
   const config = {
     overview: { label: "Continue to Resume", tab: "resume", variant: "primary" },
     fit: { label: "Continue to Resume", tab: "resume", variant: "primary" },
@@ -653,7 +662,6 @@ function JobHeaderCta({ activeTab, onTabChange }) {
     message: { label: "View Recruiter View", tab: "recruiterView", variant: "secondary" },
     recruiterView: { label: "Continue to Interview Prep", tab: "interview", variant: "primary" },
     interview: { label: "Continue to Export", tab: "export", variant: "primary" },
-    export: { label: "Ready to Export", tab: "export", variant: "secondary" },
   }[activeTab] || { label: "Continue to Resume", tab: "resume", variant: "primary" };
   return (
     <div className="flex justify-end">
@@ -2047,6 +2055,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const [interviewDetails, setInterviewDetails] = useState(() => getInterviewDetails(job, contacts));
   const [interviewSaving, setInterviewSaving] = useState(false);
   const [interviewMessage, setInterviewMessage] = useState("");
+  const [scheduleExpanded, setScheduleExpanded] = useState(false);
   const [draftNotes, setDraftNotes] = useState(() => prep?.answer_notes ?? {});
   const [noteSaveStatus, setNoteSaveStatus] = useState({});
   const [thankYouDraft, setThankYouDraft] = useState(() => prep?.content?.thankYouMessage ?? "");
@@ -2243,6 +2252,8 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       onSave={saveInterviewDetails}
       onDownload={downloadInterviewCalendar}
       onOpenCalendar={openInterviewCalendar}
+      expanded={scheduleExpanded}
+      onToggle={() => setScheduleExpanded((value) => !value)}
     />
   );
 
@@ -2312,9 +2323,17 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
         {contacts[0] && <p className="mt-3 text-sm text-slate-600">Contact: <span className="font-semibold text-slate-800">{contacts[0].name}</span></p>}
         <InterviewPrepTabs active={prepTab} onSelect={setPrepTab} />
       </div>
+      {prepTab === "overview" && (
+        <InterviewToolkit
+          focusAreas={focusAreas}
+          questionsToAsk={questionsToAsk}
+          onPrintCheatSheet={exportCheatSheet}
+          onDownloadCheatSheet={downloadCheatSheet}
+        />
+      )}
 
       {prepTab === "overview" && (
-        <InterviewPrepOverview focusAreas={focusAreas} questions={questions} questionsToAsk={questionsToAsk} readiness={readiness} concerns={concerns} onPrintCheatSheet={exportCheatSheet} onDownloadCheatSheet={downloadCheatSheet} />
+        <InterviewPrepOverview focusAreas={focusAreas} questions={questions} readiness={readiness} concerns={concerns} />
       )}
 
       {prepTab === "questions" && (
@@ -2413,10 +2432,37 @@ function InterviewPrepTabs({ active, onSelect }) {
   );
 }
 
-function InterviewPrepOverview({ focusAreas, questions, questionsToAsk, readiness, concerns, onPrintCheatSheet, onDownloadCheatSheet }) {
-  const fastestWays = getFastestInterviewImprovements(readiness, concerns, questions);
+function InterviewToolkit({ focusAreas, questionsToAsk, onPrintCheatSheet, onDownloadCheatSheet }) {
   const talkingPointsText = focusAreas.map((area) => area.emphasize || area.title).filter(Boolean).join("\n");
   const questionsText = questionsToAsk.map((question) => question).filter(Boolean).join("\n");
+  return (
+    <section className="rounded-xl bg-emerald-50/80 p-4 shadow-card ring-1 ring-emerald-100">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-emerald-700 ring-1 ring-emerald-100">
+            <CheckCircle2 size={17} aria-hidden="true" />
+          </span>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-700">Before Your Interview</p>
+            <h3 className="mt-1 text-lg font-black text-ink">Interview Toolkit</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-700">Quick-access preparation tools.</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onDownloadCheatSheet}>
+            <Download size={13} /> Download Cheat Sheet
+          </Button>
+          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onPrintCheatSheet}>Print Cheat Sheet</Button>
+          <CopyButton text={talkingPointsText || "No talking points available yet."} label="Copy Talking Points" />
+          <CopyButton text={questionsText || "No questions available yet."} label="Copy Questions To Ask" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function InterviewPrepOverview({ focusAreas, questions, readiness, concerns }) {
+  const fastestWays = getFastestInterviewImprovements(readiness, concerns, questions);
   return (
     <section className="grid gap-4">
       <PrepSection title="Interview Readiness">
@@ -2437,17 +2483,6 @@ function InterviewPrepOverview({ focusAreas, questions, questionsToAsk, readines
             <ReadinessSubscore key={label} label={label} value={value} />
           ))}
         </div>
-      </PrepSection>
-      <PrepSection title="Interview Toolkit">
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onDownloadCheatSheet}>
-            <Download size={13} /> Download Cheat Sheet
-          </Button>
-          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onPrintCheatSheet}>Print Cheat Sheet</Button>
-          <CopyButton text={talkingPointsText || "No talking points available yet."} label="Copy Talking Points" />
-          <CopyButton text={questionsText || "No questions available yet."} label="Copy Questions To Ask" />
-        </div>
-        <p className="mt-2 text-xs font-semibold text-slate-500">Use these right before the interview for a quick final pass.</p>
       </PrepSection>
       <PrepSection title="Fastest Way To Improve">
         <div className="grid gap-2 md:grid-cols-3">
@@ -2719,18 +2754,26 @@ function InterviewConcernCard({ concern }) {
   );
 }
 
-function InterviewScheduleCard({ job, contacts, details, message, saving, onChange, onSave, onDownload, onOpenCalendar }) {
+function InterviewScheduleCard({ job, contacts, details, message, saving, onChange, onSave, onDownload, onOpenCalendar, expanded, onToggle }) {
   const calendarEvent = details.interview_date ? buildInterviewCalendarEvent(job, { ...details, contacts }) : null;
   return (
-    <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+    <section className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Schedule</p>
-          <h3 className="mt-1 flex items-center gap-2 text-lg font-bold text-ink"><CalendarDays size={18} /> Schedule and calendar handoff</h3>
-          <p className="mt-1 text-sm text-slate-600">Keep the meeting details close to your prep without needing calendar sync.</p>
+          <h3 className="mt-1 flex items-center gap-2 text-lg font-bold text-ink"><CalendarDays size={18} /> Schedule & Calendar Handoff</h3>
+          <p className="mt-1 text-sm text-slate-600">Optional interview scheduling details.</p>
         </div>
+        <button
+          type="button"
+          className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+          onClick={onToggle}
+          aria-expanded={expanded}
+        >
+          {expanded ? "Collapse ▴" : "Expand ▾"}
+        </button>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {expanded && <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="grid gap-1 text-sm font-semibold text-ink">
           Date
           <input className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" type="date" value={details.interview_date} onChange={(event) => onChange("interview_date", event.target.value)} />
@@ -2769,8 +2812,8 @@ function InterviewScheduleCard({ job, contacts, details, message, saving, onChan
             </select>
           </label>
         )}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
+      </div>}
+      {expanded && <div className="mt-4 flex flex-wrap gap-2">
         <Button className="min-h-8 px-3 text-xs" onClick={onSave} disabled={saving}>
           {saving && <Loader2 size={14} className="animate-spin" />}
           {saving ? "Saving..." : "Save interview details"}
@@ -2784,7 +2827,7 @@ function InterviewScheduleCard({ job, contacts, details, message, saving, onChan
         ) : (
           <Button variant="secondary" className="min-h-8 px-3 text-xs" disabled>Set a date first</Button>
         )}
-      </div>
+      </div>}
       {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{message}</p>}
     </section>
   );
@@ -3042,13 +3085,18 @@ function getExperienceConnections(job = {}, focusAreas = []) {
 }
 
 function printInterviewCheatSheet({ job, score, content, interviewDetails, questions, stories, focusAreas, questionsToAsk, concerns }) {
-  const preview = window.open("", "_blank", "noopener,noreferrer,width=900,height=1100");
+  const preview = window.open("", "_blank", "width=900,height=1100");
   if (!preview) return false;
   const html = buildInterviewCheatSheetHtml({ job, score, content, interviewDetails, questions, stories, focusAreas, questionsToAsk, concerns });
   preview.document.open();
   preview.document.write(html);
   preview.document.close();
-  window.setTimeout(() => preview.print(), 400);
+  const printWhenReady = () => {
+    preview.focus();
+    preview.print();
+  };
+  preview.addEventListener?.("load", () => window.setTimeout(printWhenReady, 150), { once: true });
+  window.setTimeout(printWhenReady, 800);
   return true;
 }
 
