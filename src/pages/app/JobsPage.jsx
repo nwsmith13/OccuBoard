@@ -2164,6 +2164,22 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     window.setTimeout(() => setInterviewMessage(""), 2200);
   }
 
+  function exportCheatSheet() {
+    const exported = printInterviewCheatSheet({
+      job,
+      score,
+      content,
+      interviewDetails,
+      questions,
+      stories,
+      focusAreas,
+      questionsToAsk,
+      concerns: getInterviewConcernAreas(score),
+    });
+    if (exported) toast.success("Interview cheat sheet opened.");
+    else toast.error("Could not open cheat sheet.");
+  }
+
   const scheduleCard = (
     <InterviewScheduleCard
       job={job}
@@ -2202,7 +2218,8 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const talkingPoints = Array.isArray(content.talkingPoints) ? content.talkingPoints : [];
   const stories = Array.isArray(content.starStories) ? content.starStories : [];
   const questionsToAsk = Array.isArray(content.questionsToAsk) ? content.questionsToAsk : [];
-  const readiness = getInterviewReadinessScore({ content, practicedCount: practiced.size, interviewDetails, thankYouDraft });
+  const concerns = getInterviewConcernAreas(score);
+  const readiness = getInterviewReadinessScore({ content, practicedCount: practiced.size, interviewDetails, thankYouDraft, concerns });
   const currentPracticeQuestion = questions[practiceIndex % Math.max(questions.length, 1)];
 
   return (
@@ -2232,7 +2249,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       </div>
 
       {prepTab === "overview" && (
-        <InterviewPrepOverview focusAreas={focusAreas} questions={questions} readiness={readiness} />
+        <InterviewPrepOverview focusAreas={focusAreas} questions={questions} readiness={readiness} concerns={concerns} onExportCheatSheet={exportCheatSheet} />
       )}
 
       {prepTab === "questions" && (
@@ -2247,6 +2264,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           noteSaveStatus={noteSaveStatus}
           practiced={practiced}
           togglePracticed={togglePracticed}
+          stories={stories}
         />
       )}
 
@@ -2323,8 +2341,8 @@ function InterviewPrepTabs({ active, onSelect }) {
   );
 }
 
-function InterviewPrepOverview({ focusAreas, questions, readiness }) {
-  const areasToPrepare = getInterviewAreasToPrepare(focusAreas, questions);
+function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, onExportCheatSheet }) {
+  const fastestWays = getFastestInterviewImprovements(readiness, concerns, questions);
   return (
     <section className="grid gap-4">
       <PrepSection title="Interview Readiness">
@@ -2338,7 +2356,24 @@ function InterviewPrepOverview({ focusAreas, questions, readiness }) {
               <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${readiness.score}%` }} />
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-600">{readiness.description}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onExportCheatSheet}>
+                <Download size={13} /> Export cheat sheet
+              </Button>
+            </div>
           </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          {Object.entries(readiness.subscores).map(([label, value]) => (
+            <ReadinessSubscore key={label} label={label} value={value} />
+          ))}
+        </div>
+      </PrepSection>
+      <PrepSection title="Fastest Way To Improve">
+        <div className="grid gap-2 md:grid-cols-3">
+          {fastestWays.map((item) => (
+            <div key={item} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold leading-6 text-emerald-900 ring-1 ring-emerald-100">{item}</div>
+          ))}
         </div>
       </PrepSection>
       <PrepSection title="Likely Focus Areas">
@@ -2352,42 +2387,56 @@ function InterviewPrepOverview({ focusAreas, questions, readiness }) {
           ))}
         </div>
       </PrepSection>
-      <PrepSection title="Areas To Prepare">
-        <ul className="grid gap-2 md:grid-cols-2">
-          {areasToPrepare.map((area) => <li key={area} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-700 ring-1 ring-brand-100">{area}</li>)}
-        </ul>
+      <PrepSection title="Potential Concern Areas">
+        {concerns.length ? (
+          <div className="grid gap-3">
+            {concerns.map((concern) => <InterviewConcernCard key={concern.id} concern={concern} />)}
+          </div>
+        ) : (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">No major interview risk areas were identified from the current analysis.</p>
+        )}
       </PrepSection>
     </section>
   );
 }
 
-function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draftNotes, notes, saveNote, persistNote, noteSaveStatus, practiced, togglePracticed }) {
+function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draftNotes, notes, saveNote, persistNote, noteSaveStatus, practiced, togglePracticed, stories }) {
+  const grouped = groupInterviewQuestions(questions);
   return (
     <PrepSection title="Top Interview Questions">
-      <div className="grid gap-2">
-        {questions.map((question, index) => (
-          <div key={`${question.category}-${question.question}`} className="rounded-lg bg-brand-50/70 p-3">
-            <button type="button" className="flex w-full items-start justify-between gap-3 text-left" onClick={() => setOpenQuestion(openQuestion === index ? "" : index)} aria-expanded={openQuestion === index}>
-              <span>
-                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{question.category || "Interview"}</span>
-                <span className="mt-1 block font-bold text-ink">{question.question}</span>
-                <span className="mt-1 block text-xs font-semibold text-slate-600">Likelihood: {getQuestionLikelihood(index)}</span>
-              </span>
-              <span className="text-xs font-bold text-brand-700">{openQuestion === index ? "Close" : "Open"}</span>
-            </button>
-            {openQuestion === index && (
-              <div className="mt-3 grid gap-3">
-                <div className="grid gap-2 md:grid-cols-2">
-                  <PrepInfoBlock label="Why they will ask" value={question.whyTheyAsk || getQuestionWhy(question)} />
-                  <PrepInfoBlock label="Preparation guidance" value={question.guidance} />
+      <div className="grid gap-4">
+        {grouped.map((group) => (
+          <div key={group.label} className="grid gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{group.label}</p>
+            {group.items.map(({ question, index }) => {
+              const relatedStory = getRelatedStory(question, stories);
+              return (
+                <div key={`${question.category}-${question.question}`} className="rounded-lg bg-brand-50/70 p-3">
+                  <button type="button" className="flex w-full items-start justify-between gap-3 text-left" onClick={() => setOpenQuestion(openQuestion === index ? "" : index)} aria-expanded={openQuestion === index}>
+                    <span>
+                      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{question.category || "Interview"}</span>
+                      <span className="mt-1 block font-bold text-ink">{question.question}</span>
+                      {relatedStory && <span className="mt-1 block text-xs font-semibold text-emerald-700">Related story: {relatedStory.title}</span>}
+                    </span>
+                    <span className="text-xs font-bold text-brand-700">{openQuestion === index ? "Close" : "Open"}</span>
+                  </button>
+                  {openQuestion === index && (
+                    <div className="mt-3 grid gap-3">
+                      <div className="grid gap-2 md:grid-cols-3">
+                        <PrepInfoBlock label="Why they ask it" value={question.whyTheyAsk || getQuestionWhy(question)} />
+                        <PrepInfoBlock label="What they are evaluating" value={question.evaluating || getQuestionEvaluation(question)} />
+                        <PrepInfoBlock label="Suggested answer direction" value={question.guidance} />
+                      </div>
+                      <div className="grid gap-1">
+                        <textarea className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" rows="2" placeholder="Optional answer notes" value={draftNotes[index] ?? notes[index] ?? ""} onChange={(event) => saveNote(index, event.target.value)} onBlur={() => persistNote(index)} />
+                        {noteSaveStatus[index] && <NoteSaveStatus status={noteSaveStatus[index]} />}
+                      </div>
+                      <Button variant={practiced.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => togglePracticed(index)}>{practiced.has(index) ? "Practiced" : "Mark practiced"}</Button>
+                    </div>
+                  )}
                 </div>
-                <div className="grid gap-1">
-                  <textarea className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" rows="2" placeholder="Optional answer notes" value={draftNotes[index] ?? notes[index] ?? ""} onChange={(event) => saveNote(index, event.target.value)} onBlur={() => persistNote(index)} />
-                  {noteSaveStatus[index] && <NoteSaveStatus status={noteSaveStatus[index]} />}
-                </div>
-                <Button variant={practiced.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => togglePracticed(index)}>{practiced.has(index) ? "Practiced" : "Mark practiced"}</Button>
-              </div>
-            )}
+              );
+            })}
           </div>
         ))}
       </div>
@@ -2406,9 +2455,13 @@ function InterviewPrepStories({ stories, openStory, setOpenStory, talkingPoints 
                 {story.title}
                 <span className="text-xs text-brand-700">{openStory === index ? "Close" : "Open"}</span>
               </button>
-              <div className="mt-2 grid gap-2 md:grid-cols-2">
-                <PrepInfoBlock label="Best use cases" value={getStoryUseCases(story)} />
-                <PrepInfoBlock label="Key strengths demonstrated" value={getStoryStrengths(story, talkingPoints)} />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {getStoryTags(story).map((tag) => <span key={tag} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{tag}</span>)}
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">{getStoryConfidence(story)} confidence</span>
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                <PrepInfoBlock label="Best used for" value={getStoryUseCases(story)} />
+                <PrepInfoBlock label="Strengths demonstrated" value={getStoryStrengths(story, talkingPoints)} />
               </div>
               {openStory === index && (
                 <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-600">
@@ -2416,6 +2469,12 @@ function InterviewPrepStories({ stories, openStory, setOpenStory, talkingPoints 
                   <p><strong>Task:</strong> {story.task}</p>
                   <p><strong>Action:</strong> {story.action}</p>
                   <p><strong>Result:</strong> {story.result}</p>
+                  <div className="rounded-lg bg-brand-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.1em] text-brand-700">Follow-up questions recruiters may ask</p>
+                    <ul className="mt-2 grid gap-1">
+                      {getStoryFollowUps(story).map((question) => <li key={question}>- {question}</li>)}
+                    </ul>
+                  </div>
                   <CopyButton text={`Situation: ${story.situation}\nTask: ${story.task}\nAction: ${story.action}\nResult: ${story.result}`} />
                 </div>
               )}
@@ -2494,6 +2553,39 @@ function PrepInfoBlock({ label, value }) {
       <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">{label}</p>
       <p className="mt-1 text-sm leading-6 text-slate-700">{value || "Use a concise example grounded in your resume."}</p>
     </div>
+  );
+}
+
+function ReadinessSubscore({ label, value }) {
+  const display = label.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
+  return (
+    <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">{display}</p>
+        <p className="text-sm font-black text-brand-900">{value}%</p>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white" aria-label={`${display} readiness ${value}%`}>
+        <div className="h-full rounded-full bg-brand-500" style={{ width: `${value}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function InterviewConcernCard({ concern }) {
+  return (
+    <article className="rounded-lg bg-white p-3 ring-1 ring-amber-100">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="font-bold text-ink">{concern.title}</p>
+          <p className="mt-1 text-xs font-semibold text-amber-700">Confidence: {concern.confidence}</p>
+        </div>
+        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 ring-1 ring-amber-100">{concern.severity}</span>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <PrepInfoBlock label="Why it may come up" value={concern.why} />
+        <PrepInfoBlock label="How to address it" value={concern.how} />
+      </div>
+    </article>
   );
 }
 
@@ -2583,20 +2675,24 @@ function getPrepLevel(content, practicedCount) {
   return "Not started";
 }
 
-function getInterviewReadinessScore({ content, practicedCount, interviewDetails, thankYouDraft }) {
+function getInterviewReadinessScore({ content, practicedCount, interviewDetails, thankYouDraft, concerns = [] }) {
   const questionCount = Array.isArray(content?.questions) ? content.questions.length : 0;
+  const storyCount = Array.isArray(content?.starStories) ? content.starStories.length : 0;
+  const focusCount = Array.isArray(content?.focusAreas) ? content.focusAreas.length : 0;
   const practicedRatio = questionCount ? Math.min(practicedCount / Math.min(questionCount, 4), 1) : 0;
+  const subscores = {
+    research: Math.min(100, 35 + focusCount * 12 + (interviewDetails.interview_date ? 15 : 0)),
+    stories: Math.min(100, 25 + storyCount * 18),
+    questions: Math.min(100, 35 + questionCount * 8 + Math.round(practicedRatio * 25)),
+    riskMitigation: Math.min(100, concerns.length ? 45 + Math.max(0, 4 - concerns.length) * 10 + focusCount * 4 : 92),
+  };
   const score =
-    35 +
-    (Array.isArray(content?.focusAreas) && content.focusAreas.length ? 18 : 0) +
-    (questionCount ? 16 : 0) +
-    (Array.isArray(content?.starStories) && content.starStories.length ? 14 : 0) +
-    (interviewDetails.interview_date ? 8 : 0) +
-    (thankYouDraft?.trim() ? 4 : 0) +
-    Math.round(practicedRatio * 5);
+    Math.round((subscores.research + subscores.stories + subscores.questions + subscores.riskMitigation) / 4) +
+    (thankYouDraft?.trim() ? 3 : 0);
   const clamped = Math.min(100, score);
   return {
     score: clamped,
+    subscores,
     label: clamped >= 85 ? "Ready" : clamped >= 70 ? "In progress" : "Getting prepared",
     description: clamped >= 85
       ? "Core focus areas, questions, stories, and follow-up support are in place."
@@ -2604,10 +2700,88 @@ function getInterviewReadinessScore({ content, practicedCount, interviewDetails,
   };
 }
 
+function getInterviewConcernAreas(score = {}) {
+  const raw = [
+    ...(Array.isArray(score?.gapAssessments) ? score.gapAssessments : []),
+    ...(Array.isArray(score?.gap_assessments) ? score.gap_assessments : []),
+    ...(Array.isArray(score?.gaps) ? score.gaps : []),
+  ];
+  return raw
+    .map((item, index) => normalizeInterviewConcern(item, index))
+    .filter((item) => item && !["minor", "informational", "info"].includes(String(item.severity).toLowerCase()))
+    .slice(0, 4);
+}
+
+function normalizeInterviewConcern(item, index) {
+  const text = typeof item === "string" ? item : item?.gap || item?.text || item?.title || "";
+  if (!text.trim()) return null;
+  const severity = formatConcernSeverity(item?.severity || inferConcernSeverity(text));
+  const confidence = formatConcernConfidence(item?.confidence || "Moderate");
+  const suggestions = item?.mitigationSuggestions || item?.mitigation_suggestions || item?.suggestions || [];
+  return {
+    id: item?.id || `interview-concern-${index}`,
+    title: text,
+    severity,
+    confidence,
+    why: item?.whyItMatters || item?.why || getConcernWhy(text),
+    how: suggestions[0] || item?.howToAddress || getConcernHow(text),
+  };
+}
+
+function formatConcernSeverity(value = "") {
+  const normalized = String(value || "moderate").toLowerCase();
+  if (normalized === "critical") return "Critical";
+  if (normalized === "high") return "High";
+  return "Moderate";
+}
+
+function formatConcernConfidence(value = "") {
+  const normalized = String(value || "moderate").toLowerCase();
+  if (normalized.includes("strong") || normalized.includes("high")) return "High";
+  if (normalized.includes("partial") || normalized.includes("low")) return "Partial";
+  return "Moderate";
+}
+
+function inferConcernSeverity(text = "") {
+  const lower = text.toLowerCase();
+  if (lower.includes("missing") || lower.includes("no direct") || lower.includes("limited direct")) return "moderate";
+  return "minor";
+}
+
+function getConcernWhy(text = "") {
+  const lower = text.toLowerCase();
+  if (lower.includes("ticket") || lower.includes("itsm") || lower.includes("service")) return "Interviewers may test whether your support and issue-tracking experience maps to their intake or service workflows.";
+  if (lower.includes("uat") || lower.includes("testing") || lower.includes("validation")) return "They may ask how you validate workflows before launch or confirm stakeholder acceptance.";
+  if (lower.includes("platform") || lower.includes("buildops") || lower.includes("sage")) return "Vendor-specific tools can come up as a ramp-up concern even when adjacent systems experience is strong.";
+  return "This may come up as a clarification point during screening or deeper interview questions.";
+}
+
+function getConcernHow(text = "") {
+  const lower = text.toLowerCase();
+  if (lower.includes("ticket") || lower.includes("itsm") || lower.includes("service")) return "Use Jira, escalation coordination, issue follow-through, and implementation support examples without overstating formal ITSM ownership.";
+  if (lower.includes("uat") || lower.includes("testing") || lower.includes("validation")) return "Prepare a go-live readiness or workflow validation example from implementation work.";
+  if (lower.includes("platform") || lower.includes("buildops") || lower.includes("sage")) return "Position adjacent ERP, CRM, and workflow-tool experience as evidence that you can ramp quickly.";
+  return "Prepare a concise, factual example that frames adjacent experience clearly.";
+}
+
 function getQuestionLikelihood(index) {
   if (index < 3) return "High";
   if (index < 6) return "Medium";
   return "Possible";
+}
+
+function groupInterviewQuestions(questions = []) {
+  const groups = [
+    { label: "Very Likely", items: [] },
+    { label: "Likely", items: [] },
+    { label: "Possible", items: [] },
+  ];
+  questions.forEach((question, index) => {
+    const likelihood = String(question.likelihood || getQuestionLikelihood(index)).toLowerCase();
+    const target = likelihood.includes("very") || likelihood.includes("high") ? groups[0] : likelihood.includes("possible") || likelihood.includes("low") ? groups[2] : groups[1];
+    target.items.push({ question, index });
+  });
+  return groups.filter((group) => group.items.length);
 }
 
 function getQuestionWhy(question = {}) {
@@ -2618,10 +2792,30 @@ function getQuestionWhy(question = {}) {
   return "This connects the role requirements to your strongest examples and working style.";
 }
 
-function getInterviewAreasToPrepare(focusAreas = [], questions = []) {
-  const focus = focusAreas.map((area) => area.title || area.emphasize).filter(Boolean);
-  const categories = questions.map((question) => question.category).filter(Boolean);
-  return [...new Set([...focus, ...categories])].slice(0, 6);
+function getQuestionEvaluation(question = {}) {
+  const category = String(question.category || "").toLowerCase();
+  if (category.includes("behavior")) return "Ownership, communication, self-awareness, and how you handle ambiguity.";
+  if (category.includes("technical")) return "Practical systems fluency, troubleshooting approach, and ability to explain tradeoffs.";
+  if (category.includes("role")) return "Direct alignment with the responsibilities and pace of the job.";
+  return "Whether your examples are specific, relevant, and grounded in real outcomes.";
+}
+
+function getRelatedStory(question = {}, stories = []) {
+  if (!stories.length) return null;
+  const questionText = `${question.question || ""} ${question.category || ""}`.toLowerCase();
+  return stories.find((story) => {
+    const storyText = `${story.title || ""} ${story.situation || ""} ${story.action || ""}`.toLowerCase();
+    return questionText.split(/\W+/).filter((word) => word.length > 5).some((word) => storyText.includes(word));
+  }) || stories[0];
+}
+
+function getFastestInterviewImprovements(readiness, concerns = [], questions = []) {
+  const items = [];
+  if (readiness.subscores.stories < 80) items.push("Choose two STAR stories and practice the results out loud.");
+  if (readiness.subscores.questions < 80 || questions.length) items.push("Practice the first three very likely questions.");
+  if (concerns.length) items.push(`Prepare a concise answer for: ${concerns[0].title}`);
+  if (!items.length) items.push("Do one quick mock pass, then review your questions for the interviewer.");
+  return items.slice(0, 3);
 }
 
 function getStoryUseCases(story = {}) {
@@ -2630,6 +2824,33 @@ function getStoryUseCases(story = {}) {
   if (text.includes("customer") || text.includes("client")) return "Client communication, support recovery, expectation setting";
   if (text.includes("data") || text.includes("system")) return "Systems coordination, data/process quality, operational problem solving";
   return "Behavioral examples, ownership questions, cross-functional collaboration";
+}
+
+function getStoryTags(story = {}) {
+  const text = `${story.title || ""} ${story.situation || ""} ${story.action || ""}`.toLowerCase();
+  const tags = [];
+  if (text.includes("implementation") || text.includes("launch")) tags.push("Implementation");
+  if (text.includes("client") || text.includes("customer")) tags.push("Client-facing");
+  if (text.includes("system") || text.includes("data")) tags.push("Systems");
+  if (text.includes("document") || text.includes("training")) tags.push("Documentation");
+  return tags.length ? tags.slice(0, 4) : ["Ownership", "Execution"];
+}
+
+function getStoryConfidence(story = {}) {
+  const fields = [story.situation, story.task, story.action, story.result].filter((value) => String(value || "").trim().length > 20).length;
+  if (fields >= 4) return "High";
+  if (fields >= 2) return "Moderate";
+  return "Draft";
+}
+
+function getStoryFollowUps(story = {}) {
+  if (Array.isArray(story.followUpQuestions) && story.followUpQuestions.length) return story.followUpQuestions.slice(0, 3);
+  if (Array.isArray(story.follow_up_questions) && story.follow_up_questions.length) return story.follow_up_questions.slice(0, 3);
+  return [
+    "What was the hardest part of that situation?",
+    "How did you measure or confirm the outcome?",
+    "What would you do differently next time?",
+  ];
 }
 
 function getStoryStrengths(story = {}, talkingPoints = []) {
@@ -2647,6 +2868,87 @@ function getLikelyRoleObjectives(job = {}, focusAreas = []) {
   if (title.includes("client") || title.includes("customer")) objectives.push("Support customer-facing communication, onboarding, and issue follow-through.");
   objectives.push(...focusAreas.slice(0, 3).map((area) => area.emphasize || area.title).filter(Boolean));
   return [...new Set(objectives)].slice(0, 5);
+}
+
+function printInterviewCheatSheet({ job, score, content, interviewDetails, questions, stories, focusAreas, questionsToAsk, concerns }) {
+  const preview = window.open("", "_blank", "noopener,noreferrer,width=900,height=1100");
+  if (!preview) return false;
+  const topStrengths = [
+    ...(Array.isArray(score?.strengths) ? score.strengths : []),
+    ...(Array.isArray(content?.talkingPoints) ? content.talkingPoints : []),
+  ].filter(Boolean).slice(0, 5);
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <title>Interview Cheat Sheet - ${escapeHtml(getDisplayJobTitle(job))}</title>
+        <style>
+          body { font-family: Inter, Arial, sans-serif; color: #172033; margin: 32px; line-height: 1.45; }
+          h1 { font-size: 24px; margin: 0 0 4px; }
+          h2 { font-size: 13px; margin: 22px 0 8px; text-transform: uppercase; letter-spacing: .08em; color: #0f5ea8; }
+          p { margin: 0 0 6px; }
+          ul { margin: 0; padding-left: 18px; }
+          li { margin: 4px 0; }
+          .meta { color: #5b677a; font-size: 13px; margin-bottom: 18px; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+          .card { border: 1px solid #d9e6f2; border-radius: 10px; padding: 12px; break-inside: avoid; }
+          .label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: .08em; }
+          @media print { body { margin: 18mm; } .no-print { display: none; } }
+        </style>
+      </head>
+      <body>
+        <button class="no-print" onclick="window.print()" style="float:right;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-weight:700;">Print</button>
+        <h1>${escapeHtml(getDisplayJobTitle(job))}</h1>
+        <p class="meta">${escapeHtml(getDisplayCompanyName(job))} ${interviewDetails.interview_date ? `- Interview ${escapeHtml(formatDate(interviewDetails.interview_date))}` : ""}</p>
+        <div class="grid">
+          <section class="card">
+            <h2>Top strengths</h2>
+            ${renderPrintList(topStrengths)}
+          </section>
+          <section class="card">
+            <h2>Risks to manage</h2>
+            ${renderPrintList(concerns.map((concern) => `${concern.title}: ${concern.how}`))}
+          </section>
+          <section class="card">
+            <h2>Top questions</h2>
+            ${renderPrintList(questions.slice(0, 5).map((question) => question.question))}
+          </section>
+          <section class="card">
+            <h2>Best stories</h2>
+            ${renderPrintList(stories.slice(0, 4).map((story) => `${story.title} - ${getStoryUseCases(story)}`))}
+          </section>
+          <section class="card">
+            <h2>Likely focus areas</h2>
+            ${renderPrintList(focusAreas.slice(0, 5).map((area) => area.title || area.emphasize))}
+          </section>
+          <section class="card">
+            <h2>Questions to ask</h2>
+            ${renderPrintList(questionsToAsk.slice(0, 5))}
+          </section>
+        </div>
+      </body>
+    </html>
+  `;
+  preview.document.open();
+  preview.document.write(html);
+  preview.document.close();
+  window.setTimeout(() => preview.print(), 400);
+  return true;
+}
+
+function renderPrintList(items = []) {
+  const clean = items.filter(Boolean);
+  if (!clean.length) return "<p>No items available yet.</p>";
+  return `<ul>${clean.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function getInterviewDetails(job = {}, contacts = []) {
