@@ -1588,21 +1588,21 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-export function CopyButton({ text, label = "Copy" }) {
+export function CopyButton({ text, label = "Copy", variant = "default", successMessage = "Copied to clipboard." }) {
   const [copied, setCopied] = useState(false);
   const toast = useToast();
   async function copy() {
     try {
       await navigator.clipboard.writeText(text || "");
       setCopied(true);
-      toast.success("Copied to clipboard.");
+      toast.success(successMessage);
       window.setTimeout(() => setCopied(false), 1400);
     } catch {
       toast.error("Could not copy text.");
     }
   }
   return (
-    <button type="button" onClick={copy} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-white">
+    <button type="button" onClick={copy} className={`inline-flex min-h-8 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-brand-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${variant === "ghost" ? "bg-transparent" : ""}`}>
       <Clipboard size={14} /> {copied ? "Copied" : label}
     </button>
   );

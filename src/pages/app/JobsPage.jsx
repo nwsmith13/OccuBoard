@@ -267,7 +267,8 @@ export function PriorityBadge({ priority }) {
 
 function getDisplayStage(status) {
   if (status === "Tailoring") return "Saved";
-  if (["Offer", "Rejected", "Closed"].includes(status)) return "Closed";
+  if (status === "Closed") return "Rejected";
+  if (["Offer", "Rejected", "Recruiter Screen", "Final Interview"].includes(status)) return status;
   return status || "Saved";
 }
 
@@ -649,7 +650,7 @@ function JobHeaderCta({ activeTab, onTabChange }) {
     return (
       <div className="flex justify-end">
         <span className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-800 ring-1 ring-emerald-100">
-          Ready to Export ✓
+          ✓ Ready to Export
         </span>
       </div>
     );
@@ -661,7 +662,7 @@ function JobHeaderCta({ activeTab, onTabChange }) {
     coverLetter: { label: "Continue to Recruiter Message", tab: "message", variant: "primary" },
     message: { label: "View Recruiter View", tab: "recruiterView", variant: "secondary" },
     recruiterView: { label: "Continue to Interview Prep", tab: "interview", variant: "primary" },
-    interview: { label: "Continue to Export", tab: "export", variant: "primary" },
+    interview: { label: "Export Application Package", tab: "export", variant: "primary" },
   }[activeTab] || { label: "Continue to Resume", tab: "resume", variant: "primary" };
   return (
     <div className="flex justify-end">
@@ -2163,7 +2164,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     try {
       await navigator.clipboard.writeText(thankYouDraft);
       setThankYouCopied(true);
-      toast.success("Copied to clipboard.");
+      toast.success("✓ Thank You Message Copied");
       window.setTimeout(() => setThankYouCopied(false), 2200);
     } catch {
       toast.error("Could not copy thank-you message.");
@@ -2288,13 +2289,13 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
 
   function exportCheatSheet() {
     const exported = printInterviewCheatSheet(cheatSheetPayload);
-    if (exported) toast.success("Interview cheat sheet opened.");
+    if (exported) toast.success("✓ Cheat Sheet Ready To Print");
     else toast.error("Could not open cheat sheet.");
   }
 
   function downloadCheatSheet() {
     const downloaded = downloadInterviewCheatSheet(cheatSheetPayload);
-    if (downloaded) toast.success("Interview cheat sheet downloaded.");
+    if (downloaded) toast.success("✓ Cheat Sheet Downloaded");
     else toast.error("Could not download cheat sheet.");
   }
 
@@ -2449,12 +2450,12 @@ function InterviewToolkit({ focusAreas, questionsToAsk, onPrintCheatSheet, onDow
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onDownloadCheatSheet}>
+          <Button className="min-h-8 px-3 text-xs" onClick={onDownloadCheatSheet}>
             <Download size={13} /> Download Cheat Sheet
           </Button>
-          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onPrintCheatSheet}>Print Cheat Sheet</Button>
-          <CopyButton text={talkingPointsText || "No talking points available yet."} label="Copy Talking Points" />
-          <CopyButton text={questionsText || "No questions available yet."} label="Copy Questions To Ask" />
+          <Button className="min-h-8 px-3 text-xs" onClick={onPrintCheatSheet}>Print Cheat Sheet</Button>
+          <CopyButton text={talkingPointsText || "No talking points available yet."} label="Copy Talking Points" variant="ghost" successMessage="✓ Talking Points Copied" />
+          <CopyButton text={questionsText || "No questions available yet."} label="Copy Questions To Ask" variant="ghost" successMessage="✓ Questions Copied" />
         </div>
       </div>
     </section>
@@ -2542,18 +2543,20 @@ function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draf
                       <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{question.category || "Interview"}</span>
                       <span className="mt-1 block font-bold text-ink">{question.question}</span>
                       <span className="mt-1 block text-xs font-semibold text-slate-600">Question {index + 1}</span>
-                      <span className="mt-1 block text-xs font-semibold text-slate-600">Status: {getQuestionStatus(index, practiced, confident)}</span>
                       {relatedStory && <span className="mt-1 block text-xs font-semibold text-emerald-700">Related story: {relatedStory.title}</span>}
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      className="inline-flex w-24 shrink-0 justify-center whitespace-nowrap rounded-full bg-white px-3 py-1.5 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
-                      onClick={() => setOpenQuestion(openQuestion === index ? "" : index)}
-                      aria-expanded={openQuestion === index}
-                    >
-                      {openQuestion === index ? "Close ▴" : "Open ▾"}
-                    </button>
+                    <div className="grid justify-items-end gap-2">
+                      <QuestionStatusChip index={index} practiced={practiced} confident={confident} />
+                      <button
+                        type="button"
+                        className="inline-flex w-24 shrink-0 justify-center whitespace-nowrap rounded-full bg-white px-3 py-1.5 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                        onClick={() => setOpenQuestion(openQuestion === index ? "" : index)}
+                        aria-expanded={openQuestion === index}
+                      >
+                        {openQuestion === index ? "Close ▴" : "Open ▾"}
+                      </button>
+                    </div>
                   </div>
                   {openQuestion === index && (
                     <div className="mt-3 grid gap-3">
@@ -2591,7 +2594,7 @@ function InterviewPrepStories({ stories, openStory, setOpenStory, talkingPoints 
             <div key={story.title} className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
               <button type="button" className="flex w-full items-center justify-between gap-3 text-left font-bold" onClick={() => setOpenStory(openStory === index ? "" : index)} aria-expanded={openStory === index}>
                 <span>{story.title}</span>
-                <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 ring-1 ring-emerald-100">{getStoryReadinessScore(story)}% Ready</span>
+                <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 ring-1 ring-emerald-100">✓ Interview Ready</span>
               </button>
               <div className="mt-2 flex flex-wrap gap-2">
                 {getStoryTags(story).map((tag) => <span key={tag} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{tag}</span>)}
@@ -2723,17 +2726,24 @@ function PrepInfoBlock({ label, value }) {
 
 function ReadinessSubscore({ label, value }) {
   const display = label.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
+  const tone = getReadinessSubscoreTone(value);
   return (
     <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">{display}</p>
-        <p className="text-sm font-black text-brand-900">{value}%</p>
+        <p className={`text-sm font-black ${tone.text}`}>{value}%</p>
       </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white" aria-label={`${display} readiness ${value}%`}>
-        <div className="h-full rounded-full bg-brand-500" style={{ width: `${value}%` }} />
+        <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${value}%` }} />
       </div>
     </div>
   );
+}
+
+function getReadinessSubscoreTone(value) {
+  if (value >= 90) return { text: "text-emerald-700", bar: "bg-emerald-500" };
+  if (value >= 75) return { text: "text-amber-700", bar: "bg-amber-500" };
+  return { text: "text-rose-700", bar: "bg-rose-500" };
 }
 
 function InterviewConcernCard({ concern }) {
@@ -2751,6 +2761,20 @@ function InterviewConcernCard({ concern }) {
         <PrepInfoBlock label="How to address it" value={concern.how} />
       </div>
     </article>
+  );
+}
+
+function QuestionStatusChip({ index, practiced, confident }) {
+  const status = getQuestionStatus(index, practiced, confident);
+  const tone = confident.has(index)
+    ? "bg-emerald-50 text-emerald-800 ring-emerald-100"
+    : practiced.has(index)
+      ? "bg-brand-50 text-brand-800 ring-brand-100"
+      : "bg-slate-50 text-slate-600 ring-slate-100";
+  return (
+    <span className={`inline-flex w-28 justify-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${tone}`}>
+      {status}
+    </span>
   );
 }
 
@@ -2974,8 +2998,8 @@ function getQuestionEvaluation(question = {}) {
 }
 
 function getQuestionStatus(index, practiced, confident) {
-  if (confident.has(index)) return "Confident ✓";
-  if (practiced.has(index)) return "Practiced ✓";
+  if (confident.has(index)) return "Confident";
+  if (practiced.has(index)) return "Practiced";
   return "Not Practiced";
 }
 
@@ -3020,12 +3044,6 @@ function getStoryConfidence(story = {}) {
   if (fields >= 4) return "High";
   if (fields >= 2) return "Moderate";
   return "Draft";
-}
-
-function getStoryReadinessScore(story = {}) {
-  const sections = [story.situation, story.task, story.action, story.result].filter((value) => String(value || "").trim().length > 20).length;
-  const followUps = getStoryFollowUps(story).length ? 1 : 0;
-  return Math.min(100, 20 + sections * 18 + followUps * 8);
 }
 
 function getStoryFollowUps(story = {}) {

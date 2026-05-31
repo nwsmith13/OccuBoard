@@ -1,6 +1,6 @@
 import { todayIso } from "../lib/date.js";
 
-export const stages = ["Saved", "Applied", "Interview", "Closed"];
+export const stages = ["Saved", "Applied", "Recruiter Screen", "Interview", "Final Interview", "Offer", "Rejected"];
 export const priorities = ["Low", "Medium", "High"];
 export const remoteTypes = ["Remote", "Hybrid", "Onsite"];
 
