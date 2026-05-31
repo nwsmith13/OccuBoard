@@ -272,7 +272,7 @@ function getDisplayStage(status) {
   return status || "Saved";
 }
 
-export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onMove, onJobUpdate }) {
+export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onMove, onJobUpdate, pageMode = false }) {
   const { user } = useAuth();
   const toast = useToast();
   const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, updateMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
@@ -285,6 +285,8 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const [exportedResumeIds, setExportedResumeIds] = useState(() => new Set(getResumeExportHistory().map((item) => item.resumeId).filter(Boolean)));
   const [showDescription, setShowDescription] = useState(false);
   const [reviewedRecruiterView, setReviewedRecruiterView] = useState(initialTab === "recruiterView");
+  const [notesDraft, setNotesDraft] = useState(initialJob.notes || "");
+  const [tasks, setTasks] = useState(() => loadJobCommandTasks(initialJob.id));
   const latestScore = [...jobScores].filter((score) => score.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const latestResume = [...resumeVersions].filter((version) => version.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const allMessageHistory = messages.filter((message) => message.job_id === job.id);
@@ -317,7 +319,16 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
 
   useEffect(() => {
     setModalJob(initialJob);
+    setNotesDraft(initialJob.notes || "");
   }, [initialJob]);
+
+  useEffect(() => {
+    setTasks(loadJobCommandTasks(job.id));
+  }, [job.id]);
+
+  useEffect(() => {
+    saveJobCommandTasks(job.id, tasks);
+  }, [job.id, tasks]);
 
   function mergeJobUpdate(updatedJob) {
     const nextJob = { ...job, ...updatedJob };
@@ -381,7 +392,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
       const nextJob = mergeJobUpdate(archived);
       toast.success("Opportunity archived.");
       onArchive?.(nextJob);
-      onClose();
+      onClose?.();
     } catch {
       toast.error("Could not archive opportunity.");
     }
@@ -390,16 +401,17 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const requestClose = useCallback(() => {
     if (hasUnsavedChanges && !window.confirm("You have unsaved changes. Close anyway?")) return;
     setHasUnsavedChanges(false);
-    onClose();
+    onClose?.();
   }, [hasUnsavedChanges, onClose]);
 
   useEffect(() => {
+    if (pageMode) return undefined;
     function onKeyDown(event) {
       if (event.key === "Escape") requestClose();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [requestClose]);
+  }, [pageMode, requestClose]);
 
   useEffect(() => {
     if (!hasUnsavedChanges) return undefined;
@@ -428,9 +440,20 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     window.setTimeout(() => target.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 180);
   }, [activeTab, initialFocus, initialContactId]);
 
+  async function saveCommandNotes() {
+    const updated = await updateJob(user, job.id, { notes: notesDraft });
+    if (updated) mergeJobUpdate(updated);
+    toast.success("Notes saved.");
+  }
+
+  function addCommandTask(label) {
+    if (!label.trim()) return;
+    setTasks((current) => [...current, { id: window.crypto?.randomUUID?.() || `${Date.now()}`, label: label.trim(), done: false }]);
+  }
+
   return (
-    <div className="fixed inset-0 z-50 bg-ink/35 p-0 lg:p-4" onMouseDown={requestClose}>
-      <section className="mx-auto flex h-[100dvh] max-w-[1600px] flex-col overflow-hidden bg-white shadow-soft lg:h-[calc(100dvh-2rem)] lg:w-[96vw] lg:rounded-lg" onMouseDown={(event) => event.stopPropagation()}>
+    <div className={pageMode ? "min-h-[calc(100dvh-5rem)]" : "fixed inset-0 z-50 bg-ink/35 p-0 lg:p-4"} onMouseDown={pageMode ? undefined : requestClose}>
+      <section className={`${pageMode ? "min-h-[calc(100dvh-5rem)]" : "mx-auto h-[100dvh] max-w-[1600px] lg:h-[calc(100dvh-2rem)] lg:w-[96vw] lg:rounded-lg"} flex flex-col overflow-hidden bg-white shadow-soft`} onMouseDown={(event) => event.stopPropagation()}>
         <header className="shrink-0 border-b border-brand-100 bg-white/95 shadow-sm backdrop-blur">
           <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
             <div className="flex items-start justify-between gap-4">
@@ -447,17 +470,21 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   <RecruiterConfidenceHeroSummary score={latestScore} profile={profile} resume={latestResume} coverLetter={latestCoverLetter} recruiterMessage={latestMessage} />
                 </div>
               </div>
-              <button type="button" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50 lg:hidden" onClick={requestClose} aria-label="Close job details">
-                <X size={20} />
-              </button>
+              {!pageMode && (
+                <button type="button" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50 lg:hidden" onClick={requestClose} aria-label="Close job details">
+                  <X size={20} />
+                </button>
+              )}
             </div>
             <div className="flex min-w-0 items-center gap-3 lg:max-w-[620px]">
               <div className="min-w-0 flex-1">
                 <JobHeaderCta activeTab={activeTab} onTabChange={requestTabChange} />
               </div>
-              <button type="button" className="hidden shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50 lg:inline-flex" onClick={requestClose} aria-label="Close job details">
-                <X size={20} />
-              </button>
+              {!pageMode && (
+                <button type="button" className="hidden shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50 lg:inline-flex" onClick={requestClose} aria-label="Close job details">
+                  <X size={20} />
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -536,10 +563,6 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 </section>
               </section>
 
-              <div ref={contactsSectionRef}>
-                <ContactsCard job={job} contacts={contacts} user={user} onSave={saveJobContact} onDelete={deleteJobContact} onMarkContacted={markJobContacted} />
-              </div>
-
               <section ref={followUpSectionRef} className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Follow-up</p>
                 <FollowUpControls job={job} user={user} profile={profile} messages={messages} contacts={contacts} updateJob={updateJob} saveMessage={saveMessage} logJobActivity={logJobActivity} onJobUpdate={mergeJobUpdate} />
@@ -547,12 +570,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
 
               <div className="flex flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
                 <Button onClick={onMove}>Move to Applied</Button>
-                <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>
+                {onEdit && <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>}
                 <Button variant="secondary" onClick={handleArchive}>Archive</Button>
                 <Button variant="danger" onClick={onDelete}><Trash2 size={16} /> Delete</Button>
               </div>
-
-              <JobActivityTimeline events={timelineEvents} />
             </div>
           )}
 
@@ -638,6 +659,47 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
               <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} updateJob={updateJob} onJobUpdate={mergeJobUpdate} onSavePrep={saveInterviewPrep} onLogActivity={logJobActivity} onUnsavedChange={setHasUnsavedChanges} />
             </div>
           )}
+          {activeTab === "activity" && (
+            <div className="mx-auto max-w-6xl">
+              <JobActivityTimeline events={timelineEvents} />
+            </div>
+          )}
+          {activeTab === "notes" && (
+            <div className="mx-auto max-w-6xl">
+              <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Notes</p>
+                <h3 className="mt-1 text-xl font-bold text-ink">Application notes</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Capture recruiter comments, interview feedback, salary notes, and follow-up reminders without leaving the command center.</p>
+                <textarea className="mt-4 min-h-56 w-full rounded-lg border border-brand-100 bg-white p-4 text-sm leading-6 text-slate-700 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={notesDraft} onChange={(event) => setNotesDraft(event.target.value)} placeholder="Interview feedback, recruiter comments, salary discussion, follow-up reminders..." />
+                <Button className="mt-3 min-h-9 px-4 text-sm" onClick={saveCommandNotes}>Save notes</Button>
+              </section>
+            </div>
+          )}
+          {activeTab === "contacts" && (
+            <div ref={contactsSectionRef} className="mx-auto max-w-6xl">
+              <ContactsCard job={job} contacts={contacts} user={user} onSave={saveJobContact} onDelete={deleteJobContact} onMarkContacted={markJobContacted} />
+            </div>
+          )}
+          {activeTab === "tasks" && (
+            <div className="mx-auto max-w-6xl">
+              <CommandTasksWorkspace tasks={tasks} setTasks={setTasks} onAdd={addCommandTask} />
+            </div>
+          )}
+          {activeTab === "materials" && (
+            <div className="mx-auto max-w-6xl">
+              <CommandMaterialsWorkspace
+                resume={latestResume}
+                coverLetter={latestCoverLetter}
+                recruiterMessage={latestMessage}
+                prep={prep}
+                onGoToResume={() => requestTabChange("resume")}
+                onGoToCoverLetter={() => requestTabChange("coverLetter")}
+                onGoToMessage={() => requestTabChange("message")}
+                onGoToInterview={() => requestTabChange("interview")}
+                onGoToExport={() => requestTabChange("export")}
+              />
+            </div>
+          )}
           </main>
         </div>
       </section>
@@ -650,7 +712,7 @@ function JobHeaderCta({ activeTab, onTabChange }) {
     return (
       <div className="flex justify-end">
         <span className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-800 ring-1 ring-emerald-100">
-          ✓ Ready to Export
+          {"\u2713"} Ready to Export
         </span>
       </div>
     );
@@ -671,6 +733,76 @@ function JobHeaderCta({ activeTab, onTabChange }) {
       </Button>
     </div>
   );
+}
+
+function CommandTasksWorkspace({ tasks, setTasks, onAdd }) {
+  const [draft, setDraft] = useState("");
+  return (
+    <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Tasks</p>
+      <h3 className="mt-1 text-xl font-bold text-ink">Search tasks</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-600">Keep lightweight next steps tied to this opportunity.</p>
+      <div className="mt-4 grid gap-2">
+        {tasks.map((task) => (
+          <label key={task.id} className="flex items-center gap-3 rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-brand-100">
+            <input type="checkbox" checked={task.done} onChange={(event) => setTasks((current) => current.map((item) => item.id === task.id ? { ...item, done: event.target.checked } : item))} />
+            <span className={task.done ? "line-through opacity-60" : ""}>{task.label}</span>
+          </label>
+        ))}
+        {!tasks.length && <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-slate-600">No tasks yet.</p>}
+      </div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <input className="min-w-0 flex-1 rounded-lg border border-brand-100 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Send follow-up, research company, prepare interview..." />
+        <Button className="min-h-9 px-4 text-sm" onClick={() => { onAdd(draft); setDraft(""); }}>Add task</Button>
+      </div>
+    </section>
+  );
+}
+
+function CommandMaterialsWorkspace({ resume, coverLetter, recruiterMessage, prep, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, onGoToExport }) {
+  return (
+    <section className="grid gap-4">
+      <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Materials</p>
+        <h3 className="mt-1 text-xl font-bold text-ink">Application package</h3>
+        <p className="mt-2 text-sm leading-6 text-slate-600">A quick inventory of the generated assets for this opportunity. Use the workflow tabs for full editing and export controls.</p>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <CommandMaterialCard title="Resume" status={resume ? "Ready" : "Not generated"} actionLabel={resume ? "Open Resume" : "Generate Resume"} onAction={onGoToResume} />
+        <CommandMaterialCard title="Cover Letter" status={coverLetter ? "Ready" : "Optional"} actionLabel={coverLetter ? "Open Cover Letter" : "Generate Cover Letter"} onAction={onGoToCoverLetter} />
+        <CommandMaterialCard title="Recruiter Message" status={recruiterMessage ? "Ready" : "Not generated"} actionLabel={recruiterMessage ? "Open Recruiter Message" : "Draft Recruiter Message"} onAction={onGoToMessage} />
+        <CommandMaterialCard title="Interview Prep" status={prep ? "Available" : "Not generated"} actionLabel={prep ? "Open Interview Prep" : "Prepare Interview"} onAction={onGoToInterview} />
+      </div>
+      <Button className="w-fit min-h-9 px-4 text-sm" onClick={onGoToExport}>Export Application Package</Button>
+    </section>
+  );
+}
+
+function CommandMaterialCard({ title, status, actionLabel, onAction }) {
+  return (
+    <div className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h4 className="font-bold text-ink">{title}</h4>
+          <p className="mt-1 text-sm font-semibold text-slate-600">{status}</p>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${status === "Ready" || status === "Available" ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-600 ring-slate-200"}`}>{status}</span>
+      </div>
+      <Button variant="secondary" className="mt-4 min-h-8 px-3 text-xs" onClick={onAction}>{actionLabel}</Button>
+    </div>
+  );
+}
+
+function loadJobCommandTasks(jobId) {
+  try {
+    return JSON.parse(window.localStorage.getItem(`occuboard-application-tasks-${jobId}`) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveJobCommandTasks(jobId, tasks) {
+  window.localStorage.setItem(`occuboard-application-tasks-${jobId}`, JSON.stringify(tasks));
 }
 
 function NextBestActionCard({ action, onAction }) {
@@ -3385,6 +3517,13 @@ function WorkspaceRail({ activeTab, completed, score, onSelect }) {
       ["interview", "Interview Prep"],
       ["export", "Export"],
     ]],
+    ["Support", [
+      ["activity", "Activity"],
+      ["notes", "Notes"],
+      ["contacts", "Contacts"],
+      ["tasks", "Tasks"],
+      ["materials", "Materials"],
+    ]],
   ];
   const current = activeTab;
   const readiness = getWorkflowReadiness(completed);
@@ -3520,3 +3659,4 @@ function Detail({ label, value }) {
     </div>
   );
 }
+

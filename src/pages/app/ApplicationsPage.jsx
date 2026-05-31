@@ -1,4 +1,4 @@
-import { Archive, CheckCircle2, ChevronRight, Copy, ExternalLink, FileText, Mail, Rows3, SquareKanban } from "lucide-react";
+import { CheckCircle2, ChevronRight, Rows3, SquareKanban } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
@@ -33,7 +33,6 @@ export function ApplicationsPage() {
   const { applicationId } = useParams();
   const [searchParams] = useSearchParams();
   const [draggingId, setDraggingId] = useState(null);
-  const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState("cards");
   const [archiveMode, setArchiveMode] = useState("active");
   const [showEmptyColumns, setShowEmptyColumns] = useState(() => window.localStorage.getItem("occuboard-show-empty-application-columns") === "true");
@@ -56,12 +55,15 @@ export function ApplicationsPage() {
     if (!openJobId || !jobs.length) return;
     const job = jobs.find((item) => item.id === openJobId);
     if (job) {
-      setSelected({
-        ...job,
-        initialTab: location.state?.openJobTab || location.state?.initialTab || searchParams.get("tab") || "overview",
-        initialFocus: location.state?.focus || searchParams.get("focus") || "",
-        initialContactId: location.state?.contactId || searchParams.get("contactId") || "",
+      navigate(`/app/applications/${openJobId}`, {
+        replace: true,
+        state: {
+          openJobTab: location.state?.openJobTab || location.state?.initialTab || searchParams.get("tab") || "overview",
+          focus: location.state?.focus || searchParams.get("focus") || "",
+          contactId: location.state?.contactId || searchParams.get("contactId") || "",
+        },
       });
+      return;
     } else {
       setSuccess("That opportunity could not be found.");
       window.setTimeout(() => setSuccess(""), 2600);
@@ -73,6 +75,9 @@ export function ApplicationsPage() {
     return (
       <ApplicationWorkspacePage
         applicationId={applicationId}
+        initialTab={location.state?.openJobTab || location.state?.initialTab || searchParams.get("tab") || "overview"}
+        initialFocus={location.state?.focus || searchParams.get("focus") || ""}
+        initialContactId={location.state?.contactId || searchParams.get("contactId") || ""}
         onBack={() => navigate("/app/applications")}
       />
     );
@@ -90,15 +95,8 @@ export function ApplicationsPage() {
     window.setTimeout(() => setSuccess(""), 2600);
   }
 
-  async function moveToApplied(job) {
-    await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || todayIso() });
-    setSuccess("Application saved to history.");
-    setSelected(null);
-  }
-
   async function restoreJob(job) {
     const restored = await updateJob(user, job.id, { archived_at: null, archived_reason: "", archived_by_user: false });
-    setSelected(null);
     setArchiveMode("active");
     setSuccess("Opportunity restored.");
     toast.success("Opportunity restored.");
@@ -198,24 +196,6 @@ export function ApplicationsPage() {
           ))}
         </div>
       )}
-
-      {selected && (
-        <JobDetail
-          job={selected}
-          initialTab={selected.initialTab}
-          initialFocus={selected.initialFocus}
-          initialContactId={selected.initialContactId}
-          onClose={() => setSelected(null)}
-          onEdit={() => setSelected(null)}
-          onDelete={async () => { await deleteJob(user, selected.id); setSelected(null); }}
-          onArchive={async (updated) => {
-            setSelected(null);
-            if (isArchivedJob(updated)) setArchiveMode("active");
-          }}
-          onMove={() => moveToApplied(selected)}
-          onJobUpdate={(updated) => setSelected(updated)}
-        />
-      )}
     </div>
   );
 }
@@ -243,25 +223,10 @@ function MetricCard({ label, value, helper }) {
   );
 }
 
-function ApplicationWorkspacePage({ applicationId, onBack }) {
+function ApplicationWorkspacePage({ applicationId, initialTab = "overview", initialFocus = "", initialContactId = "", onBack }) {
   const { user } = useAuth();
-  const toast = useToast();
-  const navigate = useNavigate();
-  const { jobs, jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep, updateJob } = useWorkspaceStore();
+  const { jobs, updateJob, deleteJob } = useWorkspaceStore();
   const job = jobs.find((item) => item.id === applicationId);
-  const [stageDraft, setStageDraft] = useState("");
-  const [notesDraft, setNotesDraft] = useState("");
-  const [tasks, setTasks] = useState(() => loadApplicationTasks(applicationId));
-
-  useEffect(() => {
-    if (!job) return;
-    setStageDraft(getPipelineStage(job.status));
-    setNotesDraft(job.notes || "");
-  }, [job]);
-
-  useEffect(() => {
-    saveApplicationTasks(applicationId, tasks);
-  }, [applicationId, tasks]);
 
   if (!job) {
     return (
@@ -273,233 +238,26 @@ function ApplicationWorkspacePage({ applicationId, onBack }) {
     );
   }
 
-  const score = getLatestFitScore(jobScores, job.id);
-  const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
-  const timeline = getApplicationTimeline(job, { jobActivityLogs, messages, resumeVersions });
-  const health = getApplicationHealth(job, timeline);
-  const latestResume = resumeVersions.filter((item) => item.job_id === job.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-  const coverLetter = messages.filter((item) => item.job_id === job.id && isCoverLetter(item)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-  const recruiterMessage = messages.filter((item) => item.job_id === job.id && !isCoverLetter(item)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-  const prep = interviewPrep.find((item) => item.job_id === job.id);
-  const intelligence = getApplicationIntelligence(job, { score, messages, prep, timeline });
-  const lastContact = getLastContactDate(contacts);
-  const prepScore = prep ? getApplicationInterviewPrepScore(prep) : null;
-
-  async function saveStage() {
-    const saved = await updateJob(user, job.id, {
-      status: stageDraft,
-      applied_date: isAppliedPipelineStage(stageDraft) ? job.applied_date || todayIso() : job.applied_date || null,
-    });
-    if (saved) toast.success("Stage updated.");
-  }
-
-  async function saveNotes() {
-    await updateJob(user, job.id, { notes: notesDraft });
-    toast.success("Notes saved.");
-  }
-
-  async function archiveApplication() {
-    await updateJob(user, job.id, { archived_at: new Date().toISOString(), archived_reason: "Archived from application workspace", archived_by_user: true });
-    toast.success("Opportunity archived.");
-    onBack();
-  }
-
-  function addTask(label) {
-    if (!label.trim()) return;
-    setTasks((current) => [...current, { id: window.crypto?.randomUUID?.() || `${Date.now()}`, label: label.trim(), done: false }]);
-  }
-
   return (
-    <div className="grid gap-4">
-      <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <button type="button" className="mb-3 text-xs font-bold text-brand-700 hover:text-brand-900" onClick={onBack}>Back to Applications</button>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusPill tone={health.tone}>{health.label}</StatusPill>
-              <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">{getPipelineStage(job.status)}</span>
-              <FitScoreBadge score={score} compact />
-            </div>
-            <h1 className="mt-2 text-2xl font-black text-ink">{getDisplayJobTitle(job)}</h1>
-            <p className="mt-1 text-sm font-bold text-brand-800">{getDisplayCompanyName(job)}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={stageDraft} onChange={(event) => setStageDraft(event.target.value)}>
-              {stages.map((stage) => <option key={stage}>{stage}</option>)}
-            </select>
-            <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={saveStage}>Move Stage</Button>
-            <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => navigate(`/app/job-tracker?jobId=${job.id}`)}>Edit</Button>
-            <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => navigate("/app/applications", { state: { openJobId: job.id, openJobTab: "export" } })}>Export Package</Button>
-            <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={archiveApplication}><Archive size={13} /> Archive</Button>
-          </div>
-        </div>
-      </section>
-
-      <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-        <aside className="grid gap-4">
-          <WorkspaceCard title="Application Summary">
-            <SummaryLine label="Company" value={getDisplayCompanyName(job)} />
-            <SummaryLine label="Job Title" value={getDisplayJobTitle(job)} />
-            <SummaryLine label="Stage" value={getPipelineStage(job.status)} />
-            <SummaryLine label="Fit Score" value={score ? `${Math.round(Number(score.score))}%` : "Not analyzed"} />
-            <SummaryLine label="Applied Date" value={job.applied_date ? formatShortDate(job.applied_date) : "Not applied"} />
-            <SummaryLine label="Last Contact" value={lastContact ? formatShortDate(lastContact) : "No contact yet"} />
-            <SummaryLine label="Interview Date" value={job.interview_date ? formatShortDate(job.interview_date) : "Not scheduled"} />
-          </WorkspaceCard>
-          <WorkspaceCard title="Contacts">
-            {contacts.length ? contacts.map((contact) => (
-              <div key={contact.id} className="rounded-lg bg-brand-50 p-3">
-                <p className="font-bold text-ink">{contact.name || contact.email || "Contact"}</p>
-                <p className="text-xs font-semibold text-slate-600">{contact.title || contact.source || "Contact"}</p>
-                {contact.email && <p className="mt-1 truncate text-xs text-brand-700">{contact.email}</p>}
-                {contact.linkedin_url && <a className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-brand-700" href={contact.linkedin_url} target="_blank" rel="noreferrer">LinkedIn <ExternalLink size={11} /></a>}
-              </div>
-            )) : <p className="text-sm text-slate-600">No contacts yet.</p>}
-          </WorkspaceCard>
-        </aside>
-
-        <main className="grid gap-4">
-          <WorkspaceCard title="Timeline">
-            <div className="grid gap-2">
-              {timeline.map((event) => <TimelineRow key={`${event.type}-${event.created_at}-${event.label}`} event={event} />)}
-            </div>
-          </WorkspaceCard>
-          <WorkspaceCard title="Notes">
-            <textarea className="min-h-36 w-full rounded-lg border border-brand-100 bg-white p-3 text-sm leading-6 text-slate-700 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={notesDraft} onChange={(event) => setNotesDraft(event.target.value)} placeholder="Interview feedback, recruiter comments, salary discussion, follow-up reminders..." />
-            <Button className="mt-3 min-h-8 px-3 text-xs" onClick={saveNotes}>Save notes</Button>
-          </WorkspaceCard>
-          <WorkspaceCard title="Tasks">
-            <TaskList tasks={tasks} setTasks={setTasks} onAdd={addTask} />
-          </WorkspaceCard>
-        </main>
-
-        <aside className="grid gap-4">
-          <WorkspaceCard title="Materials">
-            <MaterialAction title="Resume" item={latestResume} icon={FileText} />
-            <MaterialAction title="Cover Letter" item={coverLetter} icon={FileText} />
-            <MaterialAction title="Recruiter Message" item={recruiterMessage} icon={Mail} />
-          </WorkspaceCard>
-          {["Interview", "Final Interview"].includes(getPipelineStage(job.status)) && (
-            <WorkspaceCard title="Interview Prep">
-              <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 ring-1 ring-emerald-100">{"\u2713"} Interview Prep Available</p>
-              <SummaryLine label="Readiness Score" value={prepScore ? `${prepScore}%` : "Not generated"} />
-              <SummaryLine label="Risk Mitigation" value={prep?.content ? "Active" : "Pending"} />
-              <SummaryLine label="Questions Practiced" value={`${prep?.practiced_questions?.length || 0}`} />
-              <SummaryLine label="Story Readiness" value={prep?.content?.starStories?.length ? "Interview Ready" : "Needs stories"} />
-              <Button className="mt-3 min-h-8 px-3 text-xs" onClick={() => navigate("/app/applications", { state: { openJobId: job.id, openJobTab: "interview" } })}>Launch Interview Prep</Button>
-            </WorkspaceCard>
-          )}
-          <WorkspaceCard title="Application Intelligence">
-            <SummaryLine label="Fit" value={intelligence.fit} />
-            <SummaryLine label="Recruiter confidence" value={intelligence.confidence} />
-            <SummaryLine label="Primary risk" value={intelligence.risk} />
-            <SummaryLine label="Recommended action" value={intelligence.action} />
-          </WorkspaceCard>
-        </aside>
-      </div>
-    </div>
+    <JobDetail
+      job={job}
+      initialTab={initialFocus === "contacts" ? "contacts" : initialTab}
+      initialFocus={initialFocus}
+      initialContactId={initialContactId}
+      pageMode
+      onClose={onBack}
+      onEdit={undefined}
+      onDelete={async () => {
+        await deleteJob(user, job.id);
+        onBack();
+      }}
+      onArchive={onBack}
+      onMove={async () => {
+        await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || todayIso() });
+      }}
+      onJobUpdate={() => {}}
+    />
   );
-}
-
-function WorkspaceCard({ title, children }) {
-  return (
-    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
-      <h3 className="text-sm font-black uppercase tracking-[0.1em] text-brand-700">{title}</h3>
-      <div className="mt-3 grid gap-3">{children}</div>
-    </section>
-  );
-}
-
-function SummaryLine({ label, value }) {
-  return (
-    <div className="flex items-start justify-between gap-3 text-sm">
-      <span className="text-slate-500">{label}</span>
-      <span className="max-w-[60%] text-right font-bold text-slate-800">{value || "Not set"}</span>
-    </div>
-  );
-}
-
-function TimelineRow({ event }) {
-  return (
-    <div className="grid grid-cols-[84px_minmax(0,1fr)] gap-3 rounded-lg bg-brand-50/70 px-3 py-2">
-      <p className="text-xs font-bold text-slate-500">{formatShortDate(event.created_at)}</p>
-      <div>
-        <p className="text-sm font-bold text-ink">{formatTimelineLabel(event.label)}</p>
-        <p className="text-xs font-semibold text-slate-500">{event.type}</p>
-      </div>
-    </div>
-  );
-}
-
-function MaterialAction({ title, item, icon: Icon }) {
-  const toast = useToast();
-  async function copy() {
-    if (!item?.content) return;
-    await navigator.clipboard.writeText(item.content);
-    toast.success(`${title} copied.`);
-  }
-  return (
-    <div className="rounded-lg bg-brand-50 p-3">
-      <div className="flex items-center gap-2">
-        <Icon size={15} className="text-brand-700" />
-        <p className="font-bold text-ink">{title}</p>
-      </div>
-      <p className="mt-1 text-xs font-semibold text-slate-500">{item ? "Ready" : "Not generated"}</p>
-      {item && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button type="button" className="text-xs font-bold text-brand-700" onClick={copy}><Copy size={12} className="mr-1 inline" /> Copy</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TaskList({ tasks, setTasks, onAdd }) {
-  const [draft, setDraft] = useState("");
-  return (
-    <div className="grid gap-3">
-      <div className="grid gap-2">
-        {tasks.map((task) => (
-          <label key={task.id} className="flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-slate-700">
-            <input type="checkbox" checked={task.done} onChange={(event) => setTasks((current) => current.map((item) => item.id === task.id ? { ...item, done: event.target.checked } : item))} />
-            <span className={task.done ? "line-through opacity-60" : ""}>{task.label}</span>
-          </label>
-        ))}
-        {!tasks.length && <p className="text-sm text-slate-600">No tasks yet.</p>}
-      </div>
-      <div className="flex gap-2">
-        <input className="min-w-0 flex-1 rounded-lg border border-brand-100 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Add a task..." />
-        <Button className="min-h-9 px-3 text-xs" onClick={() => { onAdd(draft); setDraft(""); }}>Add</Button>
-      </div>
-    </div>
-  );
-}
-
-function loadApplicationTasks(jobId) {
-  try {
-    return JSON.parse(window.localStorage.getItem(`occuboard-application-tasks-${jobId}`) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveApplicationTasks(jobId, tasks) {
-  window.localStorage.setItem(`occuboard-application-tasks-${jobId}`, JSON.stringify(tasks));
-}
-
-function getApplicationIntelligence(job, { score, messages, prep, timeline }) {
-  const next = getNextBestAction(job, { score, messages, activityEvents: timeline });
-  const risk = score?.gaps?.[0] || score?.gapAssessments?.[0]?.gap || "No major risk identified";
-  return {
-    fit: score ? `${Math.round(Number(score.score))}% fit` : "Analysis pending",
-    confidence: score && Number(score.score) >= 85 ? "High" : score ? "Moderate" : "Pending",
-    risk,
-    action: prep?.content ? "Keep interview prep fresh" : next?.label || "Review next step",
-  };
-}
-
-function formatTimelineLabel(label = "") {
-  return String(label).replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function getStageColumnTone(stage) {
