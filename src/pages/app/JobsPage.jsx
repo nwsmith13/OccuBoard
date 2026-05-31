@@ -310,15 +310,29 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     getDerivedGenerationEvents({ job, scores: jobScoreHistory, resumes: resumeHistory, messages: allMessageHistory }),
   );
   const nextBestAction = getNextBestAction(job, { score: latestScore, aiStatus, messages, activityEvents: timelineEvents });
+  const recruiterViewReady = hasRecruiterViewReadinessData({
+    score: latestScore,
+    resume: latestResume,
+    coverLetter: latestCoverLetter,
+    recruiterMessage: latestMessage,
+    reviewedThisSession: reviewedRecruiterView,
+  });
+  const interviewPrepReady = hasInterviewPrepData(prep);
+  const packageReady = hasApplicationPackageReady({
+    score: latestScore,
+    resume: latestResume,
+    recruiterMessage: latestMessage,
+  });
+  const exportReady = Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id)) || packageReady;
   const completedSteps = {
     overview: true,
     fit: Boolean(latestScore),
     resume: Boolean(latestResume),
     message: Boolean(latestMessage),
     coverLetter: Boolean(latestCoverLetter),
-    interview: Boolean(prep),
-    export: Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id)),
-    recruiterView: reviewedRecruiterView,
+    interview: interviewPrepReady,
+    export: exportReady,
+    recruiterView: recruiterViewReady,
   };
 
   useEffect(() => {
@@ -509,7 +523,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 coverLetter={latestCoverLetter}
                 recruiterMessage={latestMessage}
                 prep={prep}
-                exportReady={Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id))}
+                exportReady={exportReady}
                 onOpenResume={() => requestTabChange("resume")}
                 onOpenCoverLetter={() => requestTabChange("coverLetter")}
                 onOpenMessage={() => requestTabChange("message")}
@@ -2409,7 +2423,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     try {
       await navigator.clipboard.writeText(thankYouDraft);
       setThankYouCopied(true);
-      toast.success("✓ Thank You Message Copied");
+      toast.success("\u2713 Thank You Message Copied");
       window.setTimeout(() => setThankYouCopied(false), 2200);
     } catch {
       toast.error("Could not copy thank-you message.");
@@ -2534,13 +2548,13 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
 
   function exportCheatSheet() {
     const exported = printInterviewCheatSheet(cheatSheetPayload);
-    if (exported) toast.success("✓ Cheat Sheet Ready To Print");
+    if (exported) toast.success("\u2713 Cheat Sheet Ready To Print");
     else toast.error("Could not open cheat sheet.");
   }
 
   function downloadCheatSheet() {
     const downloaded = downloadInterviewCheatSheet(cheatSheetPayload);
-    if (downloaded) toast.success("✓ Cheat Sheet Downloaded");
+    if (downloaded) toast.success("\u2713 Cheat Sheet Downloaded");
     else toast.error("Could not download cheat sheet.");
   }
 
@@ -2699,8 +2713,8 @@ function InterviewToolkit({ focusAreas, questionsToAsk, onPrintCheatSheet, onDow
             <Download size={13} /> Download Cheat Sheet
           </Button>
           <Button className="min-h-8 px-3 text-xs" onClick={onPrintCheatSheet}>Print Cheat Sheet</Button>
-          <CopyButton text={talkingPointsText || "No talking points available yet."} label="Copy Talking Points" variant="ghost" successMessage="✓ Talking Points Copied" />
-          <CopyButton text={questionsText || "No questions available yet."} label="Copy Questions To Ask" variant="ghost" successMessage="✓ Questions Copied" />
+          <CopyButton text={talkingPointsText || "No talking points available yet."} label="Copy Talking Points" variant="ghost" successMessage={"\u2713 Talking Points Copied"} />
+          <CopyButton text={questionsText || "No questions available yet."} label="Copy Questions To Ask" variant="ghost" successMessage={"\u2713 Questions Copied"} />
         </div>
       </div>
     </section>
@@ -2839,7 +2853,7 @@ function InterviewPrepStories({ stories, openStory, setOpenStory, talkingPoints 
             <div key={story.title} className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
               <button type="button" className="flex w-full items-center justify-between gap-3 text-left font-bold" onClick={() => setOpenStory(openStory === index ? "" : index)} aria-expanded={openStory === index}>
                 <span>{story.title}</span>
-                <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 ring-1 ring-emerald-100">✓ Interview Ready</span>
+                <span className="whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 ring-1 ring-emerald-100">{"\u2713"} Interview Ready</span>
               </button>
               <div className="mt-2 flex flex-wrap gap-2">
                 {getStoryTags(story).map((tag) => <span key={tag} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{tag}</span>)}
@@ -3687,10 +3701,10 @@ function WorkspaceRail({ activeTab, completed, score, onSelect }) {
 }
 
 function getStepCompletionLabel(id, score, done) {
-  if (id === "overview") return done ? "✓" : "○";
+  if (id === "overview") return done ? "\u2713" : "\u25CB";
   if (id === "coverLetter" && !done) return "Optional";
   if (id === "fit" && Number.isFinite(Number(score?.score))) return `${Math.round(Number(score.score))}%`;
-  if (!done) return "○";
+  if (!done) return "\u25CB";
   return "Ready";
 }
 
@@ -3701,11 +3715,39 @@ function getStepScoreTone(score) {
   return "bg-rose-100 text-rose-700";
 }
 
+function hasRecruiterViewReadinessData({ score, resume, coverLetter, recruiterMessage, reviewedThisSession = false } = {}) {
+  if (!score) return Boolean(reviewedThisSession);
+  const mitigationPlan = buildMitigationPlan(score);
+  if (mitigationPlan.items.length) return true;
+  const recoveryScores = buildMaterialRecoveryScores({
+    mitigationPlan,
+    materials: { resume, coverLetter, message: recruiterMessage },
+  });
+  if (recoveryScores.length) return true;
+  if (resume || coverLetter || recruiterMessage) return true;
+  return Boolean(reviewedThisSession);
+}
+
+function hasInterviewPrepData(prep) {
+  if (!prep) return false;
+  const content = prep.content || {};
+  return Boolean(
+    prep.id ||
+    content.summary ||
+    content.companySnapshot ||
+    (Array.isArray(content.focusAreas) && content.focusAreas.length) ||
+    (Array.isArray(content.questions) && content.questions.length) ||
+    (Array.isArray(content.starStories) && content.starStories.length) ||
+    (Array.isArray(content.questionsToAsk) && content.questionsToAsk.length)
+  );
+}
+
+function hasApplicationPackageReady({ score, resume, recruiterMessage } = {}) {
+  return Boolean(score && resume && recruiterMessage);
+}
+
 function getWorkflowReadiness(completed = {}) {
-  const keys = ["overview", "fit", "resume", "coverLetter", "message", "recruiterView", "export"];
-  if (completed.recruiterView) {
-    return { complete: keys.length, total: keys.length, percent: 100 };
-  }
+  const keys = ["overview", "fit", "resume", "coverLetter", "message", "recruiterView", "interview", "export"];
   const complete = keys.filter((key) => Boolean(completed[key])).length;
   return {
     complete,
@@ -3767,5 +3809,6 @@ function Detail({ label, value }) {
     </div>
   );
 }
+
 
 
