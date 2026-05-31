@@ -496,6 +496,30 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
             <div className="mx-auto grid max-w-6xl gap-5">
               <NextBestActionCard action={nextBestAction} onAction={handleNextBestAction} />
 
+              <ApplicationPackageOverview
+                resume={latestResume}
+                coverLetter={latestCoverLetter}
+                recruiterMessage={latestMessage}
+                prep={prep}
+                exportReady={Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id))}
+                onOpenResume={() => requestTabChange("resume")}
+                onOpenCoverLetter={() => requestTabChange("coverLetter")}
+                onOpenMessage={() => requestTabChange("message")}
+                onOpenInterview={() => requestTabChange("interview")}
+                onOpenExport={() => requestTabChange("export")}
+              />
+
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+                <RecentActivityOverview events={timelineEvents} onViewAll={() => requestTabChange("activity")} />
+                <InterviewReadinessOverview
+                  job={job}
+                  contacts={contacts}
+                  score={latestScore}
+                  prep={prep}
+                  onOpenInterview={() => requestTabChange("interview")}
+                />
+              </div>
+
               <section className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                   <div>
@@ -685,21 +709,6 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
               <CommandTasksWorkspace tasks={tasks} setTasks={setTasks} onAdd={addCommandTask} />
             </div>
           )}
-          {activeTab === "materials" && (
-            <div className="mx-auto max-w-6xl">
-              <CommandMaterialsWorkspace
-                resume={latestResume}
-                coverLetter={latestCoverLetter}
-                recruiterMessage={latestMessage}
-                prep={prep}
-                onGoToResume={() => requestTabChange("resume")}
-                onGoToCoverLetter={() => requestTabChange("coverLetter")}
-                onGoToMessage={() => requestTabChange("message")}
-                onGoToInterview={() => requestTabChange("interview")}
-                onGoToExport={() => requestTabChange("export")}
-              />
-            </div>
-          )}
           </main>
         </div>
       </section>
@@ -759,38 +768,120 @@ function CommandTasksWorkspace({ tasks, setTasks, onAdd }) {
   );
 }
 
-function CommandMaterialsWorkspace({ resume, coverLetter, recruiterMessage, prep, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, onGoToExport }) {
+function ApplicationPackageOverview({ resume, coverLetter, recruiterMessage, prep, exportReady, onOpenResume, onOpenCoverLetter, onOpenMessage, onOpenInterview, onOpenExport }) {
   return (
-    <section className="grid gap-4">
-      <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Materials</p>
-        <h3 className="mt-1 text-xl font-bold text-ink">Application package</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-600">A quick inventory of the generated assets for this opportunity. Use the workflow tabs for full editing and export controls.</p>
+    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Package</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">Preparation assets</h3>
+        </div>
+        <Button className="w-fit min-h-8 px-3 text-xs" onClick={onOpenExport}>Export Package</Button>
       </div>
-      <div className="grid gap-3 lg:grid-cols-2">
-        <CommandMaterialCard title="Resume" status={resume ? "Ready" : "Not generated"} actionLabel={resume ? "Open Resume" : "Generate Resume"} onAction={onGoToResume} />
-        <CommandMaterialCard title="Cover Letter" status={coverLetter ? "Ready" : "Optional"} actionLabel={coverLetter ? "Open Cover Letter" : "Generate Cover Letter"} onAction={onGoToCoverLetter} />
-        <CommandMaterialCard title="Recruiter Message" status={recruiterMessage ? "Ready" : "Not generated"} actionLabel={recruiterMessage ? "Open Recruiter Message" : "Draft Recruiter Message"} onAction={onGoToMessage} />
-        <CommandMaterialCard title="Interview Prep" status={prep ? "Available" : "Not generated"} actionLabel={prep ? "Open Interview Prep" : "Prepare Interview"} onAction={onGoToInterview} />
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <CommandPackageCard title="Resume" status={resume ? "Ready" : "Missing"} actionLabel={resume ? "Open Resume" : "Generate Resume"} onAction={onOpenResume} />
+        <CommandPackageCard title="Cover Letter" status={coverLetter ? "Ready" : "Optional"} actionLabel={coverLetter ? "Open Cover Letter" : "Open Cover Letter"} onAction={onOpenCoverLetter} />
+        <CommandPackageCard title="Recruiter Message" status={recruiterMessage ? "Ready" : "Missing"} actionLabel={recruiterMessage ? "Open Message" : "Draft Message"} onAction={onOpenMessage} />
+        <CommandPackageCard title="Interview Prep" status={prep ? "Ready" : "Not started"} actionLabel="Open Interview Prep" onAction={onOpenInterview} />
+        <CommandPackageCard title="Export" status={exportReady ? "Exported" : "Ready when needed"} actionLabel="Export Package" onAction={onOpenExport} />
       </div>
-      <Button className="w-fit min-h-9 px-4 text-sm" onClick={onGoToExport}>Export Application Package</Button>
     </section>
   );
 }
 
-function CommandMaterialCard({ title, status, actionLabel, onAction }) {
+function CommandPackageCard({ title, status, actionLabel, onAction }) {
   return (
-    <div className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+    <div className="rounded-xl bg-brand-50/70 p-3 ring-1 ring-brand-100">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h4 className="font-bold text-ink">{title}</h4>
-          <p className="mt-1 text-sm font-semibold text-slate-600">{status}</p>
+          <h4 className="text-sm font-bold text-ink">{title}</h4>
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${status === "Ready" || status === "Available" ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-600 ring-slate-200"}`}>{status}</span>
+        <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getPackageStatusTone(status)}`}>{status}</span>
       </div>
-      <Button variant="secondary" className="mt-4 min-h-8 px-3 text-xs" onClick={onAction}>{actionLabel}</Button>
+      <Button variant="secondary" className="mt-3 w-full min-h-8 px-2 text-xs" onClick={onAction}>{actionLabel}</Button>
     </div>
   );
+}
+
+function RecentActivityOverview({ events = [], onViewAll }) {
+  const recent = [...events].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Recent Activity</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">Latest movement</h3>
+        </div>
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onViewAll}>View all activity</Button>
+      </div>
+      <div className="mt-4 grid gap-2">
+        {recent.map((event) => (
+          <div key={`${event.id || event.type}-${event.created_at}`} className="flex items-start gap-3 rounded-lg bg-brand-50/70 px-3 py-2">
+            <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full ring-1 ${getActivityColor(event.type)}`}>
+              {(() => {
+                const Icon = getTimelineIcon(event.type);
+                return <Icon size={14} />;
+              })()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-ink">{formatActivityLabel(event)}</p>
+              <p className="text-xs font-semibold text-slate-500">{formatRelativeTime(event.created_at) || formatDateTime(event.created_at)}</p>
+            </div>
+          </div>
+        ))}
+        {!recent.length && <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-slate-600">No activity recorded yet.</p>}
+      </div>
+    </section>
+  );
+}
+
+function InterviewReadinessOverview({ job, contacts, score, prep, onOpenInterview }) {
+  const stage = getDisplayStage(job.status);
+  const isInterviewStage = ["Interview", "Final Interview"].includes(stage);
+  const content = prep?.content || null;
+  const practicedCount = Array.isArray(prep?.practiced_questions) ? prep.practiced_questions.length : 0;
+  const readiness = content ? getInterviewReadinessScore({
+    content,
+    practicedCount,
+    interviewDetails: getInterviewDetails(job, contacts),
+    thankYouDraft: content.thankYouMessage || "",
+    concerns: getInterviewConcernAreas(score),
+  }) : null;
+
+  if (!content && !isInterviewStage) {
+    return (
+      <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Readiness</p>
+        <h3 className="mt-1 text-lg font-bold text-ink">Prep will unlock when needed</h3>
+        <p className="mt-2 text-sm leading-6 text-slate-600">When this role moves into interview stage, the command center will surface prep actions here.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Readiness</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">{readiness ? `${readiness.score}% ready` : "Prepare for interview"}</h3>
+        </div>
+        {readiness && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100">{readiness.label}</span>}
+      </div>
+      <div className="mt-3 grid gap-2 text-sm text-slate-600">
+        {job.interview_date && <p><span className="font-bold text-slate-800">Interview:</span> {formatDate(job.interview_date)}</p>}
+        <p><span className="font-bold text-slate-800">Status:</span> {readiness ? readiness.description : "Prep has not been generated yet."}</p>
+      </div>
+      <Button className="mt-4 min-h-8 px-3 text-xs" variant={readiness ? "secondary" : "primary"} onClick={onOpenInterview}>
+        Open Interview Prep
+      </Button>
+    </section>
+  );
+}
+
+function getPackageStatusTone(status) {
+  if (["Ready", "Exported"].includes(status)) return "bg-emerald-50 text-emerald-800 ring-emerald-100";
+  if (status === "Optional" || status === "Ready when needed") return "bg-brand-50 text-brand-800 ring-brand-100";
+  return "bg-slate-50 text-slate-600 ring-slate-200";
 }
 
 function loadJobCommandTasks(jobId) {
@@ -2926,7 +3017,7 @@ function InterviewScheduleCard({ job, contacts, details, message, saving, onChan
           onClick={onToggle}
           aria-expanded={expanded}
         >
-          {expanded ? "Collapse ▴" : "Expand ▾"}
+          {expanded ? "Collapse ^" : "Expand v"}
         </button>
       </div>
       {expanded && <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -3522,7 +3613,6 @@ function WorkspaceRail({ activeTab, completed, score, onSelect }) {
       ["notes", "Notes"],
       ["contacts", "Contacts"],
       ["tasks", "Tasks"],
-      ["materials", "Materials"],
     ]],
   ];
   const current = activeTab;
@@ -3659,4 +3749,5 @@ function Detail({ label, value }) {
     </div>
   );
 }
+
 
