@@ -39,6 +39,7 @@ export default function App() {
         <Route path="jobs" element={<Navigate to="/app/new-jobs" replace />} />
         <Route path="job-tracker" element={withPageFallback(<JobsPage />, true)} />
         <Route path="applications" element={withPageFallback(<ApplicationsPage />, true)} />
+        <Route path="applications/:applicationId" element={withPageFallback(<ApplicationsPage />, true)} />
         <Route path="resume-studio" element={withPageFallback(<ResumeStudioPage />, true)} />
         <Route path="messages" element={withPageFallback(<MessagesPage />, true)} />
         <Route path="settings" element={withPageFallback(<SettingsPage />, true)} />
