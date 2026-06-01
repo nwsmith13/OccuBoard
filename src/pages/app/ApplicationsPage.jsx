@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronRight, Rows3, SquareKanban } from "lucide-react";
+import { CheckCircle2, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
@@ -7,7 +7,6 @@ import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBa
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { getActiveJobs, getArchivedJobs, isArchivedJob } from "../../lib/archive.js";
-import { stages } from "../../data/seedData.js";
 import { formatDate, todayIso } from "../../lib/date.js";
 import { getFollowUpLabel, getFollowUpStatus, getFollowUpTone, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
@@ -32,23 +31,19 @@ export function ApplicationsPage() {
   const navigate = useNavigate();
   const { applicationId } = useParams();
   const [searchParams] = useSearchParams();
-  const [draggingId, setDraggingId] = useState(null);
-  const [viewMode, setViewMode] = useState("cards");
+  const [smartFilter, setSmartFilter] = useState("All");
   const [archiveMode, setArchiveMode] = useState("active");
-  const [showEmptyColumns, setShowEmptyColumns] = useState(() => window.localStorage.getItem("occuboard-show-empty-application-columns") === "true");
   const [success, setSuccess] = useState("");
-  const highlightedStage = searchParams.get("stage");
   const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
   const archivedJobs = useMemo(() => getArchivedJobs(jobs), [jobs]);
-  const visibleJobs = archiveMode === "archived" ? archivedJobs : activeJobs;
-  const metrics = useMemo(() => getApplicationMetrics(activeJobs, jobScores, jobContacts), [activeJobs, jobContacts, jobScores]);
-
-  const grouped = useMemo(
-    () => Object.fromEntries(stages.map((stage) => [stage, visibleJobs.filter((item) => getPipelineStage(item.status) === stage)])),
-    [visibleJobs],
+  const baseVisibleJobs = archiveMode === "archived" || smartFilter === "Archived" ? archivedJobs : activeJobs;
+  const metrics = useMemo(() => getApplicationMetrics(activeJobs, { jobScores, jobContacts, resumeVersions, messages, jobActivityLogs }), [activeJobs, jobActivityLogs, jobContacts, jobScores, messages, resumeVersions]);
+  const enrichedJobs = useMemo(
+    () => baseVisibleJobs.map((job) => getApplicationCardModel(job, { jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep })),
+    [baseVisibleJobs, jobActivityLogs, jobContacts, jobScores, interviewPrep, messages, resumeVersions],
   );
-  const visibleStages = showEmptyColumns || archiveMode === "archived" ? stages : stages.filter((stage) => grouped[stage]?.length);
-  const emptyStageCount = stages.filter((stage) => !grouped[stage]?.length).length;
+  const visibleJobs = useMemo(() => enrichedJobs.filter((model) => matchesSmartFilter(model, smartFilter)), [enrichedJobs, smartFilter]);
+  const actionQueue = useMemo(() => getActionQueue(enrichedJobs.filter((model) => !model.archived)), [enrichedJobs]);
 
   useEffect(() => {
     const openJobId = location.state?.openJobId || searchParams.get("jobId");
@@ -83,21 +78,10 @@ export function ApplicationsPage() {
     );
   }
 
-  async function moveApplication(stage) {
-    if (!draggingId) return;
-    const dragged = visibleJobs.find((job) => job.id === draggingId);
-    await updateJob(user, draggingId, {
-      status: stage,
-      applied_date: isAppliedPipelineStage(stage) ? dragged?.applied_date || todayIso() : dragged?.applied_date || null,
-    });
-    setDraggingId(null);
-    setSuccess(`Moved to ${stage}. Your application history is up to date.`);
-    window.setTimeout(() => setSuccess(""), 2600);
-  }
-
   async function restoreJob(job) {
     const restored = await updateJob(user, job.id, { archived_at: null, archived_reason: "", archived_by_user: false });
     setArchiveMode("active");
+    setSmartFilter("All");
     setSuccess("Opportunity restored.");
     toast.success("Opportunity restored.");
     window.setTimeout(() => setSuccess(""), 2600);
@@ -108,23 +92,12 @@ export function ApplicationsPage() {
     <div>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Opportunity Pipeline</h2>
-          <p className="mt-1 text-sm text-slate-600">A calmer view of where each opportunity stands.</p>
+          <h2 className="text-2xl font-bold">Application Command Center</h2>
+          <p className="mt-1 text-sm text-slate-600">Today&apos;s priorities, ready-to-apply roles, and active opportunities in one calm workspace.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-        <div className="flex w-fit rounded-lg bg-slate-100 p-1">
-          <button type="button" className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold ${viewMode === "cards" ? "bg-white text-brand-900 shadow-sm" : "text-slate-600"}`} onClick={() => setViewMode("cards")}>
-            <SquareKanban size={14} /> Cards
-          </button>
-          <button type="button" className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold ${viewMode === "list" ? "bg-white text-brand-900 shadow-sm" : "text-slate-600"}`} onClick={() => setViewMode("list")}>
-            <Rows3 size={14} /> List
-          </button>
-        </div>
-        <div className="flex w-fit rounded-lg bg-slate-100 p-1">
-          <button type="button" className={`rounded-md px-3 py-2 text-xs font-bold ${archiveMode === "active" ? "bg-white text-brand-900 shadow-sm" : "text-slate-600"}`} onClick={() => setArchiveMode("active")}>Active</button>
-          <button type="button" className={`rounded-md px-3 py-2 text-xs font-bold ${archiveMode === "archived" ? "bg-white text-brand-900 shadow-sm" : "text-slate-600"}`} onClick={() => setArchiveMode("archived")}>Archived {archivedJobs.length ? `(${archivedJobs.length})` : ""}</button>
-        </div>
-        </div>
+        <Link to="/app/new-jobs" className="w-fit">
+          <Button>Analyze New Job</Button>
+        </Link>
       </div>
 
       {success && (
@@ -135,64 +108,33 @@ export function ApplicationsPage() {
 
       {error && <div className="mb-5 rounded-lg bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div>}
 
-      {archiveMode === "active" && <ApplicationDashboardMetrics metrics={metrics} />}
+      {archiveMode === "active" && <ActionQueueSection queue={actionQueue} onOpen={(jobId) => navigate(`/app/applications/${jobId}`)} />}
+
+      <CareerMomentumPanel metrics={metrics} />
+
+      <SmartFilterPills
+        active={smartFilter}
+        archivedCount={archivedJobs.length}
+        onChange={(filter) => {
+          setSmartFilter(filter);
+          setArchiveMode(filter === "Archived" ? "archived" : "active");
+        }}
+      />
 
       {loading ? (
-        <PipelineSkeleton />
+        <ApplicationCardsSkeleton />
       ) : !visibleJobs.length ? (
-        <div className="rounded-xl bg-stone-50 p-8 text-center shadow-card">
-          <h3 className="text-xl font-bold text-ink">{archiveMode === "archived" ? "No archived opportunities." : "No applications yet."}</h3>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">{archiveMode === "archived" ? "Archived roles will appear here when you move them out of the active pipeline." : "Analyze a new job to start building your application history."}</p>
-          {archiveMode === "active" && (
+        <EmptyApplicationState filter={smartFilter} archiveMode={archiveMode}>
+          {archiveMode === "active" && smartFilter === "All" && (
             <Link to="/app/new-jobs" className="mt-5 inline-flex">
               <Button>Analyze New Job</Button>
             </Link>
           )}
-        </div>
-      ) : viewMode === "cards" ? (
-          <>
-          {archiveMode === "active" && emptyStageCount > 0 && (
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/85 px-4 py-3 shadow-sm ring-1 ring-brand-100">
-              <p className="text-sm font-bold text-slate-700">Empty Stages ({emptyStageCount})</p>
-              <button
-                type="button"
-                className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800 ring-1 ring-brand-100"
-                onClick={() => {
-                  const next = !showEmptyColumns;
-                  setShowEmptyColumns(next);
-                  window.localStorage.setItem("occuboard-show-empty-application-columns", String(next));
-                }}
-              >
-                {showEmptyColumns ? "Hide Empty Columns" : "Show Empty Columns"}
-              </button>
-            </div>
-          )}
-          <div className="kanban-scroll grid snap-x grid-flow-col gap-2.5 overflow-x-auto pb-3 sm:gap-3">
-            {visibleStages.map((stage) => (
-              <div
-              key={stage}
-              className={`min-h-[210px] w-[min(296px,calc(100vw-2rem))] snap-start rounded-xl p-2 shadow-sm ring-1 sm:p-2.5 ${highlightedStage === stage ? "ring-4 ring-brand-200" : "ring-white/70"} ${getStageColumnTone(stage)}`}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => moveApplication(stage)}
-            >
-              <div className="mb-2.5 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-700">{stage}</h3>
-                <span className="text-xs font-semibold text-slate-500">{grouped[stage].length}</span>
-              </div>
-              <div className="grid gap-2.5">
-                {grouped[stage].map((job) => (
-                  <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} contacts={jobContacts.filter((contact) => contact.job_id === job.id)} timeline={getApplicationTimeline(job, { jobActivityLogs, messages, resumeVersions })} prep={interviewPrep.find((item) => item.job_id === job.id)} onOpen={() => navigate(`/app/applications/${job.id}`)} onRestore={isArchivedJob(job) ? () => restoreJob(job) : undefined} onDelete={isArchivedJob(job) ? () => deleteJob(user, job.id) : undefined} onDragStart={() => !isArchivedJob(job) && setDraggingId(job.id)} />
-                ))}
-                {!grouped[stage].length && <p className="rounded-lg bg-white/50 px-3 py-2.5 text-sm text-slate-600">Nothing here yet.</p>}
-              </div>
-            </div>
-          ))}
-        </div>
-        </>
+        </EmptyApplicationState>
       ) : (
-        <div className="grid gap-3">
-          {visibleJobs.map((job) => (
-            <ApplicationCard key={job.id} job={job} score={getLatestFitScore(jobScores, job.id)} status={getJobAiStatus(job.id, jobScores, resumeVersions, messages)} messages={messages} contacts={jobContacts.filter((contact) => contact.job_id === job.id)} timeline={getApplicationTimeline(job, { jobActivityLogs, messages, resumeVersions })} prep={interviewPrep.find((item) => item.job_id === job.id)} onOpen={() => navigate(`/app/applications/${job.id}`)} onRestore={isArchivedJob(job) ? () => restoreJob(job) : undefined} onDelete={isArchivedJob(job) ? () => deleteJob(user, job.id) : undefined} compact onDragStart={() => !isArchivedJob(job) && setDraggingId(job.id)} />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {visibleJobs.map((model) => (
+            <ApplicationCard key={model.job.id} model={model} onOpen={() => navigate(`/app/applications/${model.job.id}`)} onRestore={model.archived ? () => restoreJob(model.job) : undefined} onDelete={model.archived ? () => deleteJob(user, model.job.id) : undefined} />
           ))}
         </div>
       )}
@@ -200,15 +142,22 @@ export function ApplicationsPage() {
   );
 }
 
-function ApplicationDashboardMetrics({ metrics }) {
+function CareerMomentumPanel({ metrics }) {
   return (
-    <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-      <MetricCard label="Active Applications" value={metrics.activeApplications} helper="Open opportunities in your current pipeline." />
-      <MetricCard label="Interviews Scheduled" value={metrics.interviewsScheduled} helper="Interview or final interview stage roles." />
-      <MetricCard label="Response Rate" value={`${metrics.responseRate}%`} helper="Roles with a recorded contact or interview." />
-      <MetricCard label="Average Fit Score" value={metrics.averageFitScore ? `${metrics.averageFitScore}%` : "N/A"} helper="Average across analyzed active roles." />
-      <MetricCard label="Follow-Ups Needed" value={metrics.followUpsNeeded} helper="Applications needing a timely touchpoint." />
-      <MetricCard label="Applications This Month" value={metrics.applicationsThisMonth} helper="Roles moved into applied pipeline this month." />
+    <section className="mb-5 rounded-2xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Career Momentum</p>
+          <h3 className="mt-1 text-xl font-bold text-ink">Your search is moving.</h3>
+        </div>
+        <p className="text-sm font-semibold text-slate-600">Keep the next useful action visible.</p>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Active applications" value={metrics.activeApplications} helper="Open opportunities in motion." />
+        <MetricCard label="Ready to apply" value={metrics.readyToApply} helper="Prepared roles waiting on submission." />
+        <MetricCard label="Interviews" value={metrics.interviewsScheduled} helper="Interview or final interview roles." />
+        <MetricCard label="Current streak" value={`${metrics.currentStreak} day${metrics.currentStreak === 1 ? "" : "s"}`} helper="Recent daily search activity." />
+      </div>
     </section>
   );
 }
@@ -219,6 +168,76 @@ function MetricCard({ label, value, helper }) {
       <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-black text-ink">{value}</p>
       <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">{helper}</p>
+    </div>
+  );
+}
+
+function ActionQueueSection({ queue, onOpen }) {
+  const sections = [
+    ["Apply Today", queue.applyToday, "Prepared roles ready for submission."],
+    ["Needs Attention", queue.needsAttention, "Missing materials or stale opportunities."],
+    ["Follow Up", queue.followUp, "Touchpoints that keep momentum alive."],
+  ];
+  return (
+    <section className="mb-5 grid gap-3 xl:grid-cols-3">
+      {sections.map(([title, items, helper]) => (
+        <div key={title} className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">{title}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-600">{helper}</p>
+            </div>
+            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-black text-brand-800 ring-1 ring-brand-100">{items.length}</span>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {items.slice(0, 3).map((model) => (
+              <button key={model.job.id} type="button" onClick={() => onOpen(model.job.id)} className="flex items-center justify-between gap-3 rounded-lg bg-brand-50/70 px-3 py-2 text-left ring-1 ring-brand-100 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-bold text-ink">{getDisplayJobTitle(model.job)}</span>
+                  <span className="block truncate text-xs font-semibold text-slate-600">{getDisplayCompanyName(model.job)} · {model.action.label}</span>
+                </span>
+                <ChevronRight size={14} className="shrink-0 text-brand-600" />
+              </button>
+            ))}
+            {!items.length && <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">Nothing urgent here.</p>}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function SmartFilterPills({ active, archivedCount, onChange }) {
+  const filters = ["All", "Ready To Apply", "Needs Resume", "Needs Cover Letter", "Needs Follow Up", "Interviewing", "Applied", "Archived"];
+  return (
+    <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+      {filters.map((filter) => (
+        <button
+          key={filter}
+          type="button"
+          onClick={() => onChange(filter)}
+          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ring-1 transition ${active === filter ? "bg-brand-700 text-white ring-brand-700" : "bg-white text-slate-700 ring-brand-100 hover:bg-brand-50"}`}
+        >
+          {filter}{filter === "Archived" && archivedCount ? ` (${archivedCount})` : ""}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function EmptyApplicationState({ filter, archiveMode, children }) {
+  const archived = archiveMode === "archived" || filter === "Archived";
+  const title = archived ? "No archived opportunities." : filter === "All" ? "Start your command center." : `No roles match ${filter}.`;
+  const copy = archived
+    ? "Archived roles will stay recoverable here when you need them."
+    : filter === "All"
+      ? "Analyze your first role and OccuBoard will organize the next steps here."
+      : "That is good signal. Try another filter or keep preparing your strongest roles.";
+  return (
+    <div className="rounded-xl bg-white/90 p-8 text-center shadow-card ring-1 ring-brand-100">
+      <h3 className="text-xl font-bold text-ink">{title}</h3>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">{copy}</p>
+      {children}
     </div>
   );
 }
@@ -260,18 +279,6 @@ function ApplicationWorkspacePage({ applicationId, initialTab = "overview", init
   );
 }
 
-function getStageColumnTone(stage) {
-  return {
-    Saved: "bg-[rgba(127,215,231,0.12)]",
-    Applied: "bg-[rgba(15,94,168,0.10)]",
-    "Recruiter Screen": "bg-[rgba(99,102,241,0.10)]",
-    Interview: "bg-[rgba(52,211,153,0.10)]",
-    "Final Interview": "bg-[rgba(20,184,166,0.12)]",
-    Offer: "bg-[rgba(16,185,129,0.16)]",
-    Rejected: "bg-[rgba(96,125,156,0.12)]",
-  }[stage] ?? "bg-stone-50";
-}
-
 function getPipelineStage(status) {
   const normalized = normalizeStage(status);
   if (normalized === "Closed") return "Rejected";
@@ -283,21 +290,13 @@ function getPipelineStage(status) {
   return "Saved";
 }
 
-function ApplicationCard({ job, score, status, messages, contacts = [], timeline = [], prep, onOpen, onDragStart, onRestore, onDelete, compact = false }) {
-  const nextBestAction = getNextBestAction(job, { score, aiStatus: status, messages });
-  const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
-  const archived = isArchivedJob(job);
-  const stage = getPipelineStage(job.status);
-  const health = getApplicationHealth(job, timeline);
-  const reminder = getApplicationReminder(job, contacts, timeline);
-  const lastContact = getLastContactDate(contacts);
-  const interviewPrepScore = prep?.content ? getApplicationInterviewPrepScore(prep) : null;
+function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
+  const { job, score, status, contacts, archived, stage, health, reminder, lastContact, interviewPrepScore, action, category, hasCoverLetter } = model;
+  const categoryTone = getApplicationCategoryTone(category);
   return (
     <div
       role="button"
       tabIndex={0}
-      draggable={!archived}
-      onDragStart={onDragStart}
       onClick={onOpen}
       aria-label={`Open ${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`}
       onKeyDown={(event) => {
@@ -306,9 +305,9 @@ function ApplicationCard({ job, score, status, messages, contacts = [], timeline
           onOpen();
         }
       }}
-      className="group cursor-pointer rounded-xl bg-white/95 px-2.5 py-2 text-left shadow-sm ring-1 ring-white/70 transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:ring-brand-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 sm:px-3"
+      className={`group cursor-pointer rounded-xl border-l-4 bg-white/95 px-3 py-3 text-left shadow-sm ring-1 ring-white/70 transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:ring-brand-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${categoryTone}`}
     >
-      <div className={`flex gap-2 ${compact ? "flex-col sm:flex-row sm:items-center sm:justify-between" : "flex-col"}`}>
+      <div className="flex gap-2 flex-col">
         <div className="min-w-0">
           <div className="flex items-start gap-2.5">
             <CompanyLogo companyName={getDisplayCompanyName(job)} companyDomain={job.company_domain} companyLogoUrl={job.company_logo_url} sourceUrl={job.source_url} size="md" />
@@ -328,6 +327,7 @@ function ApplicationCard({ job, score, status, messages, contacts = [], timeline
         </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
+        <StatusPill tone={getCategoryPillTone(category)}>{category}</StatusPill>
         <StatusPill tone={health.tone}>{health.label}</StatusPill>
         {reminder && <StatusPill tone="warning">{reminder}</StatusPill>}
       </div>
@@ -342,8 +342,8 @@ function ApplicationCard({ job, score, status, messages, contacts = [], timeline
       )}
       <KanbanAiStatus status={status} />
       <FollowUpChip job={job} />
-      {!archived && nextBestAction?.actionType !== "no_action" && (
-        <p className={`mt-2 truncate text-xs font-semibold ${getActionLineTone(nextBestAction.tone)}`}>{nextBestAction.label}</p>
+      {!archived && action?.actionType !== "no_action" && (
+        <p className={`mt-2 truncate text-xs font-semibold ${getActionLineTone(action.tone)}`}>{action.label}</p>
       )}
       {archived && (
         <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
@@ -368,6 +368,7 @@ function getActionLineTone(tone) {
 function StatusPill({ tone = "neutral", children }) {
   const styles = {
     healthy: "bg-emerald-50 text-emerald-800 ring-emerald-100",
+    info: "bg-brand-50 text-brand-800 ring-brand-100",
     waiting: "bg-amber-50 text-amber-800 ring-amber-100",
     danger: "bg-rose-50 text-rose-700 ring-rose-100",
     warning: "bg-amber-50 text-amber-800 ring-amber-100",
@@ -376,15 +377,101 @@ function StatusPill({ tone = "neutral", children }) {
   return <span className={`inline-flex w-fit rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${styles}`}>{children}</span>;
 }
 
-function getApplicationMetrics(activeJobs, jobScores, contacts) {
+function getApplicationCardModel(job, { jobScores = [], resumeVersions = [], messages = [], jobContacts = [], jobActivityLogs = [], interviewPrep = [] }) {
+  const score = getLatestFitScore(jobScores, job.id);
+  const status = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
+  const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
+  const timeline = getApplicationTimeline(job, { jobActivityLogs, messages, resumeVersions });
+  const prep = interviewPrep.find((item) => item.job_id === job.id);
+  const stage = getPipelineStage(job.status);
+  const archived = isArchivedJob(job);
+  const health = getApplicationHealth(job, timeline);
+  const reminder = getApplicationReminder(job, contacts, timeline);
+  const action = getNextBestAction(job, { score, aiStatus: status, messages });
+  const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
+  const interviewPrepScore = prep?.content ? getApplicationInterviewPrepScore(prep) : null;
+  return {
+    job,
+    score,
+    status,
+    contacts,
+    timeline,
+    prep,
+    stage,
+    archived,
+    health,
+    reminder,
+    action,
+    hasCoverLetter,
+    interviewPrepScore,
+    lastContact: getLastContactDate(contacts),
+    category: getApplicationCategory({ archived, stage, status, hasCoverLetter, health }),
+  };
+}
+
+function getApplicationCategory({ archived, stage, status, hasCoverLetter, health }) {
+  if (archived) return "Archived";
+  if (["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "Interviewing";
+  if (status.resumeDrafted && status.messageDrafted && hasCoverLetter && stage === "Saved") return "Ready To Apply";
+  if (health.tone === "danger" || !status.resumeDrafted || !hasCoverLetter) return "Needs Attention";
+  return "Active";
+}
+
+function getApplicationCategoryTone(category) {
+  return {
+    "Ready To Apply": "border-l-emerald-400",
+    "Needs Attention": "border-l-amber-400",
+    Interviewing: "border-l-brand-500",
+    Archived: "border-l-slate-300 opacity-90",
+    Active: "border-l-slate-200",
+  }[category] ?? "border-l-slate-200";
+}
+
+function getCategoryPillTone(category) {
+  return {
+    "Ready To Apply": "healthy",
+    "Needs Attention": "warning",
+    Interviewing: "info",
+    Archived: "neutral",
+  }[category] ?? "neutral";
+}
+
+function matchesSmartFilter(model, filter) {
+  if (filter === "All") return !model.archived;
+  if (filter === "Archived") return model.archived;
+  if (filter === "Ready To Apply") return model.category === "Ready To Apply";
+  if (filter === "Needs Resume") return !model.status.resumeDrafted && !model.archived;
+  if (filter === "Needs Cover Letter") return !model.hasCoverLetter && !model.archived;
+  if (filter === "Needs Follow Up") return model.health.tone === "danger" || Boolean(model.reminder);
+  if (filter === "Interviewing") return model.category === "Interviewing";
+  if (filter === "Applied") return model.stage === "Applied";
+  return true;
+}
+
+function getActionQueue(models) {
+  return {
+    applyToday: models.filter((model) => model.category === "Ready To Apply").slice(0, 5),
+    needsAttention: models.filter((model) => model.category === "Needs Attention").slice(0, 5),
+    followUp: models.filter((model) => model.health.tone === "danger" || model.reminder).slice(0, 5),
+  };
+}
+
+function getApplicationMetrics(activeJobs, { jobScores = [], jobContacts = [], resumeVersions = [], messages = [], jobActivityLogs = [] }) {
   const activeApplications = activeJobs.filter((job) => getPipelineStage(job.status) !== "Saved").length;
   const interviewsScheduled = activeJobs.filter((job) => ["Interview", "Final Interview"].includes(getPipelineStage(job.status)) || job.interview_date).length;
   const appliedOrBeyond = activeJobs.filter((job) => isAppliedPipelineStage(getPipelineStage(job.status)));
-  const responded = appliedOrBeyond.filter((job) => contacts.some((contact) => contact.job_id === job.id && contact.last_contacted_at) || ["Recruiter Screen", "Interview", "Final Interview", "Offer"].includes(getPipelineStage(job.status))).length;
+  const responded = appliedOrBeyond.filter((job) => jobContacts.some((contact) => contact.job_id === job.id && contact.last_contacted_at) || ["Recruiter Screen", "Interview", "Final Interview", "Offer"].includes(getPipelineStage(job.status))).length;
   const scored = activeJobs.map((job) => getLatestFitScore(jobScores, job.id)?.score).filter((value) => Number.isFinite(Number(value)));
+  const readyToApply = activeJobs.filter((job) => {
+    const status = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
+    const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
+    return getPipelineStage(job.status) === "Saved" && status.resumeDrafted && status.messageDrafted && hasCoverLetter;
+  }).length;
   return {
     activeApplications,
     interviewsScheduled,
+    readyToApply,
+    currentStreak: getCurrentActivityStreak(activeJobs, { jobActivityLogs, messages, resumeVersions }),
     responseRate: appliedOrBeyond.length ? Math.round((responded / appliedOrBeyond.length) * 100) : 0,
     averageFitScore: scored.length ? Math.round(scored.reduce((sum, value) => sum + Number(value), 0) / scored.length) : 0,
     followUpsNeeded: activeJobs.filter((job) => getApplicationHealth(job, getApplicationTimeline(job, {})).tone === "danger").length,
@@ -468,17 +555,50 @@ function isThisMonth(value) {
   return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
 }
 
-function PipelineSkeleton() {
+function getCurrentActivityStreak(activeJobs, { jobActivityLogs = [], messages = [], resumeVersions = [] }) {
+  const activeIds = new Set(activeJobs.map((job) => job.id));
+  const activityDates = new Set();
+  activeJobs.forEach((job) => {
+    [job.created_at, job.updated_at, job.applied_date, job.interview_date].filter(Boolean).forEach((value) => activityDates.add(toDateKey(value)));
+  });
+  [...jobActivityLogs, ...messages, ...resumeVersions].forEach((item) => {
+    if (activeIds.has(item.job_id) && item.created_at) activityDates.add(toDateKey(item.created_at));
+  });
+
+  let streak = 0;
+  const cursor = new Date();
+  while (activityDates.has(toDateKey(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function toDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function ApplicationCardsSkeleton() {
   return (
-    <div className="kanban-scroll grid snap-x grid-flow-col gap-2.5 overflow-x-auto pb-3 sm:gap-3">
-      {stages.map((stage) => (
-        <div key={stage} className={`min-h-[210px] w-[min(296px,calc(100vw-2rem))] snap-start rounded-xl p-2 shadow-sm ring-1 ring-white/70 sm:p-2.5 ${getStageColumnTone(stage)}`}>
-          <div className="mb-2.5 flex items-center justify-between">
-            <div className="h-4 w-20 rounded-full bg-white/80" />
-            <div className="h-4 w-6 rounded-full bg-white/80" />
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {[0, 1, 2, 3, 4, 5].map((item) => (
+        <div key={item} className="rounded-xl border-l-4 border-l-slate-200 bg-white/90 px-3 py-3 shadow-sm ring-1 ring-white/70">
+          <div className="flex items-start gap-2.5">
+            <div className="h-10 w-10 rounded-xl bg-slate-100" />
+            <div className="min-w-0 flex-1">
+              <div className="h-4 w-3/4 rounded-full bg-slate-100" />
+              <div className="mt-2 h-3 w-1/2 rounded-full bg-slate-100" />
+              <div className="mt-3 flex gap-1.5">
+                <div className="h-5 w-20 rounded-full bg-slate-100" />
+                <div className="h-5 w-16 rounded-full bg-slate-100" />
+              </div>
+            </div>
           </div>
-          <div className="grid gap-2.5">
-            {[0, 1].map((item) => <div key={item} className="h-24 rounded-xl bg-white/75 shadow-sm" />)}
+          <div className="mt-4 grid gap-2">
+            <div className="h-3 w-full rounded-full bg-slate-100" />
+            <div className="h-3 w-2/3 rounded-full bg-slate-100" />
           </div>
         </div>
       ))}
@@ -521,4 +641,5 @@ function KanbanAiStatus({ status }) {
     </div>
   );
 }
+
 
