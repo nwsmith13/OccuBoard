@@ -323,7 +323,8 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     coverLetter: latestCoverLetter,
     recruiterMessage: latestMessage,
   });
-  const exportReady = Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id)) || packageReady;
+  const packageDownloaded = Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id));
+  const exportReady = packageDownloaded || packageReady;
   const nextBestAction = getNextBestAction(job, { score: latestScore, aiStatus, messages, activityEvents: timelineEvents, hasInterviewPrep: interviewPrepReady, exportReady });
   const completedSteps = {
     overview: true,
@@ -504,7 +505,19 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
             </div>
             <div className="flex min-w-0 items-center gap-3 lg:max-w-[620px]">
               <div className="min-w-0 flex-1">
-                <JobHeaderCta activeTab={activeTab} onTabChange={requestTabChange} />
+                <JobHeaderCta
+                  activeTab={activeTab}
+                  job={job}
+                  score={latestScore}
+                  resume={latestResume}
+                  coverLetter={latestCoverLetter}
+                  recruiterMessage={latestMessage}
+                  prep={prep}
+                  exportReady={exportReady}
+                  packageDownloaded={packageDownloaded}
+                  onTabChange={requestTabChange}
+                  onMarkApplied={onMove}
+                />
               </div>
               {!pageMode && (
                 <button type="button" className="hidden shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50 lg:inline-flex" onClick={requestClose} aria-label="Close job details">
@@ -642,6 +655,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 recruiterMessage={latestMessage}
                 contacts={contacts}
                 user={user}
+                exportReady={exportReady}
                 onSaveCoverLetter={saveMessage}
                 onLogActivity={logJobActivity}
                 onGoToResume={() => requestTabChange("resume")}
@@ -728,32 +742,27 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   );
 }
 
-function JobHeaderCta({ activeTab, onTabChange }) {
-  if (activeTab === "export") {
-    return (
-      <div className="flex justify-end">
-        <span className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-800 ring-1 ring-emerald-100">
-          {"\u2713"} Ready to Export
-        </span>
-      </div>
-    );
-  }
-  const config = {
-    overview: { label: "Continue to Resume", tab: "resume", variant: "primary" },
-    fit: { label: "Continue to Resume", tab: "resume", variant: "primary" },
-    resume: { label: "Continue to Cover Letter", tab: "coverLetter", variant: "primary" },
-    coverLetter: { label: "Continue to Recruiter Message", tab: "message", variant: "primary" },
-    message: { label: "View Recruiter View", tab: "recruiterView", variant: "secondary" },
-    recruiterView: { label: "Continue to Interview Prep", tab: "interview", variant: "primary" },
-    interview: { label: "Export Application Package", tab: "export", variant: "primary" },
-  }[activeTab] || { label: "Continue to Resume", tab: "resume", variant: "primary" };
+function JobHeaderCta({ activeTab, job, score, resume, coverLetter, recruiterMessage, prep, packageDownloaded, onTabChange, onMarkApplied }) {
+  const config = getWorkflowHeaderCta({ job, score, resume, coverLetter, recruiterMessage, prep, packageDownloaded, activeTab });
   return (
     <div className="flex justify-end">
-      <Button className="min-h-9 px-4 text-sm whitespace-nowrap" variant={config.variant} onClick={() => onTabChange?.(config.tab)}>
+      <Button className="min-h-9 px-4 text-sm whitespace-nowrap" variant={config.variant} onClick={() => config.tab === "__mark_applied" ? onMarkApplied?.() : onTabChange?.(config.tab)}>
         {config.label}
       </Button>
     </div>
   );
+}
+
+function getWorkflowHeaderCta({ job, score, resume, coverLetter, recruiterMessage, prep, packageDownloaded, activeTab }) {
+  const isSaved = getDisplayStage(job?.status) === "Saved";
+  if (!score) return { label: "Analysis", tab: "fit", variant: "primary" };
+  if (!resume) return { label: "Resume", tab: "resume", variant: "primary" };
+  if (!coverLetter) return { label: "Cover Letter", tab: "coverLetter", variant: "primary" };
+  if (!recruiterMessage) return { label: "Recruiter Message", tab: "message", variant: "primary" };
+  if (!prep) return { label: "Interview Prep", tab: "interview", variant: "primary" };
+  if (packageDownloaded && isSaved) return { label: "Mark Applied", tab: "__mark_applied", variant: "primary" };
+  if (activeTab !== "export") return { label: "Export Package", tab: "export", variant: "primary" };
+  return { label: "Export Package", tab: "export", variant: "primary" };
 }
 
 function CommandTasksWorkspace({ tasks, setTasks, onAdd }) {
@@ -811,8 +820,8 @@ function ApplicationPackageOverview({ score, resume, coverLetter, recruiterMessa
   ];
   const packageReady = assets.every((asset) => asset.ready);
   return (
-    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <section className="rounded-xl bg-white/90 p-3 shadow-sm ring-1 ring-brand-100 sm:p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Assets</p>
           <h3 className="mt-1 text-lg font-bold text-ink">{getAssetProgressLabel(assets)}</h3>
@@ -823,24 +832,26 @@ function ApplicationPackageOverview({ score, resume, coverLetter, recruiterMessa
           </span>
         )}
       </div>
-      <div className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-        {assets.map((asset) => <CommandPackageCard key={asset.title} {...asset} />)}
+      <div className="mt-3 divide-y divide-brand-100 rounded-lg bg-brand-50/50 ring-1 ring-brand-100">
+        {assets.map((asset) => <CommandPackageRow key={asset.title} {...asset} />)}
       </div>
     </section>
   );
 }
 
-function CommandPackageCard({ title, status, actionLabel, onAction, ready }) {
+function CommandPackageRow({ title, status, actionLabel, onAction, ready }) {
   return (
-    <div className="min-w-0 rounded-xl bg-brand-50/60 px-3 py-2.5 ring-1 ring-brand-100">
-      <div className="flex min-w-0 items-start justify-between gap-3">
+    <div className="flex min-w-0 flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ring-1 ${ready ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-white text-slate-400 ring-brand-100"}`}>
+          {ready ? "\u2713" : "\u25CB"}
+        </span>
         <div className="min-w-0">
           <h4 className="text-sm font-bold text-ink">{title}</h4>
           <p className={`mt-0.5 text-xs font-black ${ready ? "text-emerald-700" : "text-slate-500"}`}>{status}</p>
         </div>
-        <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getPackageStatusTone(status)}`}>{status}</span>
       </div>
-      <button type="button" className="mt-2 inline-flex max-w-full items-center rounded-md px-0.5 text-xs font-bold text-brand-700 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200" onClick={onAction}>
+      <button type="button" className="inline-flex w-fit max-w-full items-center rounded-md px-0.5 text-xs font-bold text-brand-700 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200" onClick={onAction}>
         {actionLabel} <span aria-hidden="true" className="ml-1">-&gt;</span>
       </button>
     </div>
@@ -920,12 +931,6 @@ function InterviewReadinessOverview({ job, contacts, score, prep, onOpenIntervie
       </Button>
     </section>
   );
-}
-
-function getPackageStatusTone(status) {
-  if (["Ready", "Exported"].includes(status)) return "bg-emerald-50 text-emerald-800 ring-emerald-100";
-  if (status === "Not Started" || status === "Not Generated") return "bg-slate-50 text-slate-600 ring-slate-200";
-  return "bg-slate-50 text-slate-600 ring-slate-200";
 }
 
 function getAssetProgressLabel(assets = []) {
@@ -1521,7 +1526,7 @@ function useSlowLoading(active) {
   return show;
 }
 
-function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, prep, onExportComplete }) {
+function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, recruiterMessage, contacts, user, exportReady, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, prep, onExportComplete }) {
   const toast = useToast();
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverExporting, setCoverExporting] = useState("");
@@ -1683,12 +1688,13 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
       </div>
 
-      <ApplicationReadinessCard
+      <ApplicationChecklist
         score={score}
-        profile={profile}
         resume={resume}
         coverLetter={coverLetter}
         recruiterMessage={recruiterMessage}
+        prep={prep}
+        exportReady={exportReady}
       />
 
       <PackageBuilderSection
@@ -1712,7 +1718,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         >
           <span>
             <span className="block text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Advanced</span>
-            <span className="block text-sm font-bold text-ink">Individual downloads</span>
+            <span className="block text-sm font-bold text-ink">Advanced Resume Options & individual downloads</span>
           </span>
           <ChevronDown size={16} className={`shrink-0 text-slate-500 transition ${advancedOpen ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
@@ -1761,6 +1767,48 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   );
 }
 
+function ApplicationChecklist({ score, resume, coverLetter, recruiterMessage, prep, exportReady }) {
+  const rows = [
+    ["Analysis", Boolean(score)],
+    ["Resume", Boolean(resume)],
+    ["Cover Letter", Boolean(coverLetter)],
+    ["Recruiter Message", Boolean(recruiterMessage)],
+    ["Interview Prep", Boolean(prep)],
+    ["Export", Boolean(exportReady)],
+  ];
+  const complete = rows.filter(([, done]) => done).length;
+  const percent = Math.round((complete / rows.length) * 100);
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Checklist</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">{complete} of {rows.length} stages complete</h3>
+        </div>
+        <div className="min-w-[160px]">
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${percent}% complete`}>
+            <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${percent}%` }} />
+          </div>
+          <p className="mt-1 text-right text-xs font-bold text-slate-600">{percent}% complete</p>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map(([label, done]) => (
+          <div key={label} className="flex items-center gap-2 rounded-lg bg-brand-50/70 px-3 py-2 ring-1 ring-brand-100">
+            <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-black ring-1 ${done ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-white text-slate-400 ring-slate-200"}`}>
+              {done ? "\u2713" : "\u25CB"}
+            </span>
+            <div>
+              <p className="text-sm font-bold text-ink">{label}</p>
+              <p className={`text-xs font-semibold ${done ? "text-emerald-700" : "text-slate-500"}`}>{done ? "Complete" : "Not started"}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PackageBuilderSection({ items, selections, selectedItems, packageFileName, downloading, onToggle, onDownload, onGoToInterview }) {
   const selectedNames = selectedItems.map((item) => item.label);
   const unavailableInterviewItems = items.filter((item) => item.group === "Interview Extras" && !item.available).length;
@@ -1778,7 +1826,7 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
         </Button>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+      <div className="mt-4 grid gap-3">
         <div className="grid gap-3">
           {["Application Files", "Interview Extras"].map((group) => (
             <div key={group} className="rounded-xl bg-brand-50/60 p-3 ring-1 ring-brand-100">
@@ -1811,18 +1859,20 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
           ))}
         </div>
 
-        <aside className="rounded-xl bg-brand-900 p-4 text-white">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-100">Package Preview</p>
-          <h4 className="mt-1 text-lg font-bold">{selectedItems.length} item{selectedItems.length === 1 ? "" : "s"} selected</h4>
-          <p className="mt-2 break-all rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-brand-50">{packageFileName}</p>
-          <div className="mt-3 grid gap-1.5">
+        <aside className="rounded-xl bg-brand-50/80 p-3 ring-1 ring-brand-100">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Package Preview</p>
+              <h4 className="mt-1 text-sm font-bold text-ink">{selectedItems.length} item{selectedItems.length === 1 ? "" : "s"} selected</h4>
+              <p className="mt-1 break-all text-xs font-semibold text-slate-600">{packageFileName}</p>
+            </div>
+            <div className="flex max-w-2xl flex-wrap gap-1.5">
             {selectedNames.length ? selectedNames.map((name) => (
-              <p key={name} className="text-sm font-semibold text-white">
-                <span aria-hidden="true">{"\u2713"}</span> {name}
-              </p>
+              <span key={name} className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{name}</span>
             )) : (
-              <p className="text-sm font-semibold text-brand-100">Select at least one ready item to download.</p>
+              <p className="text-sm font-semibold text-slate-600">Select at least one ready item to download.</p>
             )}
+            </div>
           </div>
         </aside>
       </div>
@@ -1830,20 +1880,19 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
   );
 }
 
-function getDefaultPackageSelections({ resume, coverLetter, recruiterMessage, prepContent }) {
+function getDefaultPackageSelections({ resume, coverLetter, prepContent }) {
   const hasQuestions = Array.isArray(prepContent?.questions) && prepContent.questions.length > 0;
   const hasStories = Array.isArray(prepContent?.starStories) && prepContent.starStories.length > 0;
-  const hasResearch = (Array.isArray(prepContent?.focusAreas) && prepContent.focusAreas.length > 0) || (Array.isArray(prepContent?.questionsToAsk) && prepContent.questionsToAsk.length > 0);
   return {
     resumePdf: Boolean(resume?.content),
-    resumeDocx: Boolean(resume?.content),
+    resumeDocx: false,
     coverLetterPdf: Boolean(coverLetter?.content),
-    coverLetterDocx: Boolean(coverLetter?.content),
-    recruiterMessage: Boolean(recruiterMessage?.content),
+    coverLetterDocx: false,
+    recruiterMessage: false,
     interviewCheatSheet: Boolean(prepContent),
     interviewQuestions: hasQuestions,
     starStories: hasStories,
-    researchNotes: hasResearch,
+    researchNotes: false,
   };
 }
 
