@@ -1946,7 +1946,7 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
                   <Button variant="ghost" className="min-h-7 px-2 text-xs" onClick={onGoToInterview}>Open Interview Prep</Button>
                 )}
               </div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className={`mt-2 grid gap-2 ${group === "Communication" ? "" : "sm:grid-cols-2"}`}>
                 {items.filter((item) => item.group === group).map((item) => (
                   <label key={item.key} className={`flex min-w-0 items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1 ${item.available ? "bg-white text-ink ring-brand-100" : "bg-slate-50 text-slate-500 ring-slate-100"}`}>
                     <input
@@ -1973,6 +1973,15 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
           <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Package Preview</p>
           <h4 className="mt-1 text-sm font-bold text-ink">{selectedItems.length} item{selectedItems.length === 1 ? "" : "s"} selected</h4>
           <p className="mt-1 break-all text-xs font-semibold text-slate-600">{packageFileName}</p>
+          {selectedItems.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {selectedItems.map((item) => (
+                <span key={item.key} className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">
+                  {item.label}
+                </span>
+              ))}
+            </div>
+          )}
           <Button className="mt-3 w-full justify-center" onClick={onDownload} disabled={!selectedItems.length || downloading}>
             {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
             {downloading ? "Downloading..." : ctaLabel}
@@ -2017,7 +2026,9 @@ function getPackageBuilderItems({ resume, coverLetter, recruiterMessage, prepCon
 }
 
 function getPackageFileBaseName(job) {
-  return `occuboard-${slugify(getDisplayCompanyName(job))}-${slugify(getDisplayJobTitle(job))}-application-package`;
+  const company = slugifyReadable(getDisplayCompanyName(job), 38);
+  const title = slugifyReadable(getDisplayJobTitle(job), 48);
+  return `${company}_${title}_ApplicationPackage`;
 }
 
 function downloadTextArtifact(fileName, content) {
@@ -3872,6 +3883,17 @@ function slugify(value = "") {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80) || "interview";
+}
+
+function slugifyReadable(value = "", maxLength = 48) {
+  const cleaned = String(value || "OccuBoard")
+    .replace(/\b(the|and|of|for|to|at|in|a|an)\b/gi, "")
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-")
+    .slice(0, maxLength)
+    .replace(/-+$/g, "");
+  return cleaned || "OccuBoard";
 }
 
 function getInterviewDetails(job = {}, contacts = []) {
