@@ -257,7 +257,7 @@ function WorkflowStagePills({ active, counts, onChange }) {
           key={filter}
           type="button"
           onClick={() => onChange(filter)}
-          className={`shrink-0 rounded-xl px-4 py-2 text-sm font-black ring-1 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${active === filter ? "bg-brand-700 text-white ring-brand-700 shadow-sm" : "bg-white text-slate-700 ring-brand-100 hover:bg-brand-50"}`}
+          className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-black ring-2 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${active === filter ? "bg-brand-700 text-white ring-brand-700 shadow-md" : "bg-white text-slate-700 ring-brand-100 hover:bg-brand-50 hover:ring-brand-200"}`}
         >
           {filter}{Number.isFinite(counts[filter]) ? ` (${counts[filter]})` : ""}
         </button>
@@ -350,7 +350,7 @@ function getPipelineStage(status) {
 }
 
 function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
-  const { job, score, archived, stage, health, lastContact, action, category } = model;
+  const { job, score, archived, stage, lastContact, action, category } = model;
   const categoryTone = getApplicationCategoryTone(category);
   const scoreModel = getOpportunityScoreModel(score);
   const actionModel = getPrimaryActionModel(action, category, stage);
@@ -377,15 +377,17 @@ function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
           <p className="mt-1 truncate text-sm font-semibold text-slate-600">{getDisplayCompanyName(job)}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100">{stage}</span>
-            {health.label && <span className="text-xs font-semibold text-slate-500">{health.label}</span>}
           </div>
         </div>
         <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition duration-150 ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={15} />
       </div>
       {!archived && actionModel && (
-        <div className={`mt-3 rounded-xl px-3 py-2.5 ring-1 ${actionModel.cardClass}`}>
-          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">Next step</p>
-          <p className={`mt-0.5 text-base font-black leading-tight ${actionModel.textClass}`}>{actionModel.label}</p>
+        <div className={`mt-2.5 flex items-center justify-between gap-3 rounded-lg px-2.5 py-2 ring-1 ${actionModel.cardClass}`}>
+          <span className="min-w-0">
+            <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Next step</span>
+            <span className={`block truncate text-sm font-black ${actionModel.textClass}`}>{actionModel.label}</span>
+          </span>
+          <ChevronRight size={14} className={`shrink-0 ${actionModel.textClass}`} />
         </div>
       )}
       {updatedLabel && <p className="mt-2 border-t border-slate-100 pt-2 text-xs font-semibold text-slate-500">{updatedLabel}</p>}
@@ -455,10 +457,10 @@ function getPrimaryActionLabel(label, category, stage) {
 }
 
 function getOpportunityCardSizing({ category, stage }) {
-  if (category === "Archived") return "px-3 py-2.5 opacity-90";
-  if (stage === "Rejected" || category === "Not Active") return "px-3 py-2.5";
-  if (category === "Ready To Apply" || ["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "px-3.5 py-4";
-  return "px-3 py-3";
+  if (category === "Archived") return "px-3 py-2 opacity-90";
+  if (stage === "Rejected" || category === "Not Active") return "px-3 py-2";
+  if (category === "Ready To Apply" || ["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "px-3 py-3";
+  return "px-3 py-2.5";
 }
 
 function getOpportunityDateLabel({ job, lastContact }) {
