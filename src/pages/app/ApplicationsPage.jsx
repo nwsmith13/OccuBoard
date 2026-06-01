@@ -147,6 +147,7 @@ export function ApplicationsPage() {
 function CareerMomentumPanel({ metrics }) {
   return (
     <section className="mb-5 rounded-2xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100">
+      <p className="mb-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-brand-600">Career Momentum</p>
       <p className="text-sm font-semibold leading-7 text-slate-700 sm:text-base">
         You have{" "}
         <span className="font-black text-emerald-700">{metrics.readyToApply}</span>{" "}
@@ -236,19 +237,35 @@ function ActionQueueSection({ queue, onOpen }) {
 function WorkflowStagePills({ active, counts, onChange }) {
   const filters = ["Focus", "Ready To Apply", "In Progress", "Interviewing", "Applied", "Archived"];
   return (
-    <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-      {filters.map((filter) => (
-        <button
-          key={filter}
-          type="button"
-          onClick={() => onChange(filter)}
-          className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-black ring-2 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${active === filter ? "bg-brand-700 text-white ring-brand-700 shadow-md" : "bg-white text-slate-700 ring-brand-100 hover:bg-brand-50 hover:ring-brand-200"}`}
-        >
-          {filter}{Number.isFinite(counts[filter]) ? ` (${counts[filter]})` : ""}
-        </button>
-      ))}
+    <div className="mb-4 rounded-2xl bg-white/80 p-3 shadow-sm ring-1 ring-brand-100">
+      <p className="mb-2 text-sm font-semibold text-slate-600">
+        Viewing: <span className="font-black text-ink">{active}</span> — {getWorkflowFilterHelper(active)}
+      </p>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {filters.map((filter) => (
+          <button
+            key={filter}
+            type="button"
+            onClick={() => onChange(filter)}
+            className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-black ring-2 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${active === filter ? "bg-brand-700 text-white ring-brand-700 shadow-md" : "bg-white text-slate-700 ring-brand-100 hover:bg-brand-50 hover:ring-brand-200"}`}
+          >
+            {filter}{Number.isFinite(counts[filter]) ? ` (${counts[filter]})` : ""}
+          </button>
+        ))}
+      </div>
     </div>
   );
+}
+
+function getWorkflowFilterHelper(filter) {
+  return {
+    Focus: "roles that need your next action first.",
+    "Ready To Apply": "roles with application materials ready for submission.",
+    "In Progress": "roles still missing a key preparation step.",
+    Interviewing: "roles in interview stages.",
+    Applied: "submitted applications still in motion.",
+    Archived: "roles removed from the active search.",
+  }[filter] ?? "all opportunities in this view.";
 }
 
 function EmptyApplicationState({ filter, archiveMode, children }) {
