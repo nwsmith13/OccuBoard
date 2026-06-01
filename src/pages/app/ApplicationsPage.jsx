@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock3 } from "lucide-react";
+import { CheckCircle2, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
@@ -166,70 +166,61 @@ function ActionQueueSection({ queue, onOpen }) {
     {
       title: "Apply Today",
       items: queue.applyToday,
-      helper: "Prepared roles ready for submission.",
       action: "Open ready role",
-      icon: CheckCircle2,
-      cardClass: "from-emerald-50 via-white to-cyan-50 ring-emerald-100",
+      dotClass: "bg-emerald-500",
+      rowClass: "bg-emerald-50/45 hover:bg-emerald-50",
       badgeClass: "bg-emerald-100 text-emerald-800 ring-emerald-200",
-      buttonClass: "bg-emerald-700 text-white hover:bg-emerald-800",
+      buttonClass: "bg-emerald-50 text-emerald-800 ring-emerald-100 hover:bg-emerald-100",
     },
     {
       title: "Needs Action",
       items: queue.needsAttention,
-      helper: "Missing materials or stale opportunities.",
       action: "Review action",
-      icon: AlertTriangle,
-      cardClass: "from-amber-50 via-white to-orange-50 ring-amber-100",
+      dotClass: "bg-amber-400",
+      rowClass: "bg-amber-50/45 hover:bg-amber-50",
       badgeClass: "bg-amber-100 text-amber-800 ring-amber-200",
-      buttonClass: "bg-amber-600 text-white hover:bg-amber-700",
+      buttonClass: "bg-amber-50 text-amber-800 ring-amber-100 hover:bg-amber-100",
     },
     {
       title: "Follow Up",
       items: queue.followUp,
-      helper: "Touchpoints that keep momentum alive.",
       action: "Open follow-up",
-      icon: Clock3,
-      cardClass: "from-brand-50 via-white to-cyan-50 ring-brand-100",
+      dotClass: "bg-brand-500",
+      rowClass: "bg-brand-50/45 hover:bg-brand-50",
       badgeClass: "bg-brand-100 text-brand-800 ring-brand-200",
-      buttonClass: "bg-brand-700 text-white hover:bg-brand-800",
+      buttonClass: "bg-brand-50 text-brand-800 ring-brand-100 hover:bg-brand-100",
     },
   ];
   return (
-    <section className="mb-5 grid gap-3 xl:grid-cols-3">
-      {sections.map(({ title, items, helper, action, icon: Icon, cardClass, badgeClass, buttonClass }) => (
-        <div key={title} className={`rounded-xl bg-gradient-to-br p-4 shadow-sm ring-1 ${cardClass}`}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 gap-3">
-              <span className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ${badgeClass}`}>
-                <Icon size={18} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-700">{title}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-600">{helper}</p>
-              </div>
-            </div>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-black ring-1 ${badgeClass}`}>{items.length}</span>
-          </div>
-          <div className="mt-3 grid gap-2">
-            {items.slice(0, 2).map((model) => (
-              <button key={model.job.id} type="button" onClick={() => onOpen(model.job.id)} className="flex items-center justify-between gap-3 rounded-lg bg-white/80 px-3 py-2 text-left ring-1 ring-white/80 transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">
+    <section className="mb-4 rounded-2xl bg-white/90 p-3 shadow-sm ring-1 ring-brand-100">
+      <p className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-brand-600">Today&apos;s Priorities</p>
+      <div className="grid gap-1.5">
+        {sections.map(({ title, items, dotClass, rowClass, badgeClass }) => {
+          const top = items[0];
+          return (
+            <button key={title} type="button" disabled={!top} onClick={() => top && onOpen(top.job.id)} className={`flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 disabled:cursor-default disabled:opacity-70 ${rowClass}`}>
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`} />
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-bold text-ink">{getDisplayJobTitle(model.job)}</span>
-                  <span className="block truncate text-xs font-semibold text-slate-600">{getDisplayCompanyName(model.job)} / {model.action.label}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm font-black text-ink">{title}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ring-1 ${badgeClass}`}>{items.length}</span>
+                  </span>
+                  <span className="block truncate text-sm font-semibold text-slate-600">{top ? getDisplayJobTitle(top.job) : "Nothing waiting here"}</span>
                 </span>
-                <ChevronRight size={14} className="shrink-0 text-slate-400" />
-              </button>
-            ))}
-            {items.length > 0 ? (
-              <button type="button" onClick={() => onOpen(items[0].job.id)} className={`mt-1 inline-flex min-h-9 items-center justify-center rounded-lg px-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${buttonClass}`}>
-                {action}
-              </button>
-            ) : (
-              <p className="rounded-lg bg-white/70 px-3 py-2 text-sm font-semibold text-slate-600">You&apos;re caught up here.</p>
-            )}
-          </div>
-        </div>
-      ))}
+              </span>
+              {top && <ChevronRight size={14} className="shrink-0 text-slate-400" />}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        {sections.filter((section) => section.items.length > 0).map(({ title, items, action, buttonClass }) => (
+          <button key={`${title}-action`} type="button" onClick={() => onOpen(items[0].job.id)} className={`inline-flex min-h-8 items-center justify-center rounded-lg px-3 text-xs font-black ring-1 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${buttonClass}`}>
+            {action}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -754,7 +745,5 @@ function ApplicationCardsSkeleton() {
 export function getNextAction(job, status) {
   return getNextBestAction(job, { aiStatus: status }).label;
 }
-
-
 
 
