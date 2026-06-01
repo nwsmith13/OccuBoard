@@ -147,31 +147,16 @@ export function ApplicationsPage() {
 function CareerMomentumPanel({ metrics }) {
   return (
     <section className="mb-5 rounded-2xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Career Momentum</p>
-          <h3 className="mt-1 text-xl font-bold text-ink">Your search is moving.</h3>
-          <p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
-            {metrics.bestNextMove.helper}
-          </p>
-        </div>
-        <div className="grid min-w-0 gap-2 sm:grid-cols-3 lg:min-w-[520px]">
-          <MomentumMiniStat label="Ready" value={metrics.readyToApply} />
-          <MomentumMiniStat label="Interviews" value={metrics.interviewsScheduled} />
-          <MomentumMiniStat label="Best" value={metrics.topOpportunity.title} helper={metrics.topOpportunity.helper} />
-        </div>
-      </div>
+      <p className="text-sm font-semibold leading-7 text-slate-700 sm:text-base">
+        You have{" "}
+        <span className="font-black text-emerald-700">{metrics.readyToApply}</span>{" "}
+        {metrics.readyToApply === 1 ? "role" : "roles"} ready to apply and{" "}
+        <span className="font-black text-brand-700">{metrics.interviewsScheduled}</span>{" "}
+        active {metrics.interviewsScheduled === 1 ? "interview" : "interviews"}. Your strongest opportunity is{" "}
+        <span className="font-black text-ink">{metrics.topOpportunity.roleTitle}</span>{" "}
+        <span className="font-black text-emerald-700">({metrics.topOpportunity.matchLabel})</span>.
+      </p>
     </section>
-  );
-}
-
-function MomentumMiniStat({ label, value, helper = "" }) {
-  return (
-    <div className="rounded-xl bg-brand-50/60 px-3 py-2.5 ring-1 ring-brand-100">
-      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-brand-600">{label}</p>
-      <p className="mt-1 truncate text-lg font-black text-ink">{value}</p>
-      {helper && <p className="mt-0.5 truncate text-xs font-semibold text-slate-500">{helper}</p>}
-    </div>
   );
 }
 
@@ -609,9 +594,11 @@ function getTopOpportunity(activeJobs, jobScores) {
     .map((job) => ({ job, score: Number(getLatestFitScore(jobScores, job.id)?.score) }))
     .filter((item) => Number.isFinite(item.score))
     .sort((a, b) => b.score - a.score)[0];
-  if (!top) return { title: "Not scored yet", helper: "Analyze roles to reveal the strongest match." };
+  if (!top) return { title: "Not scored yet", roleTitle: "your next analyzed role", matchLabel: "match pending", helper: "Analyze roles to reveal the strongest match." };
   return {
     title: `${Math.round(top.score)}%`,
+    roleTitle: getDisplayJobTitle(top.job),
+    matchLabel: `${Math.round(top.score)}% match`,
     helper: `${getDisplayJobTitle(top.job)} at ${getDisplayCompanyName(top.job)}`,
   };
 }
