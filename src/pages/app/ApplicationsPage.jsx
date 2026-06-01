@@ -370,27 +370,27 @@ function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
       }}
       className={`group cursor-pointer rounded-xl border-l-4 bg-white/95 text-left shadow-sm ring-1 ring-white/70 transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out hover:-translate-y-0.5 hover:ring-brand-200 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${categoryTone} ${sizing}`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2.5">
         <OpportunityScoreBadge model={scoreModel} />
         <div className="min-w-0 flex-1">
           <p className="overflow-hidden text-base font-bold leading-snug text-ink" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{getDisplayJobTitle(job)}</p>
-          <p className="mt-1 truncate text-sm font-semibold text-slate-600">{getDisplayCompanyName(job)}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <p className="mt-0.5 truncate text-sm font-semibold text-slate-600">{getDisplayCompanyName(job)}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100">{stage}</span>
           </div>
         </div>
         <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition duration-150 ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={15} />
       </div>
       {!archived && actionModel && (
-        <div className={`mt-2.5 flex items-center justify-between gap-3 rounded-lg px-2.5 py-2 ring-1 ${actionModel.cardClass}`}>
+        <div className={`mt-2 flex items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 ring-1 ${actionModel.cardClass}`}>
           <span className="min-w-0">
-            <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Next step</span>
-            <span className={`block truncate text-sm font-black ${actionModel.textClass}`}>{actionModel.label}</span>
+            <span className="mr-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Next step</span>
+            <span className={`text-sm font-black ${actionModel.textClass}`}>{actionModel.label}</span>
           </span>
-          <ChevronRight size={14} className={`shrink-0 ${actionModel.textClass}`} />
+          <ChevronRight size={13} className={`shrink-0 opacity-80 ${actionModel.textClass}`} />
         </div>
       )}
-      {updatedLabel && <p className="mt-2 border-t border-slate-100 pt-2 text-xs font-semibold text-slate-500">{updatedLabel}</p>}
+      {updatedLabel && <p className="mt-1.5 border-t border-slate-100 pt-1.5 text-xs font-semibold text-slate-500">{updatedLabel}</p>}
       {archived && (
         <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
           {onRestore && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={(event) => { event.stopPropagation(); onRestore(); }}>Restore</Button>}
@@ -432,12 +432,12 @@ function getPrimaryActionModel(action, category, stage) {
   const label = getPrimaryActionLabel(action.label, category, stage);
   const tone = action.tone || (category === "Ready To Apply" ? "success" : "info");
   const styles = {
-    danger: ["bg-rose-50 ring-rose-100", "text-rose-800"],
-    warning: ["bg-amber-50 ring-amber-100", "text-amber-800"],
-    success: ["bg-emerald-50 ring-emerald-100", "text-emerald-800"],
-    info: ["bg-brand-50 ring-brand-100", "text-brand-800"],
-    neutral: ["bg-slate-50 ring-slate-100", "text-slate-700"],
-  }[tone] ?? ["bg-brand-50 ring-brand-100", "text-brand-800"];
+    danger: ["bg-rose-50/55 ring-rose-100/80", "text-rose-800"],
+    warning: ["bg-amber-50/55 ring-amber-100/80", "text-amber-800"],
+    success: ["bg-emerald-50/55 ring-emerald-100/80", "text-emerald-800"],
+    info: ["bg-brand-50/55 ring-brand-100/80", "text-brand-800"],
+    neutral: ["bg-slate-50/70 ring-slate-100/80", "text-slate-700"],
+  }[tone] ?? ["bg-brand-50/55 ring-brand-100/80", "text-brand-800"];
   return {
     label,
     cardClass: styles[0],
@@ -459,7 +459,7 @@ function getPrimaryActionLabel(label, category, stage) {
 function getOpportunityCardSizing({ category, stage }) {
   if (category === "Archived") return "px-3 py-2 opacity-90";
   if (stage === "Rejected" || category === "Not Active") return "px-3 py-2";
-  if (category === "Ready To Apply" || ["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "px-3 py-3";
+  if (category === "Ready To Apply" || ["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "px-3 py-2.5";
   return "px-3 py-2.5";
 }
 
