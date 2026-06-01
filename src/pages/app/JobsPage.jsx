@@ -722,7 +722,6 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 recruiterMessage={latestMessage}
                 contacts={contacts}
                 user={user}
-                exportReady={exportReady}
                 onSaveCoverLetter={saveMessage}
                 onLogActivity={logJobActivity}
                 onGoToResume={() => requestTabChange("resume")}
@@ -1101,19 +1100,19 @@ function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
 function RecruiterConfidenceHeroSummary({ score, profile, resume, coverLetter, recruiterMessage }) {
   if (!score) return null;
   const confidence = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage });
-  const addressedCount = confidence.recoveryHighlights.length;
-  const summary = addressedCount
-    ? `${addressedCount} hiring consideration${addressedCount === 1 ? "" : "s"} strategically addressed`
-    : confidence.readiness >= 78
-      ? "Recruiter-ready positioning generated"
-      : "Operational positioning optimized";
+  const matchScore = Math.round(Number(score.score ?? score) || confidence.readiness || 0);
+  const recruiterConfidence = confidence.readiness >= 88 ? "High" : confidence.readiness >= 74 ? "Moderate" : "Building";
+  const readinessLabel = confidence.readiness >= 82 ? "Ready to Apply" : confidence.tier;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
+      <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">
+        {matchScore}% Match
+      </span>
       <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">
-        {confidence.tier}
+        {readinessLabel}
       </span>
       <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">
-        {summary}
+        Recruiter Confidence: {recruiterConfidence}
       </span>
     </div>
   );
@@ -1643,7 +1642,7 @@ function useSlowLoading(active) {
   return show;
 }
 
-function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, recruiterMessage, contacts, user, exportReady, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, prep, onExportComplete }) {
+function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, prep, onExportComplete }) {
   const toast = useToast();
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverExporting, setCoverExporting] = useState("");
@@ -1811,7 +1810,6 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         coverLetter={coverLetter}
         recruiterMessage={recruiterMessage}
         prep={prep}
-        exportReady={exportReady}
       />
 
       <PackageBuilderSection
@@ -1884,14 +1882,13 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   );
 }
 
-function ApplicationChecklist({ score, resume, coverLetter, recruiterMessage, prep, exportReady }) {
+function ApplicationChecklist({ score, resume, coverLetter, recruiterMessage, prep }) {
   const rows = [
     ["Analysis", Boolean(score)],
     ["Resume", Boolean(resume)],
     ["Cover Letter", Boolean(coverLetter)],
     ["Recruiter Message", Boolean(recruiterMessage)],
     ["Interview Prep", Boolean(prep)],
-    ["Export", Boolean(exportReady)],
   ];
   const complete = rows.filter(([, done]) => done).length;
   const percent = Math.round((complete / rows.length) * 100);
@@ -1927,7 +1924,6 @@ function ApplicationChecklist({ score, resume, coverLetter, recruiterMessage, pr
 }
 
 function PackageBuilderSection({ items, selections, selectedItems, packageFileName, downloading, onToggle, onDownload, onGoToInterview }) {
-  const selectedNames = selectedItems.map((item) => item.label);
   const unavailableInterviewItems = items.filter((item) => item.group === "Interview Materials" && !item.available).length;
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100 sm:p-5">
@@ -1977,19 +1973,13 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
         </div>
 
         <aside className="rounded-xl bg-brand-50/80 p-3 ring-1 ring-brand-100">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Package Preview</p>
               <h4 className="mt-1 text-sm font-bold text-ink">{selectedItems.length} item{selectedItems.length === 1 ? "" : "s"} selected</h4>
               <p className="mt-1 break-all text-xs font-semibold text-slate-600">{packageFileName}</p>
             </div>
-            <div className="flex max-w-2xl flex-wrap gap-1.5">
-            {selectedNames.length ? selectedNames.map((name) => (
-              <span key={name} className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{name}</span>
-            )) : (
-              <p className="text-sm font-semibold text-slate-600">Select at least one ready item to download.</p>
-            )}
-            </div>
+            <p className="max-w-xs text-xs font-semibold leading-5 text-slate-600">Your selected files and prep assets will download as the application package.</p>
           </div>
         </aside>
       </div>
