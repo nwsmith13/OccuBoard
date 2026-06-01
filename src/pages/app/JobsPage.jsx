@@ -1924,28 +1924,25 @@ function ApplicationChecklist({ score, resume, coverLetter, recruiterMessage, pr
 }
 
 function PackageBuilderSection({ items, selections, selectedItems, packageFileName, downloading, onToggle, onDownload, onGoToInterview }) {
-  const unavailableInterviewItems = items.filter((item) => item.group === "Interview Materials" && !item.available).length;
+  const unavailableInterviewItems = items.filter((item) => item.group === "Interview Prep Kit" && !item.available).length;
+  const ctaLabel = selectedItems.length ? `Download Package (${selectedItems.length})` : "Select items to download";
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100 sm:p-5">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Download Package</p>
           <h3 className="mt-1 text-xl font-bold text-ink">Build your export package</h3>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Select the ready files and prep assets to include. Unavailable items stay visible so the missing pieces are clear.</p>
         </div>
-        <Button className="w-fit" onClick={onDownload} disabled={!selectedItems.length || downloading}>
-          {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-          {downloading ? "Downloading..." : "Download Selected Package"}
-        </Button>
       </div>
 
       <div className="mt-4 grid gap-3">
         <div className="grid gap-3">
-          {["Application Documents", "Interview Materials", "Communication"].map((group) => (
+          {["Application Documents", "Interview Prep Kit", "Communication"].map((group) => (
             <div key={group} className="rounded-xl bg-brand-50/60 p-3 ring-1 ring-brand-100">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-black uppercase tracking-[0.1em] text-slate-600">{group}</p>
-                {group === "Interview Materials" && unavailableInterviewItems > 0 && (
+                {group === "Interview Prep Kit" && unavailableInterviewItems > 0 && (
                   <Button variant="ghost" className="min-h-7 px-2 text-xs" onClick={onGoToInterview}>Open Interview Prep</Button>
                 )}
               </div>
@@ -1973,14 +1970,13 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
         </div>
 
         <aside className="rounded-xl bg-brand-50/80 p-3 ring-1 ring-brand-100">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Package Preview</p>
-              <h4 className="mt-1 text-sm font-bold text-ink">{selectedItems.length} item{selectedItems.length === 1 ? "" : "s"} selected</h4>
-              <p className="mt-1 break-all text-xs font-semibold text-slate-600">{packageFileName}</p>
-            </div>
-            <p className="max-w-xs text-xs font-semibold leading-5 text-slate-600">Your selected files and prep assets will download as the application package.</p>
-          </div>
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Package Preview</p>
+          <h4 className="mt-1 text-sm font-bold text-ink">{selectedItems.length} item{selectedItems.length === 1 ? "" : "s"} selected</h4>
+          <p className="mt-1 break-all text-xs font-semibold text-slate-600">{packageFileName}</p>
+          <Button className="mt-3 w-full justify-center" onClick={onDownload} disabled={!selectedItems.length || downloading}>
+            {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            {downloading ? "Downloading..." : ctaLabel}
+          </Button>
         </aside>
       </div>
     </section>
@@ -2012,10 +2008,10 @@ function getPackageBuilderItems({ resume, coverLetter, recruiterMessage, prepCon
     { key: "coverLetterPdf", label: "Cover Letter PDF", group: "Application Documents", available: Boolean(coverLetter?.content), missingLabel: "Draft cover letter first" },
     { key: "resumeDocx", label: "Resume DOCX", group: "Application Documents", available: Boolean(resume?.content), missingLabel: "Generate resume first" },
     { key: "coverLetterDocx", label: "Cover Letter DOCX", group: "Application Documents", available: Boolean(coverLetter?.content), missingLabel: "Draft cover letter first" },
-    { key: "interviewCheatSheet", label: "Interview Cheat Sheet", group: "Interview Materials", available: Boolean(prepContent), missingLabel: "Prepare interview first" },
-    { key: "interviewQuestions", label: "Interview Questions", group: "Interview Materials", available: hasQuestions, missingLabel: "Prepare interview first" },
-    { key: "starStories", label: "STAR Stories", group: "Interview Materials", available: hasStories, missingLabel: "Prepare interview first" },
-    { key: "researchNotes", label: "Research Notes", group: "Interview Materials", available: hasResearch, missingLabel: "Prepare interview first" },
+    { key: "interviewCheatSheet", label: "Interview Cheat Sheet", group: "Interview Prep Kit", available: Boolean(prepContent), missingLabel: "Prepare interview first" },
+    { key: "interviewQuestions", label: "Interview Questions", group: "Interview Prep Kit", available: hasQuestions, missingLabel: "Prepare interview first" },
+    { key: "starStories", label: "STAR Stories", group: "Interview Prep Kit", available: hasStories, missingLabel: "Prepare interview first" },
+    { key: "researchNotes", label: "Research Notes", group: "Interview Prep Kit", available: hasResearch, missingLabel: "Prepare interview first" },
     { key: "recruiterMessage", label: "Recruiter Message", group: "Communication", available: Boolean(recruiterMessage?.content), missingLabel: "Draft message first" },
   ];
 }
@@ -4048,6 +4044,8 @@ function WorkspaceRail({ activeTab, completed, score, onSelect }) {
     ["Strategy", [
       ["recruiterView", "Recruiter View"],
       ["interview", "Interview Prep"],
+    ]],
+    ["Actions", [
       ["export", "Export"],
     ]],
     ["Support", [
