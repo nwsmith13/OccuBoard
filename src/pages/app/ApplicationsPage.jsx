@@ -239,7 +239,7 @@ function WorkflowStagePills({ active, counts, onChange }) {
   return (
     <div className="mb-4 rounded-2xl bg-white/80 p-3 shadow-sm ring-1 ring-brand-100">
       <p className="mb-2 text-sm font-semibold text-slate-600">
-        Viewing: <span className="font-black text-ink">{active}</span> — {getWorkflowFilterHelper(active)}
+        Showing: <span className="font-black text-ink">{active}</span> — {getWorkflowFilterHelper(active)}
       </p>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {filters.map((filter) => (
