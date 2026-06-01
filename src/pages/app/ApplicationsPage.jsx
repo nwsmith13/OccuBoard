@@ -158,11 +158,12 @@ function CareerMomentumPanel({ metrics }) {
         </div>
         <p className="text-sm font-semibold text-slate-600">Keep the next useful action visible.</p>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Active applications" value={metrics.activeApplications} helper="Open opportunities in motion." />
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <MetricCard label="Search streak" value={`${metrics.currentStreak} day${metrics.currentStreak === 1 ? "" : "s"}`} helper="Recent daily search activity." />
+        <MetricCard label="Interviews this month" value={metrics.interviewsThisMonth} helper="Interview momentum this month." />
         <MetricCard label="Ready to apply" value={metrics.readyToApply} helper="Prepared roles waiting on submission." />
-        <MetricCard label="Interviews" value={metrics.interviewsScheduled} helper="Interview or final interview roles." />
-        <MetricCard label="Current streak" value={`${metrics.currentStreak} day${metrics.currentStreak === 1 ? "" : "s"}`} helper="Recent daily search activity." />
+        <MetricCard label="Top opportunity" value={metrics.topOpportunity.title} helper={metrics.topOpportunity.helper} />
+        <MetricCard label="Best next move" value={metrics.bestNextMove.title} helper={metrics.bestNextMove.helper} />
       </div>
     </section>
   );
@@ -254,7 +255,7 @@ function ActionQueueSection({ queue, onOpen }) {
 function ViewModeToggle({ mode, onChange, disabled }) {
   return (
     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm font-semibold text-slate-600">{mode === "focus" ? "Focus View: top priority roles only." : "Board View: all matching applications."}</p>
+      <p className="text-sm font-semibold text-slate-600">{mode === "focus" ? "Focus View: Only what needs action." : "Board View: All opportunities."}</p>
       <div className="inline-flex w-fit rounded-full bg-white p-1 shadow-sm ring-1 ring-brand-100">
         {["board", "focus"].map((item) => {
           const active = mode === item;
@@ -388,6 +389,7 @@ function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
   const signal = getOpportunitySignal(model);
   const actionModel = getPrimaryActionModel(action, category, stage);
   const sizing = getOpportunityCardSizing({ category, stage });
+  const showSignal = signal && signal.toLowerCase() !== category.toLowerCase();
   return (
     <div
       role="button"
@@ -420,7 +422,7 @@ function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         <StatusPill tone={getCategoryPillTone(category)}>{category}</StatusPill>
-        <StatusPill tone={getSignalTone(signal)}>{signal}</StatusPill>
+        {showSignal && <StatusPill tone={getSignalTone(signal)}>{signal}</StatusPill>}
       </div>
       {!archived && actionModel && (
         <div className={`mt-3 rounded-xl px-3 py-3 ring-1 ${actionModel.cardClass}`}>
@@ -484,7 +486,7 @@ function getOpportunityScoreModel(score) {
 }
 
 function getPrimaryActionModel(action, category, stage) {
-  if (!action || action.actionType === "no_action") return null;
+  if (!action || action.actionType === "no_action" || ["Archived", "Not Active"].includes(category) || stage === "Rejected") return null;
   const label = getPrimaryActionLabel(action.label, category, stage);
   const lower = label.toLowerCase();
   const tone = action.tone || (category === "Ready To Apply" ? "success" : "info");
@@ -529,7 +531,8 @@ function getPrimaryActionSubtext(label, category, stage) {
 }
 
 function getOpportunitySignal(model) {
-  if (model.archived) return "Archived";
+  if (model.archived) return "Archived insight";
+  if (model.stage === "Rejected") return "Not active";
   if (["Interview", "Final Interview", "Recruiter Screen"].includes(model.stage)) return model.interviewPrepScore ? "Interview Ready" : "Interviewing";
   if (model.reminder || model.health.tone === "danger") return "Follow Up Recommended";
   if (model.category === "Ready To Apply") return "Ready To Apply";
@@ -548,7 +551,7 @@ function getSignalTone(signal) {
 
 function getOpportunityCardSizing({ category, stage }) {
   if (category === "Archived") return "px-3 py-2.5 opacity-90";
-  if (stage === "Rejected") return "px-3 py-2.5";
+  if (stage === "Rejected" || category === "Not Active") return "px-3 py-2.5";
   if (category === "Ready To Apply" || ["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "px-3.5 py-4";
   return "px-3 py-3";
 }
@@ -599,6 +602,7 @@ function getApplicationCardModel(job, { jobScores = [], resumeVersions = [], mes
 
 function getApplicationCategory({ archived, stage, status, hasCoverLetter, health }) {
   if (archived) return "Archived";
+  if (stage === "Rejected") return "Not Active";
   if (["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "Interviewing";
   if (status.resumeDrafted && status.messageDrafted && hasCoverLetter && stage === "Saved") return "Ready To Apply";
   if (health.tone === "danger" || !status.resumeDrafted || !hasCoverLetter) return "Needs Attention";
@@ -607,10 +611,11 @@ function getApplicationCategory({ archived, stage, status, hasCoverLetter, healt
 
 function getApplicationCategoryTone(category) {
   return {
-    "Ready To Apply": "border-l-emerald-400",
-    "Needs Attention": "border-l-amber-400",
-    Interviewing: "border-l-brand-500",
+    "Ready To Apply": "border-l-emerald-400 bg-emerald-50/30 ring-emerald-100",
+    "Needs Attention": "border-l-amber-300 bg-amber-50/20 ring-amber-100",
+    Interviewing: "border-l-brand-500 bg-brand-50/35 ring-brand-100",
     Archived: "border-l-slate-300 opacity-90",
+    "Not Active": "border-l-slate-300 bg-slate-50/70 opacity-90",
     Active: "border-l-slate-200",
   }[category] ?? "border-l-slate-200";
 }
@@ -621,6 +626,7 @@ function getCategoryPillTone(category) {
     "Needs Attention": "warning",
     Interviewing: "info",
     Archived: "neutral",
+    "Not Active": "neutral",
   }[category] ?? "neutral";
 }
 
@@ -659,28 +665,56 @@ function getFocusViewJobs(queue) {
 function getApplicationMetrics(activeJobs, { jobScores = [], jobContacts = [], resumeVersions = [], messages = [], jobActivityLogs = [] }) {
   const activeApplications = activeJobs.filter((job) => getPipelineStage(job.status) !== "Saved").length;
   const interviewsScheduled = activeJobs.filter((job) => ["Interview", "Final Interview"].includes(getPipelineStage(job.status)) || job.interview_date).length;
+  const interviewsThisMonth = activeJobs.filter((job) => (["Interview", "Final Interview"].includes(getPipelineStage(job.status)) && isThisMonth(job.updated_at || job.created_at)) || isThisMonth(job.interview_date)).length;
   const appliedOrBeyond = activeJobs.filter((job) => isAppliedPipelineStage(getPipelineStage(job.status)));
   const responded = appliedOrBeyond.filter((job) => jobContacts.some((contact) => contact.job_id === job.id && contact.last_contacted_at) || ["Recruiter Screen", "Interview", "Final Interview", "Offer"].includes(getPipelineStage(job.status))).length;
   const scored = activeJobs.map((job) => getLatestFitScore(jobScores, job.id)?.score).filter((value) => Number.isFinite(Number(value)));
+  const topJob = getTopOpportunity(activeJobs, jobScores);
+  const followUpsNeeded = activeJobs.filter((job) => getApplicationHealth(job, getApplicationTimeline(job, {})).tone === "danger").length;
   const readyToApply = activeJobs.filter((job) => {
     const status = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
     const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
     return getPipelineStage(job.status) === "Saved" && status.resumeDrafted && status.messageDrafted && hasCoverLetter;
   }).length;
+  const bestMove = getBestNextMove({ readyToApply, interviewsThisMonth, followUpsNeeded, activeApplications });
   return {
     activeApplications,
     interviewsScheduled,
+    interviewsThisMonth,
     readyToApply,
     currentStreak: getCurrentActivityStreak(activeJobs, { jobActivityLogs, messages, resumeVersions }),
+    topOpportunity: topJob,
+    bestNextMove: bestMove,
     responseRate: appliedOrBeyond.length ? Math.round((responded / appliedOrBeyond.length) * 100) : 0,
     averageFitScore: scored.length ? Math.round(scored.reduce((sum, value) => sum + Number(value), 0) / scored.length) : 0,
-    followUpsNeeded: activeJobs.filter((job) => getApplicationHealth(job, getApplicationTimeline(job, {})).tone === "danger").length,
+    followUpsNeeded,
     applicationsThisMonth: activeJobs.filter((job) => isThisMonth(job.applied_date)).length,
   };
 }
 
 function isAppliedPipelineStage(stage) {
   return ["Applied", "Recruiter Screen", "Interview", "Final Interview", "Offer", "Rejected"].includes(stage);
+}
+
+function getTopOpportunity(activeJobs, jobScores) {
+  const top = activeJobs
+    .filter((job) => getPipelineStage(job.status) !== "Rejected")
+    .map((job) => ({ job, score: Number(getLatestFitScore(jobScores, job.id)?.score) }))
+    .filter((item) => Number.isFinite(item.score))
+    .sort((a, b) => b.score - a.score)[0];
+  if (!top) return { title: "Not scored yet", helper: "Analyze roles to reveal the strongest match." };
+  return {
+    title: `${Math.round(top.score)}%`,
+    helper: `${getDisplayJobTitle(top.job)} at ${getDisplayCompanyName(top.job)}`,
+  };
+}
+
+function getBestNextMove({ readyToApply, interviewsThisMonth, followUpsNeeded, activeApplications }) {
+  if (readyToApply > 0) return { title: "Submit ready role", helper: `${readyToApply} package${readyToApply === 1 ? " is" : "s are"} ready.` };
+  if (followUpsNeeded > 0) return { title: "Follow up", helper: `${followUpsNeeded} touchpoint${followUpsNeeded === 1 ? "" : "s"} need attention.` };
+  if (interviewsThisMonth > 0) return { title: "Practice interview", helper: "Keep prep fresh for active interview momentum." };
+  if (activeApplications > 0) return { title: "Advance one role", helper: "Pick the strongest opportunity and complete the next asset." };
+  return { title: "Analyze a role", helper: "Start with a job analysis to build momentum." };
 }
 
 function getApplicationTimeline(job, { jobActivityLogs = [], messages = [], resumeVersions = [] }) {
