@@ -1,14 +1,14 @@
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock3 } from "lucide-react";
+import { AlertTriangle, CalendarCheck, CheckCircle2, ChevronRight, Clock3, FileText, Send } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
-import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
+import { getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { getActiveJobs, getArchivedJobs, isArchivedJob } from "../../lib/archive.js";
 import { formatDate, todayIso } from "../../lib/date.js";
-import { getFollowUpLabel, getFollowUpStatus, getFollowUpTone, normalizeStage } from "../../lib/followUp.js";
+import { normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus, isCoverLetter } from "../../lib/jobAiStatus.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -382,8 +382,12 @@ function getPipelineStage(status) {
 }
 
 function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
-  const { job, score, contacts, archived, stage, health, reminder, lastContact, interviewPrepScore, action, category, hasCoverLetter } = model;
+  const { job, score, contacts, archived, stage, health, lastContact, interviewPrepScore, action, category } = model;
   const categoryTone = getApplicationCategoryTone(category);
+  const scoreModel = getOpportunityScoreModel(score);
+  const signal = getOpportunitySignal(model);
+  const actionModel = getPrimaryActionModel(action, category, stage);
+  const sizing = getOpportunityCardSizing({ category, stage });
   return (
     <div
       role="button"
@@ -396,46 +400,53 @@ function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
           onOpen();
         }
       }}
-      className={`group cursor-pointer rounded-xl border-l-4 bg-white/95 px-3 py-3 text-left shadow-sm ring-1 ring-white/70 transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:ring-brand-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${categoryTone}`}
+      className={`group cursor-pointer rounded-xl border-l-4 bg-white/95 text-left shadow-sm ring-1 ring-white/70 transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out hover:-translate-y-0.5 hover:ring-brand-200 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${categoryTone} ${sizing}`}
     >
-      <div className="flex gap-2 flex-col">
+      <div className="flex flex-col gap-2">
         <div className="min-w-0">
           <div className="flex items-start gap-2.5">
             <CompanyLogo companyName={getDisplayCompanyName(job)} companyDomain={job.company_domain} companyLogoUrl={job.company_logo_url} sourceUrl={job.source_url} size="md" />
             <div className="min-w-0 flex-1">
-              <div className="flex items-start gap-2">
-                <FitScoreBadge score={score} compact />
+              <div className="flex items-start gap-2.5">
+                <OpportunityScoreBadge model={scoreModel} />
                 <p className="min-w-0 flex-1 overflow-hidden text-base font-bold leading-snug text-ink" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{getDisplayJobTitle(job)}</p>
               </div>
               <p className="mt-1 text-sm font-medium leading-5 text-slate-600">{getDisplayCompanyName(job)} <span className="text-slate-300">/</span> {stage}</p>
+              <p className={`mt-1 text-xs font-black uppercase tracking-[0.1em] ${scoreModel.textClass}`}>{scoreModel.label}</p>
             </div>
-            <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={15} />
+            <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition duration-150 ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={15} />
           </div>
         </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         <StatusPill tone={getCategoryPillTone(category)}>{category}</StatusPill>
-        <StatusPill tone={health.tone}>{health.label}</StatusPill>
-        {reminder && <StatusPill tone="warning">{reminder}</StatusPill>}
+        <StatusPill tone={getSignalTone(signal)}>{signal}</StatusPill>
       </div>
-      {!archived && action?.actionType !== "no_action" && (
-        <div className="mt-3 rounded-lg bg-brand-50/80 px-3 py-2 ring-1 ring-brand-100">
-          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-brand-600">Next action</p>
-          <p className={`mt-0.5 text-sm font-bold ${getActionLineTone(action.tone)}`}>{action.label}</p>
+      {!archived && actionModel && (
+        <div className={`mt-3 rounded-xl px-3 py-3 ring-1 ${actionModel.cardClass}`}>
+          <div className="flex gap-2.5">
+            <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${actionModel.iconClass}`}>
+              <actionModel.Icon size={17} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">Primary action</span>
+              <span className={`mt-0.5 block text-base font-black leading-tight ${actionModel.textClass}`}>{actionModel.label}</span>
+              <span className="mt-1 block text-xs font-semibold leading-5 text-slate-600">{actionModel.subtext}</span>
+            </span>
+          </div>
         </div>
       )}
-      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-slate-500">
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-xs font-semibold text-slate-500">
         {job.applied_date && <p>Applied {formatShortDate(job.applied_date)}</p>}
         {lastContact && <p>Last contact {formatShortDate(lastContact)}</p>}
         {contacts.length > 0 && <p>{contacts.length} contact{contacts.length === 1 ? "" : "s"}</p>}
-        {hasCoverLetter && <p>Cover letter ready</p>}
+        {health.label && <p>{health.label}</p>}
       </div>
       {["Interview", "Final Interview"].includes(stage) && (
         <div className="mt-2 rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100">
           {"\u2713"} Interview Prep Available{interviewPrepScore ? `: ${interviewPrepScore}%` : ""}
         </div>
       )}
-      <FollowUpChip job={job} />
       {archived && (
         <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
           {onRestore && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={(event) => { event.stopPropagation(); onRestore(); }}>Restore</Button>}
@@ -446,14 +457,100 @@ function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
   );
 }
 
-function getActionLineTone(tone) {
+function OpportunityScoreBadge({ model }) {
+  return (
+    <span className={`inline-flex min-w-14 shrink-0 flex-col items-center justify-center rounded-xl px-2.5 py-1.5 text-center font-black ring-1 ${model.className}`}>
+      <span className="text-lg leading-none">{model.value}</span>
+      <span className="mt-0.5 text-[10px] uppercase tracking-[0.08em]">Fit</span>
+    </span>
+  );
+}
+
+function getOpportunityScoreModel(score) {
+  const value = Number(score?.score);
+  if (!Number.isFinite(value)) {
+    return {
+      value: "--",
+      label: "Possible Match",
+      className: "bg-slate-50 text-slate-600 ring-slate-100",
+      textClass: "text-slate-500",
+    };
+  }
+  const rounded = `${Math.round(value)}%`;
+  if (value >= 90) return { value: rounded, label: "Excellent Match", className: "bg-emerald-50 text-emerald-800 ring-emerald-100", textClass: "text-emerald-700" };
+  if (value >= 85) return { value: rounded, label: "Strong Match", className: "bg-emerald-50 text-emerald-800 ring-emerald-100", textClass: "text-emerald-700" };
+  if (value >= 70) return { value: rounded, label: "Possible Match", className: "bg-amber-50 text-amber-800 ring-amber-100", textClass: "text-amber-700" };
+  return { value: rounded, label: "Long Shot", className: "bg-rose-50 text-rose-700 ring-rose-100", textClass: "text-rose-700" };
+}
+
+function getPrimaryActionModel(action, category, stage) {
+  if (!action || action.actionType === "no_action") return null;
+  const label = getPrimaryActionLabel(action.label, category, stage);
+  const lower = label.toLowerCase();
+  const tone = action.tone || (category === "Ready To Apply" ? "success" : "info");
+  const Icon = lower.includes("interview") ? CalendarCheck : lower.includes("follow") || lower.includes("message") ? Send : FileText;
+  const styles = {
+    danger: ["bg-rose-50 ring-rose-100", "bg-rose-100 text-rose-700", "text-rose-800"],
+    warning: ["bg-amber-50 ring-amber-100", "bg-amber-100 text-amber-800", "text-amber-800"],
+    success: ["bg-emerald-50 ring-emerald-100", "bg-emerald-100 text-emerald-800", "text-emerald-800"],
+    info: ["bg-brand-50 ring-brand-100", "bg-brand-100 text-brand-800", "text-brand-800"],
+    neutral: ["bg-slate-50 ring-slate-100", "bg-slate-100 text-slate-700", "text-slate-700"],
+  }[tone] ?? ["bg-brand-50 ring-brand-100", "bg-brand-100 text-brand-800", "text-brand-800"];
   return {
-    danger: "text-rose-700",
-    warning: "text-amber-700",
-    success: "text-emerald-700",
-    info: "text-brand-700",
-    neutral: "text-slate-500",
-  }[tone] ?? "text-slate-500";
+    Icon,
+    label,
+    subtext: getPrimaryActionSubtext(label, category, stage),
+    cardClass: styles[0],
+    iconClass: styles[1],
+    textClass: styles[2],
+  };
+}
+
+function getPrimaryActionLabel(label, category, stage) {
+  const lower = String(label || "").toLowerCase();
+  if (category === "Ready To Apply") return "Submit Application";
+  if (["Interview", "Final Interview", "Recruiter Screen"].includes(stage) && lower.includes("interview")) return "Prepare For Interview";
+  if (lower.includes("follow")) return "Send Follow Up";
+  if (lower.includes("cover")) return "Generate Cover Letter";
+  if (lower.includes("resume")) return "Generate Resume";
+  if (lower.includes("message")) return "Draft Recruiter Message";
+  return label || "Open Opportunity";
+}
+
+function getPrimaryActionSubtext(label, category, stage) {
+  const lower = String(label || "").toLowerCase();
+  if (category === "Ready To Apply") return "Materials are ready. Open the command center to export or mark applied.";
+  if (lower.includes("interview") || ["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "Review prep, stories, and likely questions before the next conversation.";
+  if (lower.includes("follow")) return "Keep the opportunity warm with a clear next touchpoint.";
+  if (lower.includes("cover")) return "Add the optional letter when it strengthens the application package.";
+  if (lower.includes("resume")) return "Tailor the resume before building the rest of the package.";
+  if (lower.includes("message")) return "Prepare concise outreach after the core materials are ready.";
+  return "Open the opportunity workspace for the next useful step.";
+}
+
+function getOpportunitySignal(model) {
+  if (model.archived) return "Archived";
+  if (["Interview", "Final Interview", "Recruiter Screen"].includes(model.stage)) return model.interviewPrepScore ? "Interview Ready" : "Interviewing";
+  if (model.reminder || model.health.tone === "danger") return "Follow Up Recommended";
+  if (model.category === "Ready To Apply") return "Ready To Apply";
+  if (model.status.resumeDrafted && !model.hasCoverLetter) return "Missing Cover Letter";
+  if (model.status.resumeDrafted) return "Resume Complete";
+  if (isAppliedPipelineStage(model.stage)) return "Waiting On Employer";
+  return "Needs Resume";
+}
+
+function getSignalTone(signal) {
+  if (["Interview Ready", "Ready To Apply", "Resume Complete"].includes(signal)) return "healthy";
+  if (["Interviewing", "Waiting On Employer"].includes(signal)) return "info";
+  if (["Missing Cover Letter", "Follow Up Recommended", "Needs Resume"].includes(signal)) return "warning";
+  return "neutral";
+}
+
+function getOpportunityCardSizing({ category, stage }) {
+  if (category === "Archived") return "px-3 py-2.5 opacity-90";
+  if (stage === "Rejected") return "px-3 py-2.5";
+  if (category === "Ready To Apply" || ["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "px-3.5 py-4";
+  return "px-3 py-3";
 }
 
 function StatusPill({ tone = "neutral", children }) {
@@ -711,18 +808,6 @@ function ApplicationCardsSkeleton() {
 
 export function getNextAction(job, status) {
   return getNextBestAction(job, { aiStatus: status }).label;
-}
-
-function FollowUpChip({ job }) {
-  const status = getFollowUpStatus(job);
-  const label = getFollowUpLabel(job);
-  if (!label) return null;
-
-  return (
-    <span className={`mt-2 inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-bold ring-1 ${getFollowUpTone(status)}`}>
-      {label}
-    </span>
-  );
 }
 
 
