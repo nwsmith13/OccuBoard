@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronRight } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
@@ -33,6 +33,7 @@ export function ApplicationsPage() {
   const [searchParams] = useSearchParams();
   const [smartFilter, setSmartFilter] = useState("All");
   const [archiveMode, setArchiveMode] = useState("active");
+  const [viewMode, setViewMode] = useState("board");
   const [success, setSuccess] = useState("");
   const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
   const archivedJobs = useMemo(() => getArchivedJobs(jobs), [jobs]);
@@ -44,6 +45,8 @@ export function ApplicationsPage() {
   );
   const visibleJobs = useMemo(() => enrichedJobs.filter((model) => matchesSmartFilter(model, smartFilter)), [enrichedJobs, smartFilter]);
   const actionQueue = useMemo(() => getActionQueue(enrichedJobs.filter((model) => !model.archived)), [enrichedJobs]);
+  const focusJobs = useMemo(() => getFocusViewJobs(actionQueue), [actionQueue]);
+  const displayedJobs = viewMode === "focus" ? focusJobs : visibleJobs;
 
   useEffect(() => {
     const openJobId = location.state?.openJobId || searchParams.get("jobId");
@@ -118,13 +121,16 @@ export function ApplicationsPage() {
         onChange={(filter) => {
           setSmartFilter(filter);
           setArchiveMode(filter === "Archived" ? "archived" : "active");
+          if (filter === "Archived") setViewMode("board");
         }}
       />
 
+      <ViewModeToggle mode={viewMode} onChange={setViewMode} disabled={archiveMode === "archived"} />
+
       {loading ? (
         <ApplicationCardsSkeleton />
-      ) : !visibleJobs.length ? (
-        <EmptyApplicationState filter={smartFilter} archiveMode={archiveMode}>
+      ) : !displayedJobs.length ? (
+        <EmptyApplicationState filter={smartFilter} archiveMode={archiveMode} viewMode={viewMode}>
           {archiveMode === "active" && smartFilter === "All" && (
             <Link to="/app/new-jobs" className="mt-5 inline-flex">
               <Button>Analyze New Job</Button>
@@ -133,7 +139,7 @@ export function ApplicationsPage() {
         </EmptyApplicationState>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {visibleJobs.map((model) => (
+          {displayedJobs.map((model) => (
             <ApplicationCard key={model.job.id} model={model} onOpen={() => navigate(`/app/applications/${model.job.id}`)} onRestore={model.archived ? () => restoreJob(model.job) : undefined} onDelete={model.archived ? () => deleteJob(user, model.job.id) : undefined} />
           ))}
         </div>
@@ -174,32 +180,70 @@ function MetricCard({ label, value, helper }) {
 
 function ActionQueueSection({ queue, onOpen }) {
   const sections = [
-    ["Apply Today", queue.applyToday, "Prepared roles ready for submission."],
-    ["Needs Attention", queue.needsAttention, "Missing materials or stale opportunities."],
-    ["Follow Up", queue.followUp, "Touchpoints that keep momentum alive."],
+    {
+      title: "Apply Today",
+      items: queue.applyToday,
+      helper: "Prepared roles ready for submission.",
+      action: "Open ready role",
+      icon: CheckCircle2,
+      cardClass: "from-emerald-50 via-white to-cyan-50 ring-emerald-100",
+      badgeClass: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+      buttonClass: "bg-emerald-700 text-white hover:bg-emerald-800",
+    },
+    {
+      title: "Needs Attention",
+      items: queue.needsAttention,
+      helper: "Missing materials or stale opportunities.",
+      action: "Review next step",
+      icon: AlertTriangle,
+      cardClass: "from-amber-50 via-white to-orange-50 ring-amber-100",
+      badgeClass: "bg-amber-100 text-amber-800 ring-amber-200",
+      buttonClass: "bg-amber-600 text-white hover:bg-amber-700",
+    },
+    {
+      title: "Follow Up",
+      items: queue.followUp,
+      helper: "Touchpoints that keep momentum alive.",
+      action: "Open follow-up",
+      icon: Clock3,
+      cardClass: "from-brand-50 via-white to-cyan-50 ring-brand-100",
+      badgeClass: "bg-brand-100 text-brand-800 ring-brand-200",
+      buttonClass: "bg-brand-700 text-white hover:bg-brand-800",
+    },
   ];
   return (
     <section className="mb-5 grid gap-3 xl:grid-cols-3">
-      {sections.map(([title, items, helper]) => (
-        <div key={title} className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+      {sections.map(({ title, items, helper, action, icon: Icon, cardClass, badgeClass, buttonClass }) => (
+        <div key={title} className={`rounded-xl bg-gradient-to-br p-4 shadow-sm ring-1 ${cardClass}`}>
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">{title}</p>
-              <p className="mt-1 text-sm font-semibold text-slate-600">{helper}</p>
+            <div className="flex min-w-0 gap-3">
+              <span className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ${badgeClass}`}>
+                <Icon size={18} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-700">{title}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-600">{helper}</p>
+              </div>
             </div>
-            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-black text-brand-800 ring-1 ring-brand-100">{items.length}</span>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-black ring-1 ${badgeClass}`}>{items.length}</span>
           </div>
           <div className="mt-3 grid gap-2">
-            {items.slice(0, 3).map((model) => (
-              <button key={model.job.id} type="button" onClick={() => onOpen(model.job.id)} className="flex items-center justify-between gap-3 rounded-lg bg-brand-50/70 px-3 py-2 text-left ring-1 ring-brand-100 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">
+            {items.slice(0, 2).map((model) => (
+              <button key={model.job.id} type="button" onClick={() => onOpen(model.job.id)} className="flex items-center justify-between gap-3 rounded-lg bg-white/80 px-3 py-2 text-left ring-1 ring-white/80 transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100">
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-ink">{getDisplayJobTitle(model.job)}</span>
-                  <span className="block truncate text-xs font-semibold text-slate-600">{getDisplayCompanyName(model.job)} · {model.action.label}</span>
+                  <span className="block truncate text-xs font-semibold text-slate-600">{getDisplayCompanyName(model.job)} / {model.action.label}</span>
                 </span>
-                <ChevronRight size={14} className="shrink-0 text-brand-600" />
+                <ChevronRight size={14} className="shrink-0 text-slate-400" />
               </button>
             ))}
-            {!items.length && <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">Nothing urgent here.</p>}
+            {items.length > 0 ? (
+              <button type="button" onClick={() => onOpen(items[0].job.id)} className={`mt-1 inline-flex min-h-9 items-center justify-center rounded-lg px-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${buttonClass}`}>
+                {action}
+              </button>
+            ) : (
+              <p className="rounded-lg bg-white/70 px-3 py-2 text-sm font-semibold text-slate-600">You&apos;re caught up here.</p>
+            )}
           </div>
         </div>
       ))}
@@ -207,10 +251,36 @@ function ActionQueueSection({ queue, onOpen }) {
   );
 }
 
+function ViewModeToggle({ mode, onChange, disabled }) {
+  return (
+    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm font-semibold text-slate-600">{mode === "focus" ? "Focus View: top priority roles only." : "Board View: all matching applications."}</p>
+      <div className="inline-flex w-fit rounded-full bg-white p-1 shadow-sm ring-1 ring-brand-100">
+        {["board", "focus"].map((item) => {
+          const active = mode === item;
+          const label = item === "board" ? "Board View" : "Focus View";
+          return (
+            <button
+              key={item}
+              type="button"
+              disabled={disabled && item === "focus"}
+              onClick={() => onChange(item)}
+              aria-pressed={active}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 disabled:cursor-not-allowed disabled:opacity-50 ${active ? "bg-brand-700 text-white" : "text-slate-700 hover:bg-brand-50"}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SmartFilterPills({ active, archivedCount, onChange }) {
   const filters = ["All", "Ready To Apply", "Needs Resume", "Needs Cover Letter", "Needs Follow Up", "Interviewing", "Applied", "Archived"];
   return (
-    <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+    <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
       {filters.map((filter) => (
         <button
           key={filter}
@@ -225,21 +295,42 @@ function SmartFilterPills({ active, archivedCount, onChange }) {
   );
 }
 
-function EmptyApplicationState({ filter, archiveMode, children }) {
+function EmptyApplicationState({ filter, archiveMode, viewMode, children }) {
   const archived = archiveMode === "archived" || filter === "Archived";
-  const title = archived ? "No archived opportunities." : filter === "All" ? "Start your command center." : `No roles match ${filter}.`;
-  const copy = archived
-    ? "Archived roles will stay recoverable here when you need them."
-    : filter === "All"
-      ? "Analyze your first role and OccuBoard will organize the next steps here."
-      : "That is good signal. Try another filter or keep preparing your strongest roles.";
+  const emptyCopy = getEmptyStateCopy({ filter, archived, viewMode });
   return (
     <div className="rounded-xl bg-white/90 p-8 text-center shadow-card ring-1 ring-brand-100">
-      <h3 className="text-xl font-bold text-ink">{title}</h3>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">{copy}</p>
+      <h3 className="text-xl font-bold text-ink">{emptyCopy.title}</h3>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">{emptyCopy.copy}</p>
       {children}
     </div>
   );
+}
+
+function getEmptyStateCopy({ filter, archived, viewMode }) {
+  if (viewMode === "focus") {
+    return {
+      title: "You are caught up.",
+      copy: "No high-priority applications need action right now. Board View still has the full pipeline when you want it.",
+    };
+  }
+  if (archived) {
+    return {
+      title: "No archived opportunities.",
+      copy: "Archived roles will stay recoverable here when you need them.",
+    };
+  }
+  const copyByFilter = {
+    All: ["Start your command center.", "Analyze your first role and OccuBoard will organize the next steps here."],
+    "Ready To Apply": ["Nothing waiting to apply.", "Generate materials for strong matches and ready roles will appear here."],
+    "Needs Resume": ["Every visible role has a resume plan.", "You are current on resume prep for this filter."],
+    "Needs Cover Letter": ["No cover letters needed right now.", "When a role would benefit from one, it will show up here."],
+    "Needs Follow Up": ["You are caught up on follow-ups.", "No touchpoints need attention at the moment."],
+    Interviewing: ["No active interviews yet.", "Interview-stage roles will appear here with prep shortcuts."],
+    Applied: ["No applied roles in this view.", "Once you mark roles applied, they will collect here."],
+  };
+  const [title, copy] = copyByFilter[filter] || [`No roles match ${filter}.`, "Try another filter or keep preparing your strongest roles."];
+  return { title, copy };
 }
 
 function ApplicationWorkspacePage({ applicationId, initialTab = "overview", initialFocus = "", initialContactId = "", onBack }) {
@@ -291,7 +382,7 @@ function getPipelineStage(status) {
 }
 
 function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
-  const { job, score, status, contacts, archived, stage, health, reminder, lastContact, interviewPrepScore, action, category, hasCoverLetter } = model;
+  const { job, score, contacts, archived, stage, health, reminder, lastContact, interviewPrepScore, action, category, hasCoverLetter } = model;
   const categoryTone = getApplicationCategoryTone(category);
   return (
     <div
@@ -317,10 +408,6 @@ function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
                 <p className="min-w-0 flex-1 overflow-hidden text-base font-bold leading-snug text-ink" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{getDisplayJobTitle(job)}</p>
               </div>
               <p className="mt-1 text-sm font-medium leading-5 text-slate-600">{getDisplayCompanyName(job)} <span className="text-slate-300">/</span> {stage}</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {contacts.length > 0 && <p className="text-xs font-bold text-brand-700">{contacts.length} contact{contacts.length === 1 ? "" : "s"}</p>}
-                {hasCoverLetter && <p className="text-xs font-bold text-cyan-700">Cover letter</p>}
-              </div>
             </div>
             <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={15} />
           </div>
@@ -331,20 +418,24 @@ function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
         <StatusPill tone={health.tone}>{health.label}</StatusPill>
         {reminder && <StatusPill tone="warning">{reminder}</StatusPill>}
       </div>
-      <div className="mt-2 grid gap-1 text-xs font-semibold text-slate-500">
+      {!archived && action?.actionType !== "no_action" && (
+        <div className="mt-3 rounded-lg bg-brand-50/80 px-3 py-2 ring-1 ring-brand-100">
+          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-brand-600">Next action</p>
+          <p className={`mt-0.5 text-sm font-bold ${getActionLineTone(action.tone)}`}>{action.label}</p>
+        </div>
+      )}
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-slate-500">
         {job.applied_date && <p>Applied {formatShortDate(job.applied_date)}</p>}
         {lastContact && <p>Last contact {formatShortDate(lastContact)}</p>}
+        {contacts.length > 0 && <p>{contacts.length} contact{contacts.length === 1 ? "" : "s"}</p>}
+        {hasCoverLetter && <p>Cover letter ready</p>}
       </div>
       {["Interview", "Final Interview"].includes(stage) && (
         <div className="mt-2 rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100">
           {"\u2713"} Interview Prep Available{interviewPrepScore ? `: ${interviewPrepScore}%` : ""}
         </div>
       )}
-      <KanbanAiStatus status={status} />
       <FollowUpChip job={job} />
-      {!archived && action?.actionType !== "no_action" && (
-        <p className={`mt-2 truncate text-xs font-semibold ${getActionLineTone(action.tone)}`}>{action.label}</p>
-      )}
       {archived && (
         <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
           {onRestore && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={(event) => { event.stopPropagation(); onRestore(); }}>Restore</Button>}
@@ -454,6 +545,18 @@ function getActionQueue(models) {
     needsAttention: models.filter((model) => model.category === "Needs Attention").slice(0, 5),
     followUp: models.filter((model) => model.health.tone === "danger" || model.reminder).slice(0, 5),
   };
+}
+
+function getFocusViewJobs(queue) {
+  const seen = new Set();
+  return [queue.applyToday, queue.followUp, queue.needsAttention]
+    .flat()
+    .filter((model) => {
+      if (seen.has(model.job.id)) return false;
+      seen.add(model.job.id);
+      return true;
+    })
+    .slice(0, 12);
 }
 
 function getApplicationMetrics(activeJobs, { jobScores = [], jobContacts = [], resumeVersions = [], messages = [], jobActivityLogs = [] }) {
@@ -622,24 +725,6 @@ function FollowUpChip({ job }) {
   );
 }
 
-function KanbanAiStatus({ status }) {
-  const ready = [
-    status.analyzed && "Analysis",
-    status.resumeDrafted && "Resume",
-    status.messageDrafted && "Message",
-  ].filter(Boolean);
 
-  if (!ready.length) return null;
-
-  return (
-    <div className="mt-2 flex flex-nowrap items-center gap-3 overflow-hidden whitespace-nowrap">
-      {ready.map((item) => (
-        <span key={item} aria-label={`${item} complete`} className="shrink-0 text-xs font-bold text-emerald-700">
-          <span aria-hidden="true">{"\u2713"}</span> {item}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 
