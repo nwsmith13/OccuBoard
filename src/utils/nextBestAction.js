@@ -59,8 +59,8 @@ const actionDefaults = {
     icon: "sparkles",
   },
   export_package: {
-    label: "Export application package",
-    description: "Your preparation assets are ready. Export the package when you are ready to apply.",
+    label: "Ready to apply",
+    description: "Everything needed for submission is complete. Export your package or mark this role as applied after submission.",
     tone: "success",
     priority: 2,
     icon: "download",

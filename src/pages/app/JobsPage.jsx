@@ -286,6 +286,14 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const [reviewedRecruiterView, setReviewedRecruiterView] = useState(initialTab === "recruiterView");
   const [notesDraft, setNotesDraft] = useState(initialJob.notes || "");
   const [tasks, setTasks] = useState(() => loadJobCommandTasks(initialJob.id));
+  const [markAppliedOpen, setMarkAppliedOpen] = useState(false);
+  const [markAppliedSaving, setMarkAppliedSaving] = useState(false);
+  const [markAppliedForm, setMarkAppliedForm] = useState(() => ({
+    appliedDate: initialJob.applied_date || todayIso(),
+    applicationUrl: initialJob.application_url || "",
+    followUpDate: getFollowUpDate(initialJob) || "",
+    followUpNote: getFollowUpNote(initialJob) || "",
+  }));
   const [overviewPanels, setOverviewPanels] = useState({
     role: false,
     description: false,
@@ -340,6 +348,12 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   useEffect(() => {
     setModalJob(initialJob);
     setNotesDraft(initialJob.notes || "");
+    setMarkAppliedForm({
+      appliedDate: initialJob.applied_date || todayIso(),
+      applicationUrl: initialJob.application_url || "",
+      followUpDate: getFollowUpDate(initialJob) || "",
+      followUpNote: getFollowUpNote(initialJob) || "",
+    });
   }, [initialJob]);
 
   useEffect(() => {
@@ -374,7 +388,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
       return;
     }
     if (nextBestAction.actionType === "apply_now") {
-      onMove?.();
+      setMarkAppliedOpen(true);
       return;
     }
     if (nextBestAction.actionType === "generate_message") {
@@ -418,6 +432,39 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
       onClose?.();
     } catch {
       toast.error("Could not archive opportunity.");
+    }
+  }
+
+  async function saveMarkApplied() {
+    setMarkAppliedSaving(true);
+    try {
+      const patch = {
+        status: "Applied",
+        applied_date: markAppliedForm.appliedDate || todayIso(),
+        application_url: markAppliedForm.applicationUrl.trim() || null,
+      };
+      if (markAppliedForm.followUpDate) {
+        patch.followup_date = markAppliedForm.followUpDate;
+        patch.followup_note = markAppliedForm.followUpNote;
+        patch.followup_status = "scheduled";
+        patch.followup_completed_at = null;
+        patch.followup_snoozed_until = null;
+      }
+      const updated = await updateJob(user, job.id, patch);
+      const nextJob = mergeJobUpdate({ ...patch, ...updated });
+      await logJobActivity?.(user, job.id, "application_marked_applied", {
+        detail: "Application marked applied",
+        appliedDate: patch.applied_date,
+        followUpDate: patch.followup_date || "",
+      });
+      setMarkAppliedOpen(false);
+      if (patch.followup_date) setOverviewPanels((current) => ({ ...current, followup: true }));
+      toast.success("Application marked applied.");
+      onJobUpdate?.(nextJob);
+    } catch {
+      toast.error("Could not mark application applied.");
+    } finally {
+      setMarkAppliedSaving(false);
     }
   }
 
@@ -516,7 +563,12 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   exportReady={exportReady}
                   packageDownloaded={packageDownloaded}
                   onTabChange={requestTabChange}
-                  onMarkApplied={onMove}
+                  onMarkApplied={() => setMarkAppliedOpen(true)}
+                  onSetFollowUp={() => {
+                    requestTabChange("overview");
+                    setOverviewPanels((current) => ({ ...current, followup: true }));
+                    window.setTimeout(() => followUpSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 30);
+                  }}
                 />
               </div>
               {!pageMode && (
@@ -533,7 +585,22 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
           <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
           {activeTab === "overview" && (
             <div className="mx-auto grid max-w-6xl gap-5">
-              <NextBestActionCard action={nextBestAction} onAction={handleNextBestAction} />
+              <NextBestActionCard
+                action={nextBestAction}
+                onAction={handleNextBestAction}
+                onExport={() => requestTabChange("export")}
+                onMarkApplied={() => setMarkAppliedOpen(true)}
+              />
+
+              {markAppliedOpen && (
+                <MarkAppliedPanel
+                  form={markAppliedForm}
+                  saving={markAppliedSaving}
+                  onChange={(field, value) => setMarkAppliedForm((current) => ({ ...current, [field]: value }))}
+                  onCancel={() => setMarkAppliedOpen(false)}
+                  onSave={saveMarkApplied}
+                />
+              )}
 
               <ApplicationPackageOverview
                 score={latestScore}
@@ -742,11 +809,15 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   );
 }
 
-function JobHeaderCta({ activeTab, job, score, resume, coverLetter, recruiterMessage, prep, packageDownloaded, onTabChange, onMarkApplied }) {
+function JobHeaderCta({ activeTab, job, score, resume, coverLetter, recruiterMessage, prep, packageDownloaded, onTabChange, onMarkApplied, onSetFollowUp }) {
   const config = getWorkflowHeaderCta({ job, score, resume, coverLetter, recruiterMessage, prep, packageDownloaded, activeTab });
   return (
     <div className="flex justify-end">
-      <Button className="min-h-9 px-4 text-sm whitespace-nowrap" variant={config.variant} onClick={() => config.tab === "__mark_applied" ? onMarkApplied?.() : onTabChange?.(config.tab)}>
+      <Button className="min-h-9 px-4 text-sm whitespace-nowrap" variant={config.variant} onClick={() => {
+        if (config.tab === "__mark_applied") onMarkApplied?.();
+        else if (config.tab === "__set_followup") onSetFollowUp?.();
+        else onTabChange?.(config.tab);
+      }}>
         {config.label}
       </Button>
     </div>
@@ -754,7 +825,13 @@ function JobHeaderCta({ activeTab, job, score, resume, coverLetter, recruiterMes
 }
 
 function getWorkflowHeaderCta({ job, score, resume, coverLetter, recruiterMessage, prep, packageDownloaded, activeTab }) {
-  const isSaved = getDisplayStage(job?.status) === "Saved";
+  const stage = getDisplayStage(job?.status);
+  const isSaved = stage === "Saved";
+  if (stage === "Applied") {
+    if (prep) return { label: "Prepare for Interview", tab: "interview", variant: "primary" };
+    if (!getFollowUpDate(job)) return { label: "Set Follow-Up", tab: "__set_followup", variant: "primary" };
+    return { label: "View Application", tab: "overview", variant: "secondary" };
+  }
   if (!score) return { label: "Analysis", tab: "fit", variant: "primary" };
   if (!resume) return { label: "Resume", tab: "resume", variant: "primary" };
   if (!coverLetter) return { label: "Cover Letter", tab: "coverLetter", variant: "primary" };
@@ -832,7 +909,7 @@ function ApplicationPackageOverview({ score, resume, coverLetter, recruiterMessa
           </span>
         )}
       </div>
-      <div className="mt-3 divide-y divide-brand-100 rounded-lg bg-brand-50/50 ring-1 ring-brand-100">
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
         {assets.map((asset) => <CommandPackageRow key={asset.title} {...asset} />)}
       </div>
     </section>
@@ -841,7 +918,7 @@ function ApplicationPackageOverview({ score, resume, coverLetter, recruiterMessa
 
 function CommandPackageRow({ title, status, actionLabel, onAction, ready }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex min-w-0 flex-col gap-2 rounded-lg bg-brand-50/60 px-3 py-2.5 ring-1 ring-brand-100 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-center gap-3">
         <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ring-1 ${ready ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-white text-slate-400 ring-brand-100"}`}>
           {ready ? "\u2713" : "\u25CB"}
@@ -952,10 +1029,11 @@ function saveJobCommandTasks(jobId, tasks) {
   window.localStorage.setItem(`occuboard-application-tasks-${jobId}`, JSON.stringify(tasks));
 }
 
-function NextBestActionCard({ action, onAction }) {
+function NextBestActionCard({ action, onAction, onExport, onMarkApplied }) {
   if (!action || action.actionType === "no_action") return null;
   const Icon = getNextBestActionIcon(action.icon);
   const ctaLabel = getNextBestActionCtaLabel(action.actionType);
+  const isReadyToApply = action.actionType === "export_package" || action.actionType === "apply_now";
 
   return (
     <section className="rounded-lg bg-white/80 p-4 shadow-sm ring-1 ring-brand-100">
@@ -968,14 +1046,53 @@ function NextBestActionCard({ action, onAction }) {
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Next Best Action</p>
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getNextBestActionTone(action.tone)}`}>Priority {action.priority}</span>
           </div>
-          <h3 className="mt-1 text-base font-bold text-ink">{action.label}</h3>
-          <p className="mt-1 text-sm leading-5 text-slate-600">{action.description}</p>
-          {ctaLabel && (
+          <h3 className="mt-1 text-base font-bold text-ink">{isReadyToApply ? "Ready to apply" : action.label}</h3>
+          <p className="mt-1 text-sm leading-5 text-slate-600">
+            {isReadyToApply ? "Everything needed for submission is complete. Export your package or mark this role as applied after submission." : action.description}
+          </p>
+          {isReadyToApply ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button className="min-h-8 px-3 text-xs" onClick={onExport} aria-label="Export package for this opportunity">
+                Export Package
+              </Button>
+              <Button className="min-h-8 px-3 text-xs" variant="secondary" onClick={onMarkApplied} aria-label="Mark this opportunity applied">
+                Mark Applied
+              </Button>
+            </div>
+          ) : ctaLabel && (
             <Button className="mt-3 min-h-8 px-3 text-xs" variant={action.tone === "danger" || action.tone === "warning" ? "secondary" : "primary"} onClick={onAction} aria-label={`${ctaLabel} for this opportunity`}>
               {ctaLabel}
             </Button>
           )}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
+  return (
+    <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Mark Applied</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">Record submission details</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Save when you submitted, where you applied, and when OccuBoard should remind you to follow up.</p>
+        </div>
+        <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={onCancel}>Cancel</Button>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <Field id="mark-applied-date" label="Applied date" type="date" value={form.appliedDate} onChange={(event) => onChange("appliedDate", event.target.value)} />
+        <Field id="mark-application-url" label="Application URL (optional)" value={form.applicationUrl} onChange={(event) => onChange("applicationUrl", event.target.value)} />
+        <Field id="mark-followup-date" label="Follow-up date (optional)" type="date" value={form.followUpDate} onChange={(event) => onChange("followUpDate", event.target.value)} />
+        <Field id="mark-followup-note" label="Follow-up note (optional)" value={form.followUpNote} onChange={(event) => onChange("followUpNote", event.target.value)} />
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button className="min-h-8 px-3 text-xs" onClick={onSave} disabled={saving}>
+          {saving && <Loader2 size={14} className="animate-spin" />}
+          {saving ? "Saving..." : "Save Applied Status"}
+        </Button>
+        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onCancel}>Cancel</Button>
       </div>
     </section>
   );
@@ -1811,7 +1928,7 @@ function ApplicationChecklist({ score, resume, coverLetter, recruiterMessage, pr
 
 function PackageBuilderSection({ items, selections, selectedItems, packageFileName, downloading, onToggle, onDownload, onGoToInterview }) {
   const selectedNames = selectedItems.map((item) => item.label);
-  const unavailableInterviewItems = items.filter((item) => item.group === "Interview Extras" && !item.available).length;
+  const unavailableInterviewItems = items.filter((item) => item.group === "Interview Materials" && !item.available).length;
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100 sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -1828,11 +1945,11 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
 
       <div className="mt-4 grid gap-3">
         <div className="grid gap-3">
-          {["Application Files", "Interview Extras"].map((group) => (
+          {["Application Documents", "Interview Materials", "Communication"].map((group) => (
             <div key={group} className="rounded-xl bg-brand-50/60 p-3 ring-1 ring-brand-100">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-black uppercase tracking-[0.1em] text-slate-600">{group}</p>
-                {group === "Interview Extras" && unavailableInterviewItems > 0 && (
+                {group === "Interview Materials" && unavailableInterviewItems > 0 && (
                   <Button variant="ghost" className="min-h-7 px-2 text-xs" onClick={onGoToInterview}>Open Interview Prep</Button>
                 )}
               </div>
@@ -1901,15 +2018,15 @@ function getPackageBuilderItems({ resume, coverLetter, recruiterMessage, prepCon
   const hasStories = Array.isArray(prepContent?.starStories) && prepContent.starStories.length > 0;
   const hasResearch = (Array.isArray(prepContent?.focusAreas) && prepContent.focusAreas.length > 0) || (Array.isArray(prepContent?.questionsToAsk) && prepContent.questionsToAsk.length > 0);
   return [
-    { key: "resumePdf", label: "Resume PDF", group: "Application Files", available: Boolean(resume?.content), missingLabel: "Generate resume first" },
-    { key: "resumeDocx", label: "Resume DOCX", group: "Application Files", available: Boolean(resume?.content), missingLabel: "Generate resume first" },
-    { key: "coverLetterPdf", label: "Cover Letter PDF", group: "Application Files", available: Boolean(coverLetter?.content), missingLabel: "Draft cover letter first" },
-    { key: "coverLetterDocx", label: "Cover Letter DOCX", group: "Application Files", available: Boolean(coverLetter?.content), missingLabel: "Draft cover letter first" },
-    { key: "recruiterMessage", label: "Recruiter Message", group: "Application Files", available: Boolean(recruiterMessage?.content), missingLabel: "Draft message first" },
-    { key: "interviewCheatSheet", label: "Interview Cheat Sheet", group: "Interview Extras", available: Boolean(prepContent), missingLabel: "Prepare interview first" },
-    { key: "interviewQuestions", label: "Interview Questions", group: "Interview Extras", available: hasQuestions, missingLabel: "Prepare interview first" },
-    { key: "starStories", label: "STAR Stories", group: "Interview Extras", available: hasStories, missingLabel: "Prepare interview first" },
-    { key: "researchNotes", label: "Research Notes", group: "Interview Extras", available: hasResearch, missingLabel: "Prepare interview first" },
+    { key: "resumePdf", label: "Resume PDF", group: "Application Documents", available: Boolean(resume?.content), missingLabel: "Generate resume first" },
+    { key: "coverLetterPdf", label: "Cover Letter PDF", group: "Application Documents", available: Boolean(coverLetter?.content), missingLabel: "Draft cover letter first" },
+    { key: "resumeDocx", label: "Resume DOCX", group: "Application Documents", available: Boolean(resume?.content), missingLabel: "Generate resume first" },
+    { key: "coverLetterDocx", label: "Cover Letter DOCX", group: "Application Documents", available: Boolean(coverLetter?.content), missingLabel: "Draft cover letter first" },
+    { key: "interviewCheatSheet", label: "Interview Cheat Sheet", group: "Interview Materials", available: Boolean(prepContent), missingLabel: "Prepare interview first" },
+    { key: "interviewQuestions", label: "Interview Questions", group: "Interview Materials", available: hasQuestions, missingLabel: "Prepare interview first" },
+    { key: "starStories", label: "STAR Stories", group: "Interview Materials", available: hasStories, missingLabel: "Prepare interview first" },
+    { key: "researchNotes", label: "Research Notes", group: "Interview Materials", available: hasResearch, missingLabel: "Prepare interview first" },
+    { key: "recruiterMessage", label: "Recruiter Message", group: "Communication", available: Boolean(recruiterMessage?.content), missingLabel: "Draft message first" },
   ];
 }
 
