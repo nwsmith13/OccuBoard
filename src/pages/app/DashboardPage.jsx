@@ -11,7 +11,7 @@ import { getCompletenessTone } from "../../lib/completenessTone.js";
 import { formatDate, isThisWeek } from "../../lib/date.js";
 import { getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
-import { getJobAiStatus } from "../../lib/jobAiStatus.js";
+import { getJobAiStatus, isCoverLetterSkipped } from "../../lib/jobAiStatus.js";
 import { getJobMomentumValue } from "../../lib/jobMomentum.js";
 import { getProfileCompleteness } from "../../lib/profile.js";
 import { filterRecommendationsForDashboard, generateRecommendations, getRecommendationIcon, getRecommendationMeta, getRecommendationTone } from "../../lib/recommendationEngine.js";
@@ -549,8 +549,8 @@ function getBestMatchRoles(jobScores, jobs, profile, resumeVersions = [], messag
     .slice(0, 3)
     .map((score) => {
       const job = jobs.find((item) => item.id === score.job_id);
-      const aiStatus = job ? getJobAiStatus(job.id, jobScores, resumeVersions, messages) : {};
-      const nextBestAction = job ? getNextBestAction(job, { score, aiStatus, messages }) : null;
+      const aiStatus = job ? getJobAiStatus(job.id, jobScores, resumeVersions, messages, job) : {};
+      const nextBestAction = job ? getNextBestAction(job, { score, aiStatus, messages, coverLetterSkipped: isCoverLetterSkipped(job) }) : null;
       return job ? {
         label: getDisplayJobTitle(job),
         company: getDisplayCompanyName(job),
@@ -710,8 +710,8 @@ function getFocusItems({ jobs, jobScores, resumeVersions, messages, jobContacts,
   return jobs
     .map((job) => {
       const score = getLatestFitScore(jobScores, job.id);
-      const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
-      const nextBestAction = getNextBestAction(job, { score, aiStatus, messages });
+      const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages, job);
+      const nextBestAction = getNextBestAction(job, { score, aiStatus, messages, coverLetterSkipped: isCoverLetterSkipped(job) });
       const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
       const momentumScore = getJobMomentumValue(job, { score, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs });
       return { ...job, kind: nextBestAction.actionType, nextBestAction, score, contacts, momentumScore };

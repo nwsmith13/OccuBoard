@@ -23,6 +23,8 @@ export function formatActivityLabel(event = {}) {
     cover_letter_regenerated: "Cover letter regenerated",
     cover_letter_edited: "Cover letter edited",
     cover_letter_copied: "Cover letter copied",
+    cover_letter_skipped: "Cover letter skipped",
+    cover_letter_status_updated: "Cover letter status updated",
     cover_letter_exported_pdf: "Cover letter exported PDF",
     cover_letter_exported_docx: "Cover letter exported DOCX",
     followup_message_generated: "Follow-up message generated",

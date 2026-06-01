@@ -10,6 +10,7 @@ const keys = {
   jobFollowUpOverrides: "occuboard.jobFollowUpOverrides",
   jobCalendarOverrides: "occuboard.jobCalendarOverrides",
   jobArchiveOverrides: "occuboard.jobArchiveOverrides",
+  jobCoverLetterOverrides: "occuboard.jobCoverLetterOverrides",
   activityLogs: "occuboard.activityLogs",
   jobActivityLogs: "occuboard.jobActivityLogs",
   jobContacts: "occuboard.jobContacts",
@@ -140,7 +141,7 @@ export async function fetchWorkspace(user) {
 
     return {
       profile,
-      jobs: applyJobArchiveOverrides(applyJobCalendarOverrides(applyJobFollowUpOverrides(jobsResult.data ?? []))),
+      jobs: applyJobCoverLetterOverrides(applyJobArchiveOverrides(applyJobCalendarOverrides(applyJobFollowUpOverrides(jobsResult.data ?? [])))),
       activityLogs: logsResult.data ?? [],
       jobActivityLogs,
       jobContacts,
@@ -262,10 +263,11 @@ export async function updateJob(user, id, patch) {
       const legacyPayload = getLegacyJobPayload(payload);
       const retry = await supabase.from("jobs").update(legacyPayload).eq("id", id).eq("user_id", user.id).select("*").single();
       if (retry.error) throw retry.error;
-      const enriched = { ...retry.data, ...Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key.startsWith("company_") || key.startsWith("interview_") || key.startsWith("archived_") || key === "interviewer_contact_id" || key === "calendar_event_added_at")) };
+      const enriched = { ...retry.data, ...Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key.startsWith("company_") || key.startsWith("interview_") || key.startsWith("archived_") || key.startsWith("cover_letter_") || key === "interviewer_contact_id" || key === "calendar_event_added_at")) };
       if (hasFollowUpPatch(payload)) rememberJobFollowUpOverride(id, payload);
       if (hasCalendarPatch(payload)) rememberJobCalendarOverride(id, payload);
       if (hasArchivePatch(payload)) rememberJobArchiveOverride(id, payload);
+      if (hasCoverLetterPatch(payload)) rememberJobCoverLetterOverride(id, payload);
       await logActivity(user, "Job", `Updated ${getDisplayJobTitle(enriched)} at ${getDisplayCompanyName(enriched)}`);
       await logJobUpdateActivity(user, previous, enriched, payload);
       return enriched;
@@ -273,6 +275,7 @@ export async function updateJob(user, id, patch) {
     if (hasFollowUpPatch(payload)) clearJobFollowUpOverride(id);
     if (hasCalendarPatch(payload)) clearJobCalendarOverride(id);
     if (hasArchivePatch(payload)) clearJobArchiveOverride(id);
+    if (hasCoverLetterPatch(payload)) clearJobCoverLetterOverride(id);
     await logActivity(user, "Job", `Updated ${getDisplayJobTitle(data)} at ${getDisplayCompanyName(data)}`);
     await logJobUpdateActivity(user, previous, data, payload);
     return data;
@@ -685,6 +688,13 @@ async function logJobUpdateActivity(user, previous, next, payload) {
     await logJobActivity(user, next.id, payload.archived_at ? "job_archived" : "job_restored", { reason: next.archived_reason || "", archivedAt: next.archived_at });
     return;
   }
+  if ("cover_letter_status" in payload) {
+    await logJobActivity(user, next.id, payload.cover_letter_status === "skipped" ? "cover_letter_skipped" : "cover_letter_status_updated", {
+      detail: payload.cover_letter_status === "skipped" ? "Cover letter skipped." : "Cover letter status updated.",
+      status: next.cover_letter_status || "",
+    });
+    return;
+  }
   await logJobActivity(user, next.id, "job_edited", { title: getDisplayJobTitle(next), company: getDisplayCompanyName(next) });
 }
 
@@ -722,6 +732,8 @@ function normalizeJob(user, job) {
     archived_at: job.archived_at || null,
     archived_reason: job.archived_reason || "",
     archived_by_user: Boolean(job.archived_by_user),
+    cover_letter_status: job.cover_letter_status || null,
+    cover_letter_skipped_at: job.cover_letter_skipped_at || null,
     notes: job.notes,
     created_at: createdAt,
     updated_at: createdAt,
@@ -761,6 +773,8 @@ function cleanJobPayload(job) {
     "archived_at",
     "archived_reason",
     "archived_by_user",
+    "cover_letter_status",
+    "cover_letter_skipped_at",
     "notes",
     "created_at",
     "updated_at",
@@ -784,6 +798,8 @@ function cleanJobPayload(job) {
   if ("archived_at" in payload) cleaned.archived_at = payload.archived_at || null;
   if ("archived_reason" in payload) cleaned.archived_reason = payload.archived_reason || "";
   if ("archived_by_user" in payload) cleaned.archived_by_user = Boolean(payload.archived_by_user);
+  if ("cover_letter_status" in payload) cleaned.cover_letter_status = payload.cover_letter_status || null;
+  if ("cover_letter_skipped_at" in payload) cleaned.cover_letter_skipped_at = payload.cover_letter_skipped_at || null;
   if ("date_saved" in payload) cleaned.date_saved = payload.date_saved || new Date().toISOString().slice(0, 10);
   if ("company_name" in payload) cleaned.company_name = getDisplayCompanyName(payload);
   if ("job_title" in payload) cleaned.job_title = getDisplayJobTitle(payload);
@@ -803,6 +819,10 @@ function hasArchivePatch(payload = {}) {
   return Object.keys(payload).some((key) => key.startsWith("archived_"));
 }
 
+function hasCoverLetterPatch(payload = {}) {
+  return Object.keys(payload).some((key) => key.startsWith("cover_letter_"));
+}
+
 function getFollowUpPatch(payload = {}) {
   return Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key === "updated_at"));
 }
@@ -813,6 +833,10 @@ function getCalendarPatch(payload = {}) {
 
 function getArchivePatch(payload = {}) {
   return Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("archived_") || key === "updated_at"));
+}
+
+function getCoverLetterPatch(payload = {}) {
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("cover_letter_") || key === "updated_at"));
 }
 
 function rememberJobFollowUpOverride(jobId, payload = {}) {
@@ -875,6 +899,26 @@ function clearJobArchiveOverride(jobId) {
   writeLocal(keys.jobArchiveOverrides, next);
 }
 
+function rememberJobCoverLetterOverride(jobId, payload = {}) {
+  const overrides = readLocal(keys.jobCoverLetterOverrides, {});
+  writeLocal(keys.jobCoverLetterOverrides, {
+    ...overrides,
+    [jobId]: {
+      ...(overrides[jobId] || {}),
+      ...getCoverLetterPatch(payload),
+      updated_at: payload.updated_at || now(),
+    },
+  });
+}
+
+function clearJobCoverLetterOverride(jobId) {
+  const overrides = readLocal(keys.jobCoverLetterOverrides, {});
+  if (!overrides[jobId]) return;
+  const next = { ...overrides };
+  delete next[jobId];
+  writeLocal(keys.jobCoverLetterOverrides, next);
+}
+
 function applyJobFollowUpOverrides(jobs = []) {
   const overrides = readLocal(keys.jobFollowUpOverrides, {});
   if (!overrides || !Object.keys(overrides).length) return jobs;
@@ -923,6 +967,22 @@ function applyJobArchiveOverrides(jobs = []) {
   });
 }
 
+function applyJobCoverLetterOverrides(jobs = []) {
+  const overrides = readLocal(keys.jobCoverLetterOverrides, {});
+  if (!overrides || !Object.keys(overrides).length) return jobs;
+  return jobs.map((job) => {
+    const override = overrides[job.id];
+    if (!override) return job;
+    const jobUpdatedAt = new Date(job.updated_at || job.created_at || 0);
+    const overrideUpdatedAt = new Date(override.updated_at || 0);
+    if (jobUpdatedAt > overrideUpdatedAt && getServerHasCoverLetterState(job, override)) {
+      clearJobCoverLetterOverride(job.id);
+      return job;
+    }
+    return { ...job, ...override };
+  });
+}
+
 function getServerHasFollowUpState(job = {}, override = {}) {
   return ["followup_date", "followup_status", "followup_completed_at", "followup_snoozed_until", "followup_note"].every((key) => {
     if (!(key in override)) return true;
@@ -939,6 +999,13 @@ function getServerHasCalendarState(job = {}, override = {}) {
 
 function getServerHasArchiveState(job = {}, override = {}) {
   return ["archived_at", "archived_reason", "archived_by_user"].every((key) => {
+    if (!(key in override)) return true;
+    return normalizeComparable(job[key]) === normalizeComparable(override[key]);
+  });
+}
+
+function getServerHasCoverLetterState(job = {}, override = {}) {
+  return ["cover_letter_status", "cover_letter_skipped_at"].every((key) => {
     if (!(key in override)) return true;
     return normalizeComparable(job[key]) === normalizeComparable(override[key]);
   });
@@ -964,6 +1031,8 @@ function normalizeFollowUpPayload(job) {
   if ("archivedAt" in normalized && !("archived_at" in normalized)) normalized.archived_at = normalized.archivedAt;
   if ("archivedReason" in normalized && !("archived_reason" in normalized)) normalized.archived_reason = normalized.archivedReason;
   if ("archivedByUser" in normalized && !("archived_by_user" in normalized)) normalized.archived_by_user = normalized.archivedByUser;
+  if ("coverLetterStatus" in normalized && !("cover_letter_status" in normalized)) normalized.cover_letter_status = normalized.coverLetterStatus;
+  if ("coverLetterSkippedAt" in normalized && !("cover_letter_skipped_at" in normalized)) normalized.cover_letter_skipped_at = normalized.coverLetterSkippedAt;
   return normalized;
 }
 
@@ -986,6 +1055,8 @@ function getLegacyJobPayload(payload) {
   delete legacyPayload.archived_at;
   delete legacyPayload.archived_reason;
   delete legacyPayload.archived_by_user;
+  delete legacyPayload.cover_letter_status;
+  delete legacyPayload.cover_letter_skipped_at;
   return legacyPayload;
 }
 

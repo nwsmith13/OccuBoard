@@ -2,7 +2,7 @@ import { formatDate, todayIso } from "./date.js";
 import { isArchivedJob } from "./archive.js";
 import { getFollowUpDate, getFollowUpStatus, normalizeStage } from "./followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "./jobDisplay.js";
-import { isCoverLetter, isRecruiterMessage } from "./jobAiStatus.js";
+import { isCoverLetter, isCoverLetterSkipped, isRecruiterMessage } from "./jobAiStatus.js";
 import { daysSince, getJobMomentumScore, getLatestActivityDate, isInterviewWithinHours } from "./jobMomentum.js";
 
 const priorityRank = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -53,7 +53,7 @@ export function generateRecommendations({
     const stage = normalizeStage(job.status);
     const jobMessages = messages.filter((message) => message.job_id === job.id);
     const hasRecruiterMessage = jobMessages.some(isRecruiterMessage);
-    const hasCoverLetter = jobMessages.some(isCoverLetter);
+    const hasCoverLetter = jobMessages.some(isCoverLetter) || isCoverLetterSkipped(job);
     const hasResume = resumeVersions.some((version) => version.job_id === job.id);
     const hasInterviewPrep = interviewPrep.some((prep) => prep.job_id === job.id);
     const followUpStatus = getFollowUpStatus(job);

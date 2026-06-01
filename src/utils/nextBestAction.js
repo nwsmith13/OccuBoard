@@ -1,5 +1,6 @@
 import { formatDate } from "../lib/date.js";
 import { getFollowUpDate, getFollowUpStatus, normalizeStage } from "../lib/followUp.js";
+import { isCoverLetter, isCoverLetterSkipped } from "../lib/jobAiStatus.js";
 
 const actionDefaults = {
   analyze_fit: {
@@ -102,7 +103,14 @@ export function getNextBestAction(job = {}, options = {}) {
   );
   const hasResume = Boolean(options.hasResume ?? aiStatus.resumeDrafted);
   const hasMessage = Boolean(options.hasMessage ?? aiStatus.messageDrafted);
-  const hasCoverLetter = Boolean(options.hasCoverLetter ?? aiStatus.coverLetterDrafted ?? options.messages?.some((message) => message.job_id === job.id && message.type === "Cover Letter"));
+  const coverLetterSkipped = Boolean(options.coverLetterSkipped ?? aiStatus.coverLetterSkipped ?? isCoverLetterSkipped(job));
+  const hasCoverLetter = Boolean(
+    options.hasCoverLetter ??
+    aiStatus.coverLetterResolved ??
+    aiStatus.coverLetterDrafted ??
+    coverLetterSkipped ??
+    options.messages?.some((message) => message.job_id === job.id && isCoverLetter(message))
+  );
   const hasInterviewPrep = Boolean(options.hasInterviewPrep);
   const hasFollowUpMessage = Boolean(options.hasFollowUpMessage ?? options.messages?.some((message) => message.job_id === job.id && message.type === "Follow-up Message"));
   const shouldSuggestCoverLetter = shouldRecommendCoverLetter(job, scoreValue);

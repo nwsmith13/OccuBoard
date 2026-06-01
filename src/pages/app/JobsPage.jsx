@@ -19,12 +19,12 @@ import { buildFollowUpCalendarEvent, buildGoogleCalendarUrl, buildInterviewCalen
 import { exportCoverLetterDocx, exportCoverLetterPdf } from "../../lib/coverLetterExport.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
-import { getJobAiStatus, isCoverLetter, isRecruiterMessage } from "../../lib/jobAiStatus.js";
+import { getJobAiStatus, isCoverLetter, isCoverLetterSkipped, isRecruiterMessage } from "../../lib/jobAiStatus.js";
 import { buildMitigationPlan, getAppliedMitigations } from "../../lib/mitigationPlan.js";
 import { buildMaterialRecoveryScores, buildRewriteInsights } from "../../lib/rewriteInsights.js";
 import { exportResumeDocx, exportResumePdf, getResumeExportHistory } from "../../lib/resumeExport.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
-import { getNextBestAction, getNextBestActionTone } from "../../utils/nextBestAction.js";
+import { getNextBestAction } from "../../utils/nextBestAction.js";
 
 const emptyJob = {
   company_name: "",
@@ -307,11 +307,14 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const coverLetterHistory = allMessageHistory.filter(isCoverLetter);
   const latestMessage = [...recruiterMessageHistory].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   const latestCoverLetter = [...coverLetterHistory].sort((a, b) => new Date(b.created_at || b.updated_at) - new Date(a.created_at || a.updated_at))[0];
+  const coverLetterSkipped = isCoverLetterSkipped(job);
+  const coverLetterResolved = Boolean(latestCoverLetter || coverLetterSkipped);
+  const readinessCoverLetter = latestCoverLetter || (coverLetterSkipped ? { id: "cover-letter-skipped", skipped: true } : null);
   const jobScoreHistory = jobScores.filter((score) => score.job_id === job.id);
   const resumeHistory = resumeVersions.filter((version) => version.job_id === job.id);
   const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
   const prep = interviewPrep.find((item) => item.job_id === job.id);
-  const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
+  const aiStatus = getJobAiStatus(job.id, jobScores, resumeVersions, messages, job);
   const descriptionPreview = getDescriptionPreview(job.job_description);
   const timelineEvents = mergeTimelineEvents(
     jobActivityLogs.filter((event) => event.job_id === job.id),
@@ -329,17 +332,18 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     score: latestScore,
     resume: latestResume,
     coverLetter: latestCoverLetter,
+    coverLetterResolved,
     recruiterMessage: latestMessage,
   });
   const packageDownloaded = Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id));
   const exportReady = packageDownloaded || packageReady;
-  const nextBestAction = getNextBestAction(job, { score: latestScore, aiStatus, messages, activityEvents: timelineEvents, hasInterviewPrep: interviewPrepReady, exportReady });
+  const nextBestAction = getNextBestAction(job, { score: latestScore, aiStatus, messages, activityEvents: timelineEvents, hasInterviewPrep: interviewPrepReady, exportReady, hasCoverLetter: coverLetterResolved, coverLetterSkipped });
   const completedSteps = {
     overview: true,
     fit: Boolean(latestScore),
     resume: Boolean(latestResume),
     message: Boolean(latestMessage),
-    coverLetter: Boolean(latestCoverLetter),
+    coverLetter: coverLetterResolved,
     interview: interviewPrepReady,
     export: exportReady,
     recruiterView: recruiterViewReady,
@@ -414,6 +418,19 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     }
     if (nextBestAction.actionType === "export_package") {
       requestTabChange("export");
+    }
+  }
+
+  async function handleSkipCoverLetter() {
+    try {
+      const updated = await updateJob(user, job.id, {
+        cover_letter_status: "skipped",
+        cover_letter_skipped_at: new Date().toISOString(),
+      });
+      if (updated) mergeJobUpdate(updated);
+      toast.success("Cover letter skipped.");
+    } catch {
+      toast.error("Could not skip cover letter.");
     }
   }
 
@@ -541,7 +558,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   </div>
                   <h2 className="mt-2 text-lg font-bold text-ink sm:text-xl">{getDisplayJobTitle(job)}</h2>
                   <p className="mt-0.5 text-sm font-semibold text-brand-800">{getDisplayCompanyName(job)}</p>
-                  <RecruiterConfidenceHeroSummary score={latestScore} profile={profile} resume={latestResume} coverLetter={latestCoverLetter} recruiterMessage={latestMessage} />
+                  <RecruiterConfidenceHeroSummary score={latestScore} profile={profile} resume={latestResume} coverLetter={readinessCoverLetter} recruiterMessage={latestMessage} />
                 </div>
               </div>
               {!pageMode && (
@@ -558,6 +575,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   score={latestScore}
                   resume={latestResume}
                   coverLetter={latestCoverLetter}
+                  coverLetterResolved={coverLetterResolved}
                   recruiterMessage={latestMessage}
                   prep={prep}
                   exportReady={exportReady}
@@ -590,6 +608,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 onAction={handleNextBestAction}
                 onExport={() => requestTabChange("export")}
                 onMarkApplied={() => setMarkAppliedOpen(true)}
+                onSkipCoverLetter={nextBestAction.actionType === "generate_cover_letter" ? handleSkipCoverLetter : undefined}
               />
 
               {markAppliedOpen && (
@@ -606,6 +625,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 score={latestScore}
                 resume={latestResume}
                 coverLetter={latestCoverLetter}
+                coverLetterSkipped={coverLetterSkipped}
                 recruiterMessage={latestMessage}
                 prep={prep}
                 onOpenAnalysis={() => requestTabChange("fit")}
@@ -719,6 +739,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 score={latestScore}
                 resume={latestResume}
                 coverLetter={latestCoverLetter}
+                coverLetterSkipped={coverLetterSkipped}
                 recruiterMessage={latestMessage}
                 contacts={contacts}
                 user={user}
@@ -747,6 +768,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 profile={profile}
                 resume={latestResume}
                 coverLetter={latestCoverLetter}
+                coverLetterSkipped={coverLetterSkipped}
                 recruiterMessage={latestMessage}
                 onContinue={() => requestTabChange("interview")}
               />
@@ -766,6 +788,12 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 onSave={saveMessage}
                 onUpdate={updateMessage}
                 onLogActivity={logJobActivity}
+                onSkipCoverLetter={handleSkipCoverLetter}
+                onCoverLetterGenerated={async () => {
+                  if (!coverLetterSkipped) return;
+                  const updated = await updateJob(user, job.id, { cover_letter_status: null, cover_letter_skipped_at: null });
+                  if (updated) mergeJobUpdate(updated);
+                }}
                 onUnsavedChange={setHasUnsavedChanges}
               />
             </div>
@@ -808,8 +836,8 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   );
 }
 
-function JobHeaderCta({ activeTab, job, score, resume, coverLetter, recruiterMessage, prep, packageDownloaded, onTabChange, onMarkApplied, onSetFollowUp }) {
-  const config = getWorkflowHeaderCta({ job, score, resume, coverLetter, recruiterMessage, prep, packageDownloaded, activeTab });
+function JobHeaderCta({ activeTab, job, score, resume, coverLetter, coverLetterResolved, recruiterMessage, prep, packageDownloaded, onTabChange, onMarkApplied, onSetFollowUp }) {
+  const config = getWorkflowHeaderCta({ job, score, resume, coverLetter, coverLetterResolved, recruiterMessage, prep, packageDownloaded, activeTab });
   return (
     <div className="flex justify-end">
       <Button className="min-h-9 px-4 text-sm whitespace-nowrap" variant={config.variant} onClick={() => {
@@ -823,7 +851,7 @@ function JobHeaderCta({ activeTab, job, score, resume, coverLetter, recruiterMes
   );
 }
 
-function getWorkflowHeaderCta({ job, score, resume, coverLetter, recruiterMessage, prep, packageDownloaded, activeTab }) {
+function getWorkflowHeaderCta({ job, score, resume, coverLetter, coverLetterResolved, recruiterMessage, prep, packageDownloaded, activeTab }) {
   const stage = getDisplayStage(job?.status);
   const isSaved = stage === "Saved";
   if (stage === "Applied") {
@@ -833,7 +861,7 @@ function getWorkflowHeaderCta({ job, score, resume, coverLetter, recruiterMessag
   }
   if (!score) return { label: "Analysis", tab: "fit", variant: "primary" };
   if (!resume) return { label: "Resume", tab: "resume", variant: "primary" };
-  if (!coverLetter) return { label: "Cover Letter", tab: "coverLetter", variant: "primary" };
+  if (!(coverLetter || coverLetterResolved)) return { label: "Cover Letter", tab: "coverLetter", variant: "primary" };
   if (!recruiterMessage) return { label: "Recruiter Message", tab: "message", variant: "primary" };
   if (!prep) return { label: "Interview Prep", tab: "interview", variant: "primary" };
   if (packageDownloaded && isSaved) return { label: "Mark Applied", tab: "__mark_applied", variant: "primary" };
@@ -887,10 +915,11 @@ function OverviewDisclosure({ title, summary, open, onToggle, children }) {
   );
 }
 
-function ApplicationPackageOverview({ score, resume, coverLetter, recruiterMessage, prep, onOpenAnalysis, onOpenResume, onOpenCoverLetter, onOpenMessage, onOpenInterview }) {
+function ApplicationPackageOverview({ score, resume, coverLetter, coverLetterSkipped, recruiterMessage, prep, onOpenAnalysis, onOpenResume, onOpenCoverLetter, onOpenMessage, onOpenInterview }) {
+  const coverLetterResolved = Boolean(coverLetter || coverLetterSkipped);
   const assets = [
     { title: "Resume", status: resume ? "Ready" : "Not Generated", actionLabel: resume ? "Open" : score ? "Generate Resume" : "Start Analysis", onAction: resume || score ? onOpenResume : onOpenAnalysis, ready: Boolean(resume) },
-    { title: "Cover Letter", status: coverLetter ? "Ready" : "Not Generated", actionLabel: coverLetter ? "Open" : "Draft Cover Letter", onAction: onOpenCoverLetter, ready: Boolean(coverLetter) },
+    { title: "Cover Letter", status: coverLetter ? "Ready" : coverLetterSkipped ? "Skipped" : "Not Generated", actionLabel: coverLetter ? "Open" : coverLetterSkipped ? "Generate" : "Draft Cover Letter", onAction: onOpenCoverLetter, ready: coverLetterResolved },
     { title: "Recruiter Message", status: recruiterMessage ? "Ready" : "Not Generated", actionLabel: recruiterMessage ? "Open" : "Draft Message", onAction: onOpenMessage, ready: Boolean(recruiterMessage) },
     { title: "Interview Prep", status: prep ? "Ready" : "Not Started", actionLabel: prep ? "Open" : "Prepare Interview Prep", onAction: onOpenInterview, ready: Boolean(prep) },
   ];
@@ -1028,24 +1057,25 @@ function saveJobCommandTasks(jobId, tasks) {
   window.localStorage.setItem(`occuboard-application-tasks-${jobId}`, JSON.stringify(tasks));
 }
 
-function NextBestActionCard({ action, onAction, onExport, onMarkApplied }) {
+function NextBestActionCard({ action, onAction, onExport, onMarkApplied, onSkipCoverLetter }) {
   if (!action || action.actionType === "no_action") return null;
   const Icon = getNextBestActionIcon(action.icon);
   const ctaLabel = getNextBestActionCtaLabel(action.actionType);
   const isReadyToApply = action.actionType === "export_package" || action.actionType === "apply_now";
+  const shellTone = getNextBestActionShellTone(action.tone, action.actionType);
 
   return (
-    <section className="rounded-lg bg-white/80 p-4 shadow-sm ring-1 ring-brand-100">
+    <section className={`rounded-xl border-l-4 p-4 shadow-card ring-1 ${shellTone.shell}`}>
       <div className="flex items-start gap-3">
-        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ring-1 ${getNextBestActionTone(action.tone)}`}>
+        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 ${shellTone.icon}`}>
           <Icon size={17} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Next Best Action</p>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${getNextBestActionTone(action.tone)}`}>Priority {action.priority}</span>
+            <p className={`text-xs font-black uppercase tracking-[0.14em] ${shellTone.label}`}>Next Best Action</p>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ring-1 ${shellTone.badge}`}>Priority {action.priority}</span>
           </div>
-          <h3 className="mt-1 text-base font-bold text-ink">{isReadyToApply ? "Ready to apply" : action.label}</h3>
+          <h3 className="mt-1 text-lg font-black text-ink">{isReadyToApply ? "Ready to apply" : action.label}</h3>
           <p className="mt-1 text-sm leading-5 text-slate-600">
             {isReadyToApply ? "Everything needed for submission is complete. Export your package or mark this role as applied after submission." : action.description}
           </p>
@@ -1059,14 +1089,62 @@ function NextBestActionCard({ action, onAction, onExport, onMarkApplied }) {
               </Button>
             </div>
           ) : ctaLabel && (
-            <Button className="mt-3 min-h-8 px-3 text-xs" variant={action.tone === "danger" || action.tone === "warning" ? "secondary" : "primary"} onClick={onAction} aria-label={`${ctaLabel} for this opportunity`}>
-              {ctaLabel}
-            </Button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button className="min-h-9 px-4 text-sm" variant={action.tone === "danger" || action.tone === "warning" ? "secondary" : "primary"} onClick={onAction} aria-label={`${ctaLabel} for this opportunity`}>
+                {ctaLabel}
+              </Button>
+              {action.actionType === "generate_cover_letter" && onSkipCoverLetter && (
+                <Button className="min-h-9 px-4 text-sm" variant="secondary" onClick={onSkipCoverLetter} aria-label="Skip cover letter for this opportunity">
+                  Skip cover letter
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
     </section>
   );
+}
+
+function getNextBestActionShellTone(tone, actionType) {
+  const normalized = actionType === "export_package" || actionType === "apply_now" ? "success" : tone;
+  return {
+    danger: {
+      shell: "border-l-rose-400 bg-gradient-to-br from-rose-50 via-white to-white ring-rose-100",
+      icon: "bg-rose-100 text-rose-700 ring-rose-200",
+      badge: "bg-rose-50 text-rose-700 ring-rose-100",
+      label: "text-rose-700",
+    },
+    warning: {
+      shell: "border-l-amber-400 bg-gradient-to-br from-amber-50 via-white to-white ring-amber-100",
+      icon: "bg-amber-100 text-amber-800 ring-amber-200",
+      badge: "bg-amber-50 text-amber-800 ring-amber-100",
+      label: "text-amber-800",
+    },
+    success: {
+      shell: "border-l-emerald-400 bg-gradient-to-br from-emerald-50 via-white to-white ring-emerald-100",
+      icon: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+      badge: "bg-emerald-50 text-emerald-800 ring-emerald-100",
+      label: "text-emerald-700",
+    },
+    info: {
+      shell: "border-l-brand-500 bg-gradient-to-br from-brand-50 via-white to-white ring-brand-100",
+      icon: "bg-brand-100 text-brand-800 ring-brand-200",
+      badge: "bg-brand-50 text-brand-800 ring-brand-100",
+      label: "text-brand-700",
+    },
+    neutral: {
+      shell: "border-l-slate-300 bg-gradient-to-br from-slate-50 via-white to-white ring-slate-100",
+      icon: "bg-slate-100 text-slate-600 ring-slate-200",
+      badge: "bg-slate-50 text-slate-600 ring-slate-100",
+      label: "text-slate-600",
+    },
+  }[normalized] ?? {
+    shell: "border-l-brand-500 bg-gradient-to-br from-brand-50 via-white to-white ring-brand-100",
+    icon: "bg-brand-100 text-brand-800 ring-brand-200",
+    badge: "bg-brand-50 text-brand-800 ring-brand-100",
+    label: "text-brand-700",
+  };
 }
 
 function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
@@ -1642,7 +1720,7 @@ function useSlowLoading(active) {
   return show;
 }
 
-function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, prep, onExportComplete }) {
+function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, coverLetterSkipped, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, prep, onExportComplete }) {
   const toast = useToast();
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverExporting, setCoverExporting] = useState("");
@@ -1804,13 +1882,14 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
       </div>
 
-      <ApplicationChecklist
-        score={score}
-        resume={resume}
-        coverLetter={coverLetter}
-        recruiterMessage={recruiterMessage}
-        prep={prep}
-      />
+        <ApplicationChecklist
+          score={score}
+          resume={resume}
+          coverLetter={coverLetter}
+          coverLetterSkipped={coverLetterSkipped}
+          recruiterMessage={recruiterMessage}
+          prep={prep}
+        />
 
       <PackageBuilderSection
         items={packageItems}
@@ -1847,7 +1926,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
               )}
             </MaterialCard>
 
-            <MaterialCard title="Cover Letter" status={coverLetter ? "Ready" : "Optional"} description={coverLetter ? "Copy or export the tailored cover letter." : "No cover letter yet. Generate one only when it strengthens the application."}>
+            <MaterialCard title="Cover Letter" status={coverLetter ? "Ready" : coverLetterSkipped ? "Skipped" : "Optional"} description={coverLetter ? "Copy or export the tailored cover letter." : coverLetterSkipped ? "This application is marked as not needing a cover letter." : "No cover letter yet. Generate one only when it strengthens the application."}>
               {coverLetter ? (
                 <div className="flex flex-wrap gap-2">
                   <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={copyCoverLetter}>{coverCopied ? "Copied" : "Copy"}</Button>
@@ -1882,11 +1961,11 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   );
 }
 
-function ApplicationChecklist({ score, resume, coverLetter, recruiterMessage, prep }) {
+function ApplicationChecklist({ score, resume, coverLetter, coverLetterSkipped, recruiterMessage, prep }) {
   const rows = [
     ["Analysis", Boolean(score)],
     ["Resume", Boolean(resume)],
-    ["Cover Letter", Boolean(coverLetter)],
+    ["Cover Letter", Boolean(coverLetter || coverLetterSkipped)],
     ["Recruiter Message", Boolean(recruiterMessage)],
     ["Interview Prep", Boolean(prep)],
   ];
@@ -2539,7 +2618,7 @@ function formatImpactLevel(value = "") {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
-function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, recruiterMessage, user, onSave, onUpdate, onLogActivity, onUnsavedChange }) {
+function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLetter, coverLetterSkipped, recruiterMessage, user, onSave, onUpdate, onLogActivity, onSkipCoverLetter, onCoverLetterGenerated, onUnsavedChange }) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState("");
@@ -2592,6 +2671,7 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
       const nextContent = saved?.content || result.coverLetterText || "";
       setDraft(nextContent);
       setLastSavedDraft(nextContent);
+      await onCoverLetterGenerated?.();
       toast.success(regenerate ? "Cover letter regenerated." : "Cover letter saved.");
       if (appliedMitigations.length) await onLogActivity?.(user, job.id, "cover_letter_strengthened_from_analysis", { detail: "Cover letter strengthened from analysis", appliedLabels: appliedMitigations.map((item) => item.appliedLabel) });
       if (regenerate) await onLogActivity?.(user, job.id, "cover_letter_regenerated", { detail: "Cover letter regenerated" });
@@ -2651,14 +2731,34 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
   if (!coverLetter) {
     return (
       <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Optional</p>
-        <h3 className="mt-2 text-xl font-bold text-ink">No cover letter yet</h3>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Generate a short, tailored cover letter when a role asks for one or when you want a stronger application package.</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">{coverLetterSkipped ? "Skipped" : "Optional"}</p>
+            <h3 className="mt-2 text-xl font-bold text-ink">{coverLetterSkipped ? "Cover letter skipped" : "No cover letter yet"}</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              {coverLetterSkipped
+                ? "This role is marked as not needing a cover letter. You can still generate one if the application asks for it later."
+                : "Generate a short, tailored cover letter when a role asks for one or when you want a stronger application package."}
+            </p>
+          </div>
+          {coverLetterSkipped && (
+            <span className="w-fit rounded-full bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">
+              Skipped
+            </span>
+          )}
+        </div>
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
-        <Button className="mt-5" onClick={() => generateCoverLetter()} disabled={loading}>
-          {loading && <Loader2 size={14} className="animate-spin" />}
-          {loading ? "Generating..." : "Generate cover letter"}
-        </Button>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button onClick={() => generateCoverLetter()} disabled={loading}>
+            {loading && <Loader2 size={14} className="animate-spin" />}
+            {loading ? "Generating..." : coverLetterSkipped ? "Generate cover letter" : "Generate cover letter"}
+          </Button>
+          {!coverLetterSkipped && (
+            <Button variant="secondary" onClick={onSkipCoverLetter} disabled={loading}>
+              Skip cover letter
+            </Button>
+          )}
+        </div>
         {showSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
       </section>
     );
@@ -4168,8 +4268,8 @@ function hasInterviewPrepData(prep) {
   );
 }
 
-function hasApplicationPackageReady({ score, resume, coverLetter, recruiterMessage } = {}) {
-  return Boolean(score && resume && coverLetter && recruiterMessage);
+function hasApplicationPackageReady({ score, resume, coverLetter, coverLetterResolved, recruiterMessage } = {}) {
+  return Boolean(score && resume && (coverLetter || coverLetterResolved) && recruiterMessage);
 }
 
 function getWorkflowReadiness(completed = {}) {

@@ -1,5 +1,5 @@
 import { getFollowUpStatus, normalizeStage } from "./followUp.js";
-import { isCoverLetter, isRecruiterMessage } from "./jobAiStatus.js";
+import { isCoverLetter, isCoverLetterSkipped, isRecruiterMessage } from "./jobAiStatus.js";
 
 export function getJobMomentumScore(job = {}, context = {}) {
   const score = Number(context.score?.score ?? context.score ?? 0);
@@ -11,7 +11,7 @@ export function getJobMomentumScore(job = {}, context = {}) {
   const staleDays = daysSince(recentActivityDate);
   const messages = context.messages ?? [];
   const hasRecruiterMessage = messages.some((message) => message.job_id === job.id && isRecruiterMessage(message));
-  const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
+  const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message)) || isCoverLetterSkipped(job);
   const hasResume = Boolean(context.resumeVersions?.some((version) => version.job_id === job.id) || context.hasResume);
   const hasInterviewPrep = Boolean(context.interviewPrep?.some((prep) => prep.job_id === job.id) || context.hasInterviewPrep);
   const factors = [];
@@ -41,7 +41,7 @@ export function getJobMomentumScore(job = {}, context = {}) {
   }
   if (hasCoverLetter) {
     total += 3;
-    factors.push("cover_letter_ready");
+    factors.push(isCoverLetterSkipped(job) ? "cover_letter_skipped" : "cover_letter_ready");
   }
   if (hasInterviewPrep) {
     total += 8;

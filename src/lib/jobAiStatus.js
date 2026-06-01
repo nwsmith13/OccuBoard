@@ -1,9 +1,13 @@
-export function getJobAiStatus(jobId, jobScores, resumeVersions, messages) {
+export function getJobAiStatus(jobId, jobScores, resumeVersions, messages, job = {}) {
+  const coverLetterDrafted = messages.some((message) => message.job_id === jobId && isCoverLetter(message));
+  const coverLetterSkipped = isCoverLetterSkipped(job);
   return {
     analyzed: jobScores.some((score) => score.job_id === jobId && hasValidAnalysis(score)),
     resumeDrafted: resumeVersions.some((version) => version.job_id === jobId),
     messageDrafted: messages.some((message) => message.job_id === jobId && isRecruiterMessage(message)),
-    coverLetterDrafted: messages.some((message) => message.job_id === jobId && isCoverLetter(message)),
+    coverLetterDrafted,
+    coverLetterSkipped,
+    coverLetterResolved: coverLetterDrafted || coverLetterSkipped,
   };
 }
 
@@ -33,6 +37,14 @@ export function isRecruiterMessage(message = {}) {
 
 export function isCoverLetter(message = {}) {
   return normalizeMessageType(message.type) === "Cover Letter";
+}
+
+export function getCoverLetterStatus(job = {}) {
+  return String(job.cover_letter_status || job.coverLetterStatus || "").toLowerCase();
+}
+
+export function isCoverLetterSkipped(job = {}) {
+  return getCoverLetterStatus(job) === "skipped";
 }
 
 export function normalizeMessageType(type) {

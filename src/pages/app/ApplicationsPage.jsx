@@ -9,7 +9,7 @@ import { getActiveJobs, getArchivedJobs, isArchivedJob } from "../../lib/archive
 import { formatDate, todayIso } from "../../lib/date.js";
 import { normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
-import { getJobAiStatus, isCoverLetter } from "../../lib/jobAiStatus.js";
+import { getJobAiStatus, isCoverLetter, isCoverLetterSkipped } from "../../lib/jobAiStatus.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { getNextBestAction } from "../../utils/nextBestAction.js";
 import { JobDetail } from "./JobsPage.jsx";
@@ -90,6 +90,18 @@ export function ApplicationsPage() {
     return restored;
   }
 
+  async function skipCoverLetter(job) {
+    try {
+      await updateJob(user, job.id, {
+        cover_letter_status: "skipped",
+        cover_letter_skipped_at: new Date().toISOString(),
+      });
+      toast.success("Cover letter skipped.");
+    } catch {
+      toast.error("Could not skip cover letter.");
+    }
+  }
+
   return (
     <div>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -136,7 +148,7 @@ export function ApplicationsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {displayedJobs.map((model) => (
-            <ApplicationCard key={model.job.id} model={model} onOpen={() => navigate(`/app/applications/${model.job.id}`)} onRestore={model.archived ? () => restoreJob(model.job) : undefined} onDelete={model.archived ? () => deleteJob(user, model.job.id) : undefined} />
+            <ApplicationCard key={model.job.id} model={model} onOpen={() => navigate(`/app/applications/${model.job.id}`)} onSkipCoverLetter={model.action?.actionType === "generate_cover_letter" ? () => skipCoverLetter(model.job) : undefined} onRestore={model.archived ? () => restoreJob(model.job) : undefined} onDelete={model.archived ? () => deleteJob(user, model.job.id) : undefined} />
           ))}
         </div>
       )}
@@ -342,7 +354,7 @@ function getPipelineStage(status) {
   return "Saved";
 }
 
-function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
+function ApplicationCard({ model, onOpen, onSkipCoverLetter, onRestore, onDelete }) {
   const { job, score, archived, stage, lastContact, action, category } = model;
   const categoryTone = getApplicationCategoryTone(category);
   const scoreModel = getOpportunityScoreModel(score);
@@ -375,12 +387,19 @@ function ApplicationCard({ model, onOpen, onRestore, onDelete }) {
         <ChevronRight className="mt-1 shrink-0 text-slate-300 opacity-0 transition duration-150 ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={15} />
       </div>
       {!archived && actionModel && (
-        <div className={`mt-2 flex items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 ring-1 ${actionModel.cardClass}`}>
+        <div className={`mt-2 flex flex-col gap-1 rounded-lg px-2.5 py-1.5 ring-1 sm:flex-row sm:items-center sm:justify-between ${actionModel.cardClass}`}>
           <span className="min-w-0">
             <span className="mr-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Next step</span>
             <span className={`text-sm font-black ${actionModel.textClass}`}>{actionModel.label}</span>
           </span>
-          <ChevronRight size={13} className={`shrink-0 opacity-80 ${actionModel.textClass}`} />
+          <span className="inline-flex items-center gap-2">
+            {onSkipCoverLetter && (
+              <button type="button" className="rounded-full bg-white/75 px-2 py-0.5 text-[11px] font-black text-slate-600 ring-1 ring-slate-200 transition hover:bg-white hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200" onClick={(event) => { event.stopPropagation(); onSkipCoverLetter(); }}>
+                Skip cover letter
+              </button>
+            )}
+            <ChevronRight size={13} className={`shrink-0 opacity-80 ${actionModel.textClass}`} />
+          </span>
         </div>
       )}
       {updatedLabel && <p className="mt-1.5 border-t border-slate-100 pt-1.5 text-xs font-semibold text-slate-500">{updatedLabel}</p>}
@@ -470,7 +489,7 @@ function getOpportunityDateLabel({ job, lastContact }) {
 
 function getApplicationCardModel(job, { jobScores = [], resumeVersions = [], messages = [], jobContacts = [], jobActivityLogs = [], interviewPrep = [] }) {
   const score = getLatestFitScore(jobScores, job.id);
-  const status = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
+  const status = getJobAiStatus(job.id, jobScores, resumeVersions, messages, job);
   const contacts = jobContacts.filter((contact) => contact.job_id === job.id);
   const timeline = getApplicationTimeline(job, { jobActivityLogs, messages, resumeVersions });
   const prep = interviewPrep.find((item) => item.job_id === job.id);
@@ -478,8 +497,10 @@ function getApplicationCardModel(job, { jobScores = [], resumeVersions = [], mes
   const archived = isArchivedJob(job);
   const health = getApplicationHealth(job, timeline);
   const reminder = getApplicationReminder(job, contacts, timeline);
-  const action = getNextBestAction(job, { score, aiStatus: status, messages });
   const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
+  const coverLetterSkipped = isCoverLetterSkipped(job);
+  const coverLetterResolved = hasCoverLetter || coverLetterSkipped;
+  const action = getNextBestAction(job, { score, aiStatus: status, messages, hasCoverLetter: coverLetterResolved, coverLetterSkipped });
   const interviewPrepScore = prep?.content ? getApplicationInterviewPrepScore(prep) : null;
   return {
     job,
@@ -494,18 +515,20 @@ function getApplicationCardModel(job, { jobScores = [], resumeVersions = [], mes
     reminder,
     action,
     hasCoverLetter,
+    coverLetterSkipped,
+    coverLetterResolved,
     interviewPrepScore,
     lastContact: getLastContactDate(contacts),
-    category: getApplicationCategory({ archived, stage, status, hasCoverLetter, health }),
+    category: getApplicationCategory({ archived, stage, status, coverLetterResolved, health }),
   };
 }
 
-function getApplicationCategory({ archived, stage, status, hasCoverLetter, health }) {
+function getApplicationCategory({ archived, stage, status, coverLetterResolved, health }) {
   if (archived) return "Archived";
   if (stage === "Rejected") return "Not Active";
   if (["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "Interviewing";
-  if (status.resumeDrafted && status.messageDrafted && hasCoverLetter && stage === "Saved") return "Ready To Apply";
-  if (health.tone === "danger" || !status.resumeDrafted || !hasCoverLetter) return "Needs Attention";
+  if (status.resumeDrafted && status.messageDrafted && coverLetterResolved && stage === "Saved") return "Ready To Apply";
+  if (health.tone === "danger" || !status.resumeDrafted || !coverLetterResolved) return "Needs Attention";
   return "Active";
 }
 
@@ -572,9 +595,9 @@ function getApplicationMetrics(activeJobs, { jobScores = [], jobContacts = [], r
   const topJob = getTopOpportunity(activeJobs, jobScores);
   const followUpsNeeded = activeJobs.filter((job) => getApplicationHealth(job, getApplicationTimeline(job, {})).tone === "danger").length;
   const readyToApply = activeJobs.filter((job) => {
-    const status = getJobAiStatus(job.id, jobScores, resumeVersions, messages);
+    const status = getJobAiStatus(job.id, jobScores, resumeVersions, messages, job);
     const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
-    return getPipelineStage(job.status) === "Saved" && status.resumeDrafted && status.messageDrafted && hasCoverLetter;
+    return getPipelineStage(job.status) === "Saved" && status.resumeDrafted && status.messageDrafted && (hasCoverLetter || isCoverLetterSkipped(job));
   }).length;
   const bestMove = getBestNextMove({ readyToApply, interviewsThisMonth, followUpsNeeded, activeApplications });
   return {
@@ -745,5 +768,3 @@ function ApplicationCardsSkeleton() {
 export function getNextAction(job, status) {
   return getNextBestAction(job, { aiStatus: status }).label;
 }
-
-
