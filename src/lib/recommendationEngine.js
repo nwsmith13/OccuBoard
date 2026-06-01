@@ -160,19 +160,19 @@ export function generateRecommendations({
       }));
     }
 
-    if (hasResume && scoreValue >= 85 && !hasCoverLetter && shouldRecommendCoverLetter(job)) {
+    if (hasResume && scoreValue >= 85 && !hasCoverLetter && asksForCoverLetter(job.job_description)) {
       recommendations.push(buildRecommendation(job, {
         type: recommendationTypes.COVER_LETTER_RECOMMENDED,
         priority: "medium",
         urgency: "suggested",
         title: "Cover letter may strengthen this application.",
-        description: asksForCoverLetter(job.job_description) ? "The job description asks for a cover letter." : "This strong, client-facing role may benefit from one concise letter.",
+        description: "The job description asks for a cover letter.",
         actionLabel: "Generate cover letter",
         actionTab: "coverLetter",
         score: momentumScore + 8,
-        reasoningText: asksForCoverLetter(job.job_description) ? "Employer asks for a cover letter." : "Client-facing implementation role with strong fit.",
-        reasoningSignals: ["high_fit", "cover_letter_missing", "client_facing", ...momentum.factors],
-        confidence: asksForCoverLetter(job.job_description) ? 0.9 : 0.75,
+        reasoningText: "Employer asks for a cover letter.",
+        reasoningSignals: ["high_fit", "cover_letter_requested", ...momentum.factors],
+        confidence: 0.9,
       }));
     }
 
@@ -314,12 +314,6 @@ function dedupeRecommendations(recommendations) {
     seen.add(key);
     return true;
   });
-}
-
-function shouldRecommendCoverLetter(job = {}) {
-  if (asksForCoverLetter(job.job_description)) return true;
-  const text = `${job.job_title || ""} ${job.job_description || ""}`.toLowerCase();
-  return /\b(manager|consultant|client|customer|success|account|implementation|onboarding|stakeholder|enterprise|professional services)\b/i.test(text);
 }
 
 function asksForCoverLetter(description = "") {

@@ -499,7 +499,7 @@ function getApplicationCardModel(job, { jobScores = [], resumeVersions = [], mes
   const reminder = getApplicationReminder(job, contacts, timeline);
   const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
   const coverLetterSkipped = isCoverLetterSkipped(job);
-  const coverLetterResolved = hasCoverLetter || coverLetterSkipped;
+  const coverLetterResolved = hasCoverLetter || coverLetterSkipped || !asksForCoverLetter(job.job_description);
   const action = getNextBestAction(job, { score, aiStatus: status, messages, hasCoverLetter: coverLetterResolved, coverLetterSkipped });
   const interviewPrepScore = prep?.content ? getApplicationInterviewPrepScore(prep) : null;
   return {
@@ -530,6 +530,10 @@ function getApplicationCategory({ archived, stage, status, coverLetterResolved, 
   if (status.resumeDrafted && status.messageDrafted && coverLetterResolved && stage === "Saved") return "Ready To Apply";
   if (health.tone === "danger" || !status.resumeDrafted || !coverLetterResolved) return "Needs Attention";
   return "Active";
+}
+
+function asksForCoverLetter(description = "") {
+  return /\bcover\s+letter\b|\bletter\s+of\s+interest\b|\bstatement\s+of\s+interest\b/i.test(description);
 }
 
 function getApplicationCategoryTone(category) {
@@ -597,7 +601,7 @@ function getApplicationMetrics(activeJobs, { jobScores = [], jobContacts = [], r
   const readyToApply = activeJobs.filter((job) => {
     const status = getJobAiStatus(job.id, jobScores, resumeVersions, messages, job);
     const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
-    return getPipelineStage(job.status) === "Saved" && status.resumeDrafted && status.messageDrafted && (hasCoverLetter || isCoverLetterSkipped(job));
+    return getPipelineStage(job.status) === "Saved" && status.resumeDrafted && status.messageDrafted && (hasCoverLetter || isCoverLetterSkipped(job) || !asksForCoverLetter(job.job_description));
   }).length;
   const bestMove = getBestNextMove({ readyToApply, interviewsThisMonth, followUpsNeeded, activeApplications });
   return {

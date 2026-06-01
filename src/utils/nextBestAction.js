@@ -113,7 +113,7 @@ export function getNextBestAction(job = {}, options = {}) {
   );
   const hasInterviewPrep = Boolean(options.hasInterviewPrep);
   const hasFollowUpMessage = Boolean(options.hasFollowUpMessage ?? options.messages?.some((message) => message.job_id === job.id && message.type === "Follow-up Message"));
-  const shouldSuggestCoverLetter = shouldRecommendCoverLetter(job, scoreValue);
+  const coverLetterRequired = asksForCoverLetter(job.job_description);
 
   if (stage === "Closed") {
     return buildAction("no_action", { description: "Outcome recorded. No next step is needed." });
@@ -141,13 +141,9 @@ export function getNextBestAction(job = {}, options = {}) {
 
   if (stage === "Saved") {
     if (!hasResume) return buildAction("generate_resume");
-    if (!hasCoverLetter) {
+    if (!hasCoverLetter && coverLetterRequired) {
       return buildAction("generate_cover_letter", {
-        description: asksForCoverLetter(job.job_description)
-          ? "The job description asks for a cover letter. Draft a concise version before outreach."
-          : shouldSuggestCoverLetter
-            ? "This strong, client-facing role may benefit from a short tailored cover letter."
-            : "Generate a concise cover letter now, or use this step to confirm one is not needed.",
+        description: "The job description asks for a cover letter. Draft a concise version before outreach, or skip it if you decide not to include one.",
         priority: 3,
       });
     }
@@ -191,17 +187,6 @@ function shouldPrioritizeFollowUp(job, stage, followUpStatus, options = {}) {
 
 function asksForCoverLetter(description = "") {
   return /\bcover\s+letter\b|\bletter\s+of\s+interest\b|\bstatement\s+of\s+interest\b/i.test(description);
-}
-
-function shouldRecommendCoverLetter(job = {}, scoreValue = 0) {
-  if (asksForCoverLetter(job.job_description)) return true;
-  if (scoreValue < 85) return false;
-  return isProfessionalOrClientFacingRole(job);
-}
-
-function isProfessionalOrClientFacingRole(job = {}) {
-  const text = `${job.job_title || ""} ${job.job_description || ""}`.toLowerCase();
-  return /\b(manager|management|director|lead|consultant|solutions?|client|customer|success|account|implementation|onboarding|stakeholder|enterprise|professional services|project owner|program)\b/i.test(text);
 }
 
 export function getNextBestActionTone(tone) {
