@@ -23,8 +23,8 @@ export function ResumeStudioPage() {
       <div className="grid gap-6 self-start">
         {!profile?.base_resume_text?.trim() && (
           <Card className="bg-brand-50/60">
-            <h2 className="text-xl font-bold">Start by importing your resume</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Upload a PDF, DOCX, or TXT resume so OccuBoard can tailor applications using your real experience.</p>
+            <h2 className="text-xl font-bold">Upload Your First Resume</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Your resume becomes the foundation for every tailored application.</p>
             <div className="mt-4 flex flex-wrap gap-3">
               <a href="#resume-import" className="inline-flex min-h-10 items-center justify-center rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-brand-800">Upload Resume</a>
               <a href="#base-resume" className="inline-flex min-h-10 items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-800 ring-1 ring-brand-200 hover:bg-brand-50">Paste Resume Manually</a>

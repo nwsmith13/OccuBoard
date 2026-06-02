@@ -122,12 +122,12 @@ export function GeneratedResumesPage() {
         <PageHeader />
         {error && <div className="rounded-lg bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div>}
         <Card className="bg-gradient-to-br from-brand-50/70 via-white to-emerald-50/60 p-8 text-center shadow-sm">
-          <h3 className="text-xl font-bold text-ink">No tailored resumes yet.</h3>
+          <h3 className="text-xl font-bold text-ink">No Tailored Resumes Yet</h3>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600">
-            Analyze a new job and your tailored resumes will appear here automatically for review, editing, and export.
+            Generate a tailored resume from a job analysis.
           </p>
           <Link to="/app/new-jobs" className="mt-5 inline-flex">
-            <Button>Analyze a New Job</Button>
+            <Button>Generate Resume</Button>
           </Link>
         </Card>
       </div>

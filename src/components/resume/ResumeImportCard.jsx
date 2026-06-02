@@ -63,9 +63,9 @@ export function ResumeImportCard({ compact = false }) {
     <Card className={compact ? "bg-brand-50/40" : ""}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold">{hasBaseResume ? "Import Resume" : "Start by importing your resume"}</h2>
+          <h2 className="text-xl font-bold">{hasBaseResume ? "Import Resume" : "Upload Your First Resume"}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Upload a PDF, DOCX, or TXT resume so OccuBoard can tailor applications using your real experience.
+            {hasBaseResume ? "Upload a PDF, DOCX, or TXT resume so OccuBoard can tailor applications using your real experience." : "Your resume becomes the foundation for every tailored application."}
           </p>
         </div>
         <Button variant="secondary" onClick={() => inputRef.current?.click()} disabled={state.loading}>

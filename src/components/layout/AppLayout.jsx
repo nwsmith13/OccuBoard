@@ -1,9 +1,11 @@
 import { BarChart3, Command, FileStack, FileText, LayoutDashboard, LogOut, Menu, PlusCircle, Settings, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { buildOnboardingState, onboardingStorageKey, readBooleanFlag, shouldShowFullOnboarding, writeBooleanFlag } from "../../lib/onboarding.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { CommandPalette } from "../command/CommandPalette.jsx";
+import { OnboardingFlow } from "../onboarding/OnboardingFlow.jsx";
 import { Button } from "../ui/Button.jsx";
 import { Logo } from "./Logo.jsx";
 
@@ -20,10 +22,12 @@ export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(() => readBooleanFlag(onboardingStorageKey));
   const { signOut, user, isConfigured } = useAuth();
-  const { loadWorkspace, profile } = useWorkspaceStore();
+  const { loadWorkspace, profile, resumeUploads, jobs, jobScores, resumeVersions, loading, loadedFor } = useWorkspaceStore();
   const location = useLocation();
   const current = navItems.find((item) => location.pathname === item.path) ?? navItems.find((item) => location.pathname.startsWith(item.path));
+  const onboardingState = useMemo(() => buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions }), [jobScores, jobs, profile, resumeUploads, resumeVersions]);
 
   useEffect(() => {
     loadWorkspace(user);
@@ -39,6 +43,16 @@ export function AppLayout() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  function dismissOnboarding() {
+    writeBooleanFlag(onboardingStorageKey, true);
+    setOnboardingDismissed(true);
+  }
+
+  const workspaceReady = !loading && loadedFor === (user?.id ?? "local-demo-user");
+  if (workspaceReady && shouldShowFullOnboarding(onboardingState, { pathname: location.pathname, dismissed: onboardingDismissed })) {
+    return <OnboardingFlow state={onboardingState} onDismiss={dismissOnboarding} />;
+  }
 
   const sidebar = (
     <aside className={`${collapsed ? "w-20" : "w-72"} flex h-full flex-col border-r border-slate-200 bg-white/95 transition-all lg:sticky lg:top-0 lg:h-screen`}>

@@ -138,10 +138,10 @@ export function ApplicationsPage() {
       {loading ? (
         <ApplicationCardsSkeleton />
       ) : !displayedJobs.length ? (
-        <EmptyApplicationState filter={smartFilter} archiveMode={archiveMode}>
+        <EmptyApplicationState filter={smartFilter} archiveMode={archiveMode} noApplications={!activeJobs.length && archiveMode === "active"}>
           {archiveMode === "active" && smartFilter === "Focus" && (
             <Link to="/app/new-jobs" className="mt-5 inline-flex">
-              <Button>Analyze New Job</Button>
+              <Button>Analyze Job</Button>
             </Link>
           )}
         </EmptyApplicationState>
@@ -271,9 +271,9 @@ function getWorkflowFilterHelper(filter) {
   }[filter] ?? "all opportunities in this view.";
 }
 
-function EmptyApplicationState({ filter, archiveMode, children }) {
+function EmptyApplicationState({ filter, archiveMode, noApplications, children }) {
   const archived = archiveMode === "archived" || filter === "Archived";
-  const emptyCopy = getEmptyStateCopy({ filter, archived });
+  const emptyCopy = getEmptyStateCopy({ filter, archived, noApplications });
   return (
     <div className="rounded-xl bg-white/90 p-8 text-center shadow-card ring-1 ring-brand-100">
       <h3 className="text-xl font-bold text-ink">{emptyCopy.title}</h3>
@@ -283,7 +283,13 @@ function EmptyApplicationState({ filter, archiveMode, children }) {
   );
 }
 
-function getEmptyStateCopy({ filter, archived }) {
+function getEmptyStateCopy({ filter, archived, noApplications }) {
+  if (noApplications) {
+    return {
+      title: "No Applications Yet",
+      copy: "Analyze a job to create your first opportunity.",
+    };
+  }
   if (filter === "Focus") {
     return {
       title: "You are caught up.",
