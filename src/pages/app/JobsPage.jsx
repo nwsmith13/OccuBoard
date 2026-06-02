@@ -1044,7 +1044,7 @@ function InterviewReadinessOverview({ job, contacts, score, prep, onOpenIntervie
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Readiness</p>
-          <h3 className="mt-1 text-lg font-bold text-ink">{readiness ? `${readiness.score}% ready` : "Prepare for interview"}</h3>
+          <h3 className="mt-1 text-lg font-bold text-ink">{readiness ? readiness.label : "Prepare for interview"}</h3>
         </div>
         {readiness && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100">{readiness.label}</span>}
       </div>
@@ -2954,6 +2954,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const [thankYouSaved, setThankYouSaved] = useState(false);
   const [interviewCompleted, setInterviewCompleted] = useState(false);
   const [mockStarted, setMockStarted] = useState(false);
+  const [prepHelpDismissed, setPrepHelpDismissed] = useState(false);
   const showPrepSlowHint = useSlowLoading(loading);
   const content = prep?.content;
   const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep });
@@ -3214,6 +3215,9 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           onAction={onContinue}
         />
       )}
+      {!onboarding.completed && !prepHelpDismissed && (
+        <InterviewPrepHelperCallout onDismiss={() => setPrepHelpDismissed(true)} />
+      )}
       {scheduleCard}
       <div className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -3229,7 +3233,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
         </div>
         {showPrepSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Detail label="Readiness score" value={`${readiness.score}%`} />
+          <Detail label="Interview Readiness" value={readiness.label} />
           <Detail label="Fit score" value={score ? `${Math.round(Number(score.score))}%` : "Not analyzed"} />
           <Detail label="Interview date" value={interviewDetails.interview_date ? formatDate(interviewDetails.interview_date) : "Not scheduled"} />
           <Detail label="Preparation level" value={getPrepLevel(content, practiced.size)} />
@@ -3346,6 +3350,29 @@ function InterviewPrepTabs({ active, onSelect }) {
   );
 }
 
+function InterviewPrepHelperCallout({ onDismiss }) {
+  return (
+    <section className="rounded-xl bg-brand-50/80 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-brand-950">What is Interview Prep?</p>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+            OccuBoard identifies likely questions, talking points, STAR stories, company research, and hiring concerns so you can prepare before an interview.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="shrink-0 rounded-lg p-2 text-slate-500 transition hover:bg-white/70 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+          onClick={onDismiss}
+          aria-label="Dismiss interview prep help"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function InterviewToolkit({ focusAreas, questionsToAsk, onPrintCheatSheet, onDownloadCheatSheet }) {
   const talkingPointsText = focusAreas.map((area) => area.emphasize || area.title).filter(Boolean).join("\n");
   const questionsText = questionsToAsk.map((question) => question).filter(Boolean).join("\n");
@@ -3376,29 +3403,30 @@ function InterviewToolkit({ focusAreas, questionsToAsk, onPrintCheatSheet, onDow
 }
 
 function InterviewPrepOverview({ focusAreas, questions, readiness, concerns }) {
-  const fastestWays = getFastestInterviewImprovements(readiness, concerns, questions);
+  const fastestWays = getFastestInterviewImprovements(readiness, concerns);
+  const toolkitStatus = getInterviewToolkitStatus({ focusAreas, questions, readiness, concerns });
   return (
     <section className="grid gap-4">
       <PrepSection title="Interview Readiness">
-        <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-4xl font-black text-brand-900">{readiness.score}%</p>
-            <p className="mt-1 text-sm font-bold text-slate-700">{readiness.label}</p>
-          </div>
-          <div>
-            <div className="h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.score}% interview readiness`}>
-              <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${readiness.score}%` }} />
-            </div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{readiness.description}</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Interview Readiness</p>
+            <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-sm font-black ring-1 ${getInterviewReadinessTone(readiness.label)}`}>
+              {readiness.label}
+            </span>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{readiness.description}</p>
           </div>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
-          {Object.entries(readiness.subscores).map(([label, value]) => (
-            <ReadinessSubscore key={label} label={label} value={value} />
-          ))}
+        <div className="mt-4 rounded-xl bg-white/80 p-3 ring-1 ring-brand-100">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-600">Interview Toolkit Status</p>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {toolkitStatus.map((item) => (
+              <ToolkitStatusRow key={item.label} item={item} />
+            ))}
+          </div>
         </div>
       </PrepSection>
-      <PrepSection title="Fastest Way To Improve">
+      <PrepSection title="Fastest Way To Improve" featured>
         <div className="grid gap-2 md:grid-cols-3">
           {fastestWays.map((item) => (
             <div key={item} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold leading-6 text-emerald-900 ring-1 ring-emerald-100">{item}</div>
@@ -3637,26 +3665,32 @@ function PrepInfoBlock({ label, value }) {
   );
 }
 
-function ReadinessSubscore({ label, value }) {
-  const display = label.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
-  const tone = getReadinessSubscoreTone(value);
+function ToolkitStatusRow({ item }) {
+  const tone = getToolkitStatusTone(item.status);
+  const icon = item.status === "complete" ? "\u2713" : item.status === "attention" ? "!" : "\u25CB";
   return (
-    <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">{display}</p>
-        <p className={`text-sm font-black ${tone.text}`}>{value}%</p>
-      </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white" aria-label={`${display} readiness ${value}%`}>
-        <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${value}%` }} />
+    <div className={`flex items-start gap-2 rounded-lg px-3 py-2 ring-1 ${tone.container}`}>
+      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-xs font-black ${tone.icon}`} aria-hidden="true">
+        {icon}
+      </span>
+      <div>
+        <p className={`text-sm font-bold ${tone.text}`}>{item.label}</p>
+        {item.detail && <p className="mt-0.5 text-xs font-semibold leading-5 text-slate-600">{item.detail}</p>}
       </div>
     </div>
   );
 }
 
-function getReadinessSubscoreTone(value) {
-  if (value >= 90) return { text: "text-emerald-700", bar: "bg-emerald-500" };
-  if (value >= 75) return { text: "text-amber-700", bar: "bg-amber-500" };
-  return { text: "text-rose-700", bar: "bg-rose-500" };
+function getToolkitStatusTone(status) {
+  if (status === "complete") return { container: "bg-emerald-50 text-emerald-900 ring-emerald-100", icon: "bg-white text-emerald-700 ring-1 ring-emerald-100", text: "text-emerald-950" };
+  if (status === "attention") return { container: "bg-amber-50 text-amber-900 ring-amber-100", icon: "bg-white text-amber-700 ring-1 ring-amber-100", text: "text-amber-950" };
+  return { container: "bg-slate-50 text-slate-700 ring-slate-100", icon: "bg-white text-slate-500 ring-1 ring-slate-200", text: "text-slate-800" };
+}
+
+function getInterviewReadinessTone(label) {
+  if (label === "Excellent") return "bg-emerald-50 text-emerald-800 ring-emerald-100";
+  if (label === "Good") return "bg-brand-50 text-brand-800 ring-brand-100";
+  return "bg-amber-50 text-amber-800 ring-amber-100";
 }
 
 function InterviewConcernCard({ concern }) {
@@ -3770,9 +3804,9 @@ function InterviewScheduleCard({ job, contacts, details, message, saving, onChan
   );
 }
 
-function PrepSection({ title, children }) {
+function PrepSection({ title, children, featured = false }) {
   return (
-    <section className="rounded-xl bg-white/85 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+    <section className={`rounded-xl p-4 shadow-sm ring-1 sm:p-5 ${featured ? "bg-gradient-to-r from-emerald-50 via-white to-brand-50 ring-emerald-100" : "bg-white/85 ring-brand-100"}`}>
       <h3 className="font-bold text-ink">{title}</h3>
       <div className="mt-3">{children}</div>
     </section>
@@ -3803,10 +3837,57 @@ function getInterviewReadinessScore({ content, practicedCount, interviewDetails,
   return {
     score: clamped,
     subscores,
-    label: clamped >= 85 ? "Ready" : clamped >= 70 ? "In progress" : "Getting prepared",
+    storyCount,
+    questionCount,
+    focusCount,
+    label: clamped >= 85 ? "Excellent" : clamped >= 70 ? "Good" : "Needs Work",
     description: clamped >= 85
-      ? "Core focus areas, questions, stories, and follow-up support are in place."
-      : "Prep is structured. Practice the strongest questions and tighten your examples before the interview.",
+      ? "Your interview toolkit is prepared and ready for review."
+      : "Your prep is structured. Review the fastest improvements and tighten the most important examples before the interview.",
+  };
+}
+
+function getInterviewToolkitStatus({ focusAreas = [], questions = [], readiness, concerns = [] }) {
+  const storyCount = readiness?.storyCount ?? 0;
+  return [
+    {
+      label: questions.length ? "Questions Prepared" : "Questions Not Started",
+      status: questions.length ? "complete" : "notStarted",
+      detail: questions.length ? `${questions.length} likely questions ready to review.` : "Generate interview prep to create likely questions.",
+    },
+    {
+      label: storyCount ? "STAR Stories Identified" : "STAR Stories Not Started",
+      status: storyCount ? "complete" : "notStarted",
+      detail: storyCount ? `${storyCount} story${storyCount === 1 ? "" : "ies"} ready for interview examples.` : "Generate prep to identify useful resume stories.",
+    },
+    {
+      label: focusAreas.length ? "Company Research Generated" : "Company Research Not Started",
+      status: focusAreas.length ? "complete" : "notStarted",
+      detail: focusAreas.length ? `${focusAreas.length} focus area${focusAreas.length === 1 ? "" : "s"} prepared from the role.` : "Generate prep to create research notes.",
+    },
+    getHiringConcernsStatus(concerns),
+  ];
+}
+
+function getHiringConcernsStatus(concerns = []) {
+  if (!concerns.length) {
+    return {
+      label: "Hiring Concerns Addressed",
+      status: "complete",
+      detail: "No major concerns identified.",
+    };
+  }
+  if (concerns.length <= 1) {
+    return {
+      label: "Hiring Concern Needs Attention",
+      status: "attention",
+      detail: "1 hiring concern still needs a stronger response.",
+    };
+  }
+  return {
+    label: "Hiring Concerns Need Attention",
+    status: "attention",
+    detail: `${concerns.length} hiring concerns still need stronger responses.`,
   };
 }
 
@@ -3925,10 +4006,10 @@ function getRelatedStory(question = {}, stories = []) {
   }) || stories[0];
 }
 
-function getFastestInterviewImprovements(readiness, concerns = [], questions = []) {
+function getFastestInterviewImprovements(readiness, concerns = []) {
   const items = [];
   if (readiness.subscores.stories < 80) items.push("Choose two STAR stories and practice the results out loud.");
-  if (readiness.subscores.questions < 80 || questions.length) items.push("Practice the first three very likely questions.");
+  if (readiness.subscores.questions < 80) items.push("Practice the first three very likely questions.");
   if (concerns.length) items.push(`Prepare a concise answer for: ${concerns[0].title}`);
   if (!items.length) items.push("Do one quick mock pass, then review your questions for the interviewer.");
   return items.slice(0, 3);
