@@ -13,13 +13,20 @@ export function buildOnboardingState({ profile, resumeUploads = [], jobs = [], j
   const hasTailoredResume = resumeVersions.length > 0;
   const hasExport = getResumeExportHistory().length > 0 || getOnboardingPackageExports().length > 0;
   const trackedApplication = jobs.some((job) => ["Applied", "Recruiter Screen", "Interview", "Final Interview", "Offer", "Closed"].includes(job.status));
-  const steps = [
+  const rawSteps = [
     { id: "resume", label: "Upload Resume", done: hasResume },
-    { id: "job", label: "Analyze Job", done: hasJob || hasAnalysis },
+    { id: "job", label: "Analyze Job", done: hasJob },
+    { id: "fit", label: "Analyze Fit", done: hasAnalysis },
     { id: "resumeGenerated", label: "Generate Resume", done: hasTailoredResume },
     { id: "export", label: "Export Package", done: hasExport },
-    { id: "track", label: "Track Application", done: trackedApplication || hasJob },
+    { id: "track", label: "Track Application", done: hasExport && (trackedApplication || hasJob) },
   ];
+  let previousComplete = true;
+  const steps = rawSteps.map((step) => {
+    const done = previousComplete && step.done;
+    previousComplete = done;
+    return { ...step, done };
+  });
   const complete = steps.filter((step) => step.done).length;
   return {
     hasResume,

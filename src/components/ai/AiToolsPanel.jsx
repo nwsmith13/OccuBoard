@@ -137,16 +137,27 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
                 setIntensity(value);
               }}
             />
-            {showOnboardingHelp && (
+            {showOnboardingHelp && !latestScore && (
+              <AiOnboardingHelpCard
+                eyebrow="Step 3 of 5"
+                title="Analyze Your Match"
+                body="Let's see how well your experience aligns with this role."
+                bullets={["Match score", "Strengths", "Missing qualifications", "Resume tailoring opportunities"]}
+                actionLabel={aiState.loading === "fit" ? "Analyzing..." : "Analyze Fit"}
+                onAction={() => runAi("fit")}
+                disabled={Boolean(aiState.loading)}
+              />
+            )}
+            {showOnboardingHelp && latestScore && (
               <AiOnboardingHelpCard
                 eyebrow="Step 3 of 5"
                 title="Review Your Match"
-                body="Review the fit score, top strengths, and hiring considerations before generating your tailored resume."
+                body="Your analysis is ready. Review your match score, strengths, and opportunities before generating your tailored resume."
                 actionLabel="Continue to Resume"
                 onAction={() => onTabChange?.("resume")}
               />
             )}
-            <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} onRecruiterView={() => onTabChange?.("recruiterView")} />
+            <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} showAction={!(showOnboardingHelp && !latestScore)} onContinue={() => onTabChange?.("resume")} onRecruiterView={() => onTabChange?.("recruiterView")} />
           </>
         )}
         {activeAction === "resume" && (
@@ -268,7 +279,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   );
 }
 
-function AiOnboardingHelpCard({ eyebrow, title, body, actionLabel, onAction, disabled = false }) {
+function AiOnboardingHelpCard({ eyebrow, title, body, bullets = [], actionLabel, onAction, disabled = false }) {
   return (
     <section className="rounded-xl bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-sm ring-1 ring-brand-100">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -276,6 +287,16 @@ function AiOnboardingHelpCard({ eyebrow, title, body, actionLabel, onAction, dis
           <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">{eyebrow}</p>
           <h3 className="mt-1 text-lg font-black text-ink">{title}</h3>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{body}</p>
+          {bullets.length > 0 && (
+            <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+              {bullets.map((item) => (
+                <span key={item} className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                  <span className="text-emerald-700" aria-hidden="true">{"\u2713"}</span>
+                  {item}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <Button className="w-fit shrink-0" onClick={onAction} disabled={disabled}>
           {actionLabel}
