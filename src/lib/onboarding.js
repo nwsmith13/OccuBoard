@@ -2,6 +2,8 @@ import { getResumeExportHistory } from "./resumeExport.js";
 
 export const onboardingStorageKey = "occuboard-onboarding-dismissed";
 export const onboardingTrackerDismissedKey = "occuboard-onboarding-tracker-dismissed";
+export const onboardingPackageExportsKey = "occuboard-onboarding-package-exports";
+export const onboardingUpdatedEvent = "occuboard:onboarding-updated";
 
 export function buildOnboardingState({ profile, resumeUploads = [], jobs = [], jobScores = [], resumeVersions = [] } = {}) {
   const hasResume = Boolean(profile?.base_resume_text?.trim() || resumeUploads.length);
@@ -9,7 +11,7 @@ export function buildOnboardingState({ profile, resumeUploads = [], jobs = [], j
   const hasAnalysis = jobScores.some(hasValidAnalysis);
   const latestScore = [...jobScores].filter(hasValidAnalysis).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0] ?? null;
   const hasTailoredResume = resumeVersions.length > 0;
-  const hasExport = getResumeExportHistory().length > 0;
+  const hasExport = getResumeExportHistory().length > 0 || getOnboardingPackageExports().length > 0;
   const trackedApplication = jobs.some((job) => ["Applied", "Recruiter Screen", "Interview", "Final Interview", "Offer", "Closed"].includes(job.status));
   const steps = [
     { id: "resume", label: "Upload Resume", done: hasResume },
@@ -50,8 +52,36 @@ export function readBooleanFlag(key) {
 export function writeBooleanFlag(key, value = true) {
   try {
     window.localStorage.setItem(key, String(Boolean(value)));
+    dispatchOnboardingUpdated();
   } catch {
     // Local storage is convenience only.
+  }
+}
+
+export function rememberOnboardingPackageExport(jobId = "") {
+  try {
+    const current = getOnboardingPackageExports();
+    const entry = { jobId, exportedAt: new Date().toISOString() };
+    window.localStorage.setItem(onboardingPackageExportsKey, JSON.stringify([entry, ...current].slice(0, 20)));
+    dispatchOnboardingUpdated();
+  } catch {
+    // Export tracking is a lightweight onboarding signal only.
+  }
+}
+
+function getOnboardingPackageExports() {
+  try {
+    return JSON.parse(window.localStorage.getItem(onboardingPackageExportsKey) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function dispatchOnboardingUpdated() {
+  try {
+    window.dispatchEvent(new window.Event(onboardingUpdatedEvent));
+  } catch {
+    // No-op outside the browser.
   }
 }
 

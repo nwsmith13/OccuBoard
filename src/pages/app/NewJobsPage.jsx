@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, Link as LinkIcon, Sparkles } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
 import { Field } from "../../components/ui/Field.jsx";
@@ -8,6 +8,7 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { priorities, remoteTypes } from "../../data/seedData.js";
 import { todayIso } from "../../lib/date.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
+import { buildOnboardingState } from "../../lib/onboarding.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { JobDetail } from "./JobsPage.jsx";
 
@@ -26,7 +27,8 @@ const emptyIntake = {
 
 export function NewJobsPage() {
   const { user } = useAuth();
-  const { createJob, updateJob, deleteJob } = useWorkspaceStore();
+  const navigate = useNavigate();
+  const { profile, resumeUploads, jobs, jobScores, resumeVersions, createJob, updateJob, deleteJob } = useWorkspaceStore();
   const [form, setForm] = useState(emptyIntake);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -34,7 +36,10 @@ export function NewJobsPage() {
   const [guardrailOpen, setGuardrailOpen] = useState(false);
   const [savedJob, setSavedJob] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [onboardingHelpOpen, setOnboardingHelpOpen] = useState(true);
   const descriptionRef = useRef(null);
+  const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions });
+  const showOnboardingHelp = onboarding.hasResume && !onboarding.hasAnalysis && onboardingHelpOpen;
 
   const canAnalyze = useMemo(() => Boolean(form.source_url.trim() || form.job_description.trim()), [form]);
   const missingCompany = !form.company_name.trim();
@@ -95,6 +100,10 @@ export function NewJobsPage() {
         status: "Saved",
         date_saved: todayIso(),
       });
+      if (onboarding.hasResume && !onboarding.hasAnalysis) {
+        navigate(`/app/applications/${saved.id}`, { state: { initialTab: "fit" } });
+        return;
+      }
       setSavedJob({ ...saved, initialTab: "fit" });
     } catch (saveError) {
       setError(saveError?.message || "We couldn't save this job yet. Please try again.");
@@ -146,6 +155,27 @@ export function NewJobsPage() {
         </div>
       )}
 
+      {showOnboardingHelp && (
+        <section className="rounded-xl bg-brand-50/80 p-4 shadow-card ring-1 ring-brand-100 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Step 2 of 5</p>
+              <h3 className="mt-1 text-xl font-black text-ink">Analyze Your First Job</h3>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Great - your resume is ready. Now paste a job posting URL or the full job description below.</p>
+            </div>
+            <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={() => setOnboardingHelpOpen(false)}>Got it</Button>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {["Calculate your match score", "Identify strengths and gaps", "Create a tailored resume", "Prepare interview materials"].map((item) => (
+              <div key={item} className="rounded-lg bg-white/80 px-3 py-2 text-sm font-bold text-slate-700 ring-1 ring-white/80">
+                <span className="mr-2 text-emerald-700">{"\u2713"}</span>{item}
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs font-semibold text-slate-600">Most users start by copying a LinkedIn, Indeed, or company careers job posting.</p>
+        </section>
+      )}
+
       <Card>
         <form className="grid gap-5" onSubmit={analyzeJob}>
           <label className="grid gap-2 text-sm font-medium text-ink">
@@ -159,6 +189,12 @@ export function NewJobsPage() {
                 className="w-full rounded-lg border border-brand-200 bg-white py-3 pl-10 pr-3 text-sm outline-none hover:border-brand-300 focus:border-brand-600 focus:ring-4 focus:ring-brand-100"
                 placeholder="https://company.com/careers/role"
               />
+            </div>
+            <p className="text-xs font-semibold text-slate-500">Paste a LinkedIn, Indeed, or company careers URL if you have one.</p>
+            <div className="flex flex-wrap gap-2">
+              {["LinkedIn job", "Indeed job", "Company careers page"].map((chip) => (
+                <span key={chip} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{chip}</span>
+              ))}
             </div>
           </label>
 
@@ -223,11 +259,8 @@ export function NewJobsPage() {
               placeholder="Paste the full job description here."
               className="min-h-44 max-h-[520px] resize-none overflow-hidden rounded-lg border border-brand-200 bg-white px-4 py-3 text-sm leading-7 outline-none hover:border-brand-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
             />
+            <p className="text-xs font-semibold text-slate-500">For best results, paste the full job description, including responsibilities, requirements, and preferred qualifications.</p>
           </label>
-
-          <p className="rounded-lg bg-brand-50 p-3 text-sm text-slate-600">
-            Paste a full job description for best results. Job URL parsing can be improved later.
-          </p>
 
           <button
             type="button"
@@ -279,6 +312,12 @@ export function NewJobsPage() {
                 </Button>
               </div>
             </div>
+          )}
+
+          {onboarding.hasResume && !onboarding.hasAnalysis && (
+            <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-900">
+              Next: Review your match, then generate your tailored resume.
+            </p>
           )}
 
           <div className="flex justify-center">

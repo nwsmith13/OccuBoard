@@ -1,4 +1,4 @@
-import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, FileText, MessageCircle, Search, Sparkles, TrendingUp, X } from "lucide-react";
+import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, FileText, MessageCircle, Search, Sparkles, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
@@ -13,7 +13,7 @@ import { getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus, isCoverLetterSkipped } from "../../lib/jobAiStatus.js";
 import { getJobMomentumValue } from "../../lib/jobMomentum.js";
-import { buildOnboardingState, onboardingTrackerDismissedKey, readBooleanFlag, writeBooleanFlag } from "../../lib/onboarding.js";
+import { buildOnboardingState } from "../../lib/onboarding.js";
 import { getProfileCompleteness } from "../../lib/profile.js";
 import { filterRecommendationsForDashboard, generateRecommendations, getRecommendationIcon, getRecommendationMeta, getRecommendationTone } from "../../lib/recommendationEngine.js";
 import { buildSearchPatternInsights } from "../../lib/searchPatternInsights.js";
@@ -33,7 +33,6 @@ export function DashboardPage() {
   const [activityOpen, setActivityOpen] = useState(true);
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
-  const [trackerDismissed, setTrackerDismissed] = useState(() => readBooleanFlag(onboardingTrackerDismissedKey));
   const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
   const completeness = getProfileCompleteness(profile);
   const completenessTone = getCompletenessTone(completeness);
@@ -75,8 +74,6 @@ export function DashboardPage() {
       <main className="grid min-w-0 gap-5">
         {error && <div className="rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
         {onboarding.isNewWorkspace && <NewAccountWelcome />}
-        {!trackerDismissed && !onboarding.completed && <GettingStartedTracker state={onboarding} />}
-        {!trackerDismissed && onboarding.completed && <GettingStartedTracker state={onboarding} onDismiss={() => { writeBooleanFlag(onboardingTrackerDismissedKey, true); setTrackerDismissed(true); }} />}
         <section className="overflow-hidden rounded-xl bg-gradient-to-br from-stone-100 via-white to-emerald-50 px-4 py-3 shadow-card transition duration-[160ms] ease-out hover:shadow-soft sm:px-5">
           <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -261,36 +258,8 @@ function NewAccountWelcome() {
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
         {["Upload Resume", "Analyze Job", "Generate Resume", "Export Package"].map((label) => (
           <div key={label} className="flex items-center gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm font-bold text-slate-700 ring-1 ring-white/80">
-            <span className="text-emerald-700">✓</span>
+            <span className="text-emerald-700">{"\u2713"}</span>
             {label}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function GettingStartedTracker({ state, onDismiss }) {
-  return (
-    <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className={tinyLabelClass}>Getting Started</p>
-          <h2 className="mt-1 text-xl font-black text-ink">{state.complete} of {state.total} complete</h2>
-        </div>
-        {onDismiss && (
-          <button type="button" onClick={onDismiss} className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" aria-label="Dismiss getting started tracker">
-            <X size={17} />
-          </button>
-        )}
-      </div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-5">
-        {state.steps.map((step) => (
-          <div key={step.id} className={`rounded-lg px-3 py-2 ring-1 ${step.done ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-600 ring-slate-100"}`}>
-            <p className="flex items-center gap-2 text-xs font-black">
-              <span>{step.done ? "✓" : "○"}</span>
-              {step.label}
-            </p>
           </div>
         ))}
       </div>

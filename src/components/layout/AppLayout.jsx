@@ -1,10 +1,11 @@
 import { BarChart3, Command, FileStack, FileText, LayoutDashboard, LogOut, Menu, PlusCircle, Settings, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
-import { buildOnboardingState, onboardingStorageKey, readBooleanFlag, shouldShowFullOnboarding, writeBooleanFlag } from "../../lib/onboarding.js";
+import { buildOnboardingState, onboardingStorageKey, onboardingTrackerDismissedKey, onboardingUpdatedEvent, readBooleanFlag, shouldShowFullOnboarding, writeBooleanFlag } from "../../lib/onboarding.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { CommandPalette } from "../command/CommandPalette.jsx";
+import { CompletionRibbon, GettingStartedRibbon } from "../onboarding/GettingStartedRibbon.jsx";
 import { OnboardingFlow } from "../onboarding/OnboardingFlow.jsx";
 import { Button } from "../ui/Button.jsx";
 import { Logo } from "./Logo.jsx";
@@ -23,15 +24,23 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => readBooleanFlag(onboardingStorageKey));
+  const [trackerDismissed, setTrackerDismissed] = useState(() => readBooleanFlag(onboardingTrackerDismissedKey));
+  const [onboardingRefresh, setOnboardingRefresh] = useState(0);
   const { signOut, user, isConfigured } = useAuth();
   const { loadWorkspace, profile, resumeUploads, jobs, jobScores, resumeVersions, loading, loadedFor } = useWorkspaceStore();
   const location = useLocation();
   const current = navItems.find((item) => location.pathname === item.path) ?? navItems.find((item) => location.pathname.startsWith(item.path));
-  const onboardingState = useMemo(() => buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions }), [jobScores, jobs, profile, resumeUploads, resumeVersions]);
+  const onboardingState = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, refreshKey: onboardingRefresh });
 
   useEffect(() => {
     loadWorkspace(user);
   }, [loadWorkspace, user]);
+
+  useEffect(() => {
+    const refreshOnboarding = () => setOnboardingRefresh((value) => value + 1);
+    window.addEventListener(onboardingUpdatedEvent, refreshOnboarding);
+    return () => window.removeEventListener(onboardingUpdatedEvent, refreshOnboarding);
+  }, []);
 
   useEffect(() => {
     function onKeyDown(event) {
@@ -53,6 +62,7 @@ export function AppLayout() {
   if (workspaceReady && shouldShowFullOnboarding(onboardingState, { pathname: location.pathname, dismissed: onboardingDismissed })) {
     return <OnboardingFlow state={onboardingState} onDismiss={dismissOnboarding} />;
   }
+  const showOnboardingRibbon = workspaceReady && shouldShowOnboardingRibbon(location.pathname);
 
   const sidebar = (
     <aside className={`${collapsed ? "w-20" : "w-72"} flex h-full flex-col border-r border-slate-200 bg-white/95 transition-all lg:sticky lg:top-0 lg:h-screen`}>
@@ -110,6 +120,12 @@ export function AppLayout() {
         <main className="min-w-0 flex-1">
           <Header title={current?.label ?? "Dashboard"} onMenu={() => setMobileOpen(true)} onCommand={() => setCommandOpen(true)} />
           <div className="mx-auto max-w-7xl px-6 py-6">
+            {showOnboardingRibbon && (
+              <>
+                <GettingStartedRibbon state={onboardingState} dismissed={trackerDismissed} />
+                <CompletionRibbon state={onboardingState} dismissed={trackerDismissed} onDismiss={() => setTrackerDismissed(true)} />
+              </>
+            )}
             <Outlet />
           </div>
         </main>
@@ -130,12 +146,27 @@ export function AppLayout() {
           </div>
         )}
         <main className="px-4 py-5">
+          {showOnboardingRibbon && (
+            <>
+              <GettingStartedRibbon state={onboardingState} dismissed={trackerDismissed} />
+              <CompletionRibbon state={onboardingState} dismissed={trackerDismissed} onDismiss={() => setTrackerDismissed(true)} />
+            </>
+          )}
           <Outlet />
         </main>
       </div>
       <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>
   );
+}
+
+function shouldShowOnboardingRibbon(pathname = "") {
+  return [
+    "/app/dashboard",
+    "/app/resume-studio",
+    "/app/new-jobs",
+    "/app/applications",
+  ].some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
 function Header({ title, onMenu, onCommand }) {

@@ -9,6 +9,7 @@ import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
 import { getLatestForJob, isCoverLetter, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
 import { buildMitigationPlan, getAppliedMitigationLabels, getAppliedMitigations } from "../../lib/mitigationPlan.js";
+import { buildOnboardingState } from "../../lib/onboarding.js";
 import { buildGapRecovery, buildMaterialRecoveryScores, buildRewriteInsights, estimateOptimizedFit } from "../../lib/rewriteInsights.js";
 import { assessRewriteRestraint } from "../../lib/rewriteRestraint.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -20,6 +21,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   const toast = useToast();
   const {
     profile,
+    resumeUploads,
+    jobs,
     jobScores,
     resumeVersions,
     messages,
@@ -46,6 +49,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   const latestCoverLetter = getLatestForJob(coverLetterHistory, job.id);
   const latestMessage = getLatestForJob(messageHistory, job.id);
   const activeAction = ["fit", "resume", "message"].includes(activeTab) ? activeTab : "fit";
+  const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions });
+  const showOnboardingHelp = onboarding.hasResume && !onboarding.completed;
 
   useEffect(() => {
     if (latestMessage?.contact_id && !selectedContactId) setSelectedContactId(latestMessage.contact_id);
@@ -132,10 +137,33 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
                 setIntensity(value);
               }}
             />
+            {showOnboardingHelp && (
+              <AiOnboardingHelpCard
+                eyebrow="Step 3 of 5"
+                title="Review Your Match"
+                body="Review the fit score, top strengths, and hiring considerations before generating your tailored resume."
+                actionLabel="Continue to Resume"
+                onAction={() => onTabChange?.("resume")}
+              />
+            )}
             <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onContinue={() => onTabChange?.("resume")} onRecruiterView={() => onTabChange?.("recruiterView")} />
           </>
         )}
-        {activeAction === "resume" && <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />}
+        {activeAction === "resume" && (
+          <>
+            {showOnboardingHelp && !latestResume && (
+              <AiOnboardingHelpCard
+                eyebrow="Step 4 of 5"
+                title="Generate Your Tailored Resume"
+                body="Create a focused resume version from the match analysis and your real experience."
+                actionLabel={aiState.loading === "resume" ? "Generating..." : "Generate Resume"}
+                onAction={() => runAi("resume")}
+                disabled={Boolean(aiState.loading)}
+              />
+            )}
+            <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} />
+          </>
+        )}
           {activeAction === "message" && <MessageResult message={latestMessage} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
       </section>
     );
@@ -236,6 +264,23 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
         </>
       )}
+    </section>
+  );
+}
+
+function AiOnboardingHelpCard({ eyebrow, title, body, actionLabel, onAction, disabled = false }) {
+  return (
+    <section className="rounded-xl bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">{eyebrow}</p>
+          <h3 className="mt-1 text-lg font-black text-ink">{title}</h3>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{body}</p>
+        </div>
+        <Button className="w-fit shrink-0" onClick={onAction} disabled={disabled}>
+          {actionLabel}
+        </Button>
+      </div>
     </section>
   );
 }

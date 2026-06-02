@@ -1,5 +1,6 @@
 import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { AiToolsPanel, ApplicationReadinessCard, CopyButton, CoverageMatrix, RecruiterConfidenceIndicator, RecoveryBar, RewriteInsightCard, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
 import { ResumeExportPanel } from "../../components/resume/ResumeExportPanel.jsx";
 import { Badge } from "../../components/ui/Badge.jsx";
@@ -21,6 +22,7 @@ import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
 import { getJobAiStatus, isCoverLetter, isCoverLetterSkipped, isRecruiterMessage } from "../../lib/jobAiStatus.js";
 import { buildMitigationPlan, getAppliedMitigations } from "../../lib/mitigationPlan.js";
+import { buildOnboardingState, rememberOnboardingPackageExport } from "../../lib/onboarding.js";
 import { buildMaterialRecoveryScores, buildRewriteInsights } from "../../lib/rewriteInsights.js";
 import { exportResumeDocx, exportResumePdf, getResumeExportHistory } from "../../lib/resumeExport.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -1737,10 +1739,12 @@ function useSlowLoading(active) {
 
 function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, coverLetterSkipped, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, prep, onExportComplete }) {
   const toast = useToast();
+  const { resumeUploads, jobs, jobScores, resumeVersions } = useWorkspaceStore();
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverExporting, setCoverExporting] = useState("");
   const [coverCopied, setCoverCopied] = useState(false);
   const [packageDownloading, setPackageDownloading] = useState(false);
+  const [packageCompleted, setPackageCompleted] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [error, setError] = useState("");
   const showSlowHint = useSlowLoading(coverLoading);
@@ -1750,6 +1754,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   const packageItems = useMemo(() => getPackageBuilderItems({ resume, coverLetter, recruiterMessage, prepContent, selections: packageSelections }), [resume, coverLetter, recruiterMessage, prepContent, packageSelections]);
   const selectedPackageItems = packageItems.filter((item) => item.available && packageSelections[item.key]);
   const packageFileName = getPackageFileBaseName(job);
+  const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions });
 
   useEffect(() => {
     setPackageSelections(defaultPackageSelections);
@@ -1879,6 +1884,9 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         }
       }
 
+      rememberOnboardingPackageExport(job.id);
+      setPackageCompleted(true);
+      await onLogActivity?.(user, job.id, "application_package_exported", { detail: "Application package exported", itemCount: selectedPackageItems.length });
       toast.success("Selected package downloaded.");
     } catch (err) {
       setError(err.message || "Package download failed.");
@@ -1905,6 +1913,16 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
           recruiterMessage={recruiterMessage}
           prep={prep}
         />
+
+      {!onboarding.completed && (
+        <ExportOnboardingHelp
+          downloading={packageDownloading}
+          selectedCount={selectedPackageItems.length}
+          onDownload={downloadSelectedPackage}
+        />
+      )}
+
+      {packageCompleted && <FirstApplicationReadyCard />}
 
       <PackageBuilderSection
         items={packageItems}
@@ -2012,6 +2030,50 @@ function ApplicationChecklist({ score, resume, coverLetter, coverLetterSkipped, 
             </div>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function ExportOnboardingHelp({ downloading, selectedCount, onDownload }) {
+  return (
+    <section className="rounded-xl bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Step 5 of 5</p>
+          <h3 className="mt-1 text-lg font-black text-ink">Export Your Application Package</h3>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+            Download your selected files and prep assets so you have everything ready for submission.
+          </p>
+        </div>
+        <Button className="w-fit shrink-0" onClick={onDownload} disabled={!selectedCount || downloading}>
+          {downloading && <Loader2 size={14} className="animate-spin" />}
+          {downloading ? "Downloading..." : "Download Selected Package"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function FirstApplicationReadyCard() {
+  return (
+    <section className="rounded-xl bg-emerald-50 p-4 shadow-sm ring-1 ring-emerald-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Getting Started Complete</p>
+          <h3 className="mt-1 text-lg font-black text-emerald-950">Your first application package is ready</h3>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-emerald-900">
+            You are ready to apply. OccuBoard will help you stay organized and focused as opportunities move forward.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/app/applications">
+            <Button className="w-fit">Go to Applications</Button>
+          </Link>
+          <Link to="/app/new-jobs">
+            <Button variant="secondary" className="w-fit">Analyze Another Job</Button>
+          </Link>
+        </div>
       </div>
     </section>
   );
