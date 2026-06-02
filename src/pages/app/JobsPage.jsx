@@ -22,7 +22,7 @@ import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
 import { getJobAiStatus, isCoverLetter, isCoverLetterSkipped, isRecruiterMessage } from "../../lib/jobAiStatus.js";
 import { buildMitigationPlan, getAppliedMitigations } from "../../lib/mitigationPlan.js";
-import { buildOnboardingState, rememberOnboardingPackageExport } from "../../lib/onboarding.js";
+import { buildOnboardingState, rememberOnboardingPackageExport, rememberOnboardingRecruiterView } from "../../lib/onboarding.js";
 import { buildMaterialRecoveryScores, buildRewriteInsights } from "../../lib/rewriteInsights.js";
 import { exportResumeDocx, exportResumePdf, getResumeExportHistory } from "../../lib/resumeExport.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -534,8 +534,11 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   }, [activeTab, latestScore]);
 
   useEffect(() => {
-    if (activeTab === "recruiterView") setReviewedRecruiterView(true);
-  }, [activeTab]);
+    if (activeTab === "recruiterView") {
+      setReviewedRecruiterView(true);
+      rememberOnboardingRecruiterView(job.id);
+    }
+  }, [activeTab, job.id]);
 
   useEffect(() => {
     if (activeTab !== "overview" || !initialFocus) return;
@@ -787,6 +790,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 coverLetter={latestCoverLetter}
                 coverLetterSkipped={coverLetterSkipped}
                 recruiterMessage={latestMessage}
+                reviewed={reviewedRecruiterView}
                 onContinue={() => requestTabChange("interview")}
               />
             </div>
@@ -818,7 +822,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
           )}
           {activeTab === "interview" && (
             <div className="mx-auto max-w-6xl">
-              <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} updateJob={updateJob} onJobUpdate={mergeJobUpdate} onSavePrep={saveInterviewPrep} onLogActivity={logJobActivity} onUnsavedChange={setHasUnsavedChanges} />
+              <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} updateJob={updateJob} onJobUpdate={mergeJobUpdate} onSavePrep={saveInterviewPrep} onLogActivity={logJobActivity} onUnsavedChange={setHasUnsavedChanges} onContinue={() => requestTabChange("export")} />
             </div>
           )}
           {activeTab === "activity" && (
@@ -1739,7 +1743,7 @@ function useSlowLoading(active) {
 
 function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, coverLetterSkipped, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, prep, onExportComplete }) {
   const toast = useToast();
-  const { resumeUploads, jobs, jobScores, resumeVersions } = useWorkspaceStore();
+  const { resumeUploads, jobs, jobScores, resumeVersions, interviewPrep } = useWorkspaceStore();
   const [coverLoading, setCoverLoading] = useState(false);
   const [coverExporting, setCoverExporting] = useState("");
   const [coverCopied, setCoverCopied] = useState(false);
@@ -1754,7 +1758,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   const packageItems = useMemo(() => getPackageBuilderItems({ resume, coverLetter, recruiterMessage, prepContent, selections: packageSelections }), [resume, coverLetter, recruiterMessage, prepContent, packageSelections]);
   const selectedPackageItems = packageItems.filter((item) => item.available && packageSelections[item.key]);
   const packageFileName = getPackageFileBaseName(job);
-  const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions });
+  const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep });
 
   useEffect(() => {
     setPackageSelections(defaultPackageSelections);
@@ -2040,10 +2044,10 @@ function ExportOnboardingHelp({ downloading, selectedCount, onDownload }) {
     <section className="rounded-xl bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-sm ring-1 ring-brand-100">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Step 5 of 5</p>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Step 7 of 8</p>
           <h3 className="mt-1 text-lg font-black text-ink">Export Your Application Package</h3>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-            Download your selected files and prep assets so you have everything ready for submission.
+            Choose the files and prep materials you want, then download one focused application package.
           </p>
         </div>
         <Button className="w-fit shrink-0" onClick={onDownload} disabled={!selectedCount || downloading}>
@@ -2061,9 +2065,9 @@ function FirstApplicationReadyCard() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Getting Started Complete</p>
-          <h3 className="mt-1 text-lg font-black text-emerald-950">Your first application package is ready</h3>
+          <h3 className="mt-1 text-lg font-black text-emerald-950">Your First Application Command Center Is Ready</h3>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-emerald-900">
-            You are ready to apply. OccuBoard will help you stay organized and focused as opportunities move forward.
+            You created a tailored resume, reviewed recruiter perspective, prepared interview support, and exported an application package. This job is now saved in Applications so you can track follow-ups and interviews.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -2263,8 +2267,10 @@ function MaterialCard({ title, status, description, children }) {
   );
 }
 
-function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiterMessage, onContinue }) {
+function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiterMessage, reviewed = false, onContinue }) {
   const [section, setSection] = useState("overview");
+  const { resumeUploads, jobs, jobScores, resumeVersions, interviewPrep } = useWorkspaceStore();
+  const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep });
   if (!score && !resume && !coverLetter && !recruiterMessage) {
     return (
       <section className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
@@ -2287,6 +2293,7 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
   const strongRecoveryCount = recoveryScores.filter((item) => item.score >= 3).length;
   const coveredInTwoMaterials = recoveryScores.filter((item) => Object.values(item.coverage || {}).filter(Boolean).length >= 2).length;
   const hasIntelligenceData = recoveryScores.length > 0 || rewriteItems.some((item) => item.insights.length > 0);
+  const showRecruiterOnboarding = !onboarding.completed && !onboarding.hasInterviewPrep;
   const tabs = [
     ["overview", "Overview"],
     ...(recoveryScores.length ? [["recovery", "Recovery"], ["coverage", "Coverage"]] : []),
@@ -2328,6 +2335,15 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
           })}
         </div>
       </div>
+      {showRecruiterOnboarding && (
+        <CommandCenterOnboardingCard
+          eyebrow={reviewed ? "Step 5 Complete" : "Step 5 of 8"}
+          title={reviewed ? "Recruiter View Reviewed" : "Recruiter View"}
+          body={reviewed ? "You have reviewed the hiring-team perspective. Next, prepare interview support so you are ready if this turns into a conversation." : "See the hiring-team perspective before you apply. OccuBoard highlights what looks strong, what may raise questions, and whether this application is ready to submit."}
+          actionLabel={reviewed ? "Continue to Interview Prep" : "Review Recruiter View"}
+          onAction={reviewed ? onContinue : () => setSection("overview")}
+        />
+      )}
       {section === "overview" && (
         <RecruiterViewOverview
           score={score}
@@ -2338,13 +2354,31 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
           strategyItems={mitigationPlan.items}
           recoveryScores={recoveryScores}
           onSelectSection={setSection}
-          onContinue={onContinue}
+          onContinue={showRecruiterOnboarding ? null : onContinue}
           hasIntelligenceData={hasIntelligenceData}
         />
       )}
       {section === "recovery" && <RecruiterViewRecovery rows={recoveryScores} strategyItems={mitigationPlan.items} strongCount={strongRecoveryCount} />}
       {section === "coverage" && <RecruiterViewCoverage rows={recoveryScores} coveredInTwoMaterials={coveredInTwoMaterials} />}
       {section === "changes" && <RecruiterViewChanges rewriteItems={rewriteItems} recoveryScores={recoveryScores} />}
+    </section>
+  );
+}
+
+function CommandCenterOnboardingCard({ eyebrow, title, body, actionLabel, onAction, disabled = false, loading = false }) {
+  return (
+    <section className="rounded-xl bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">{eyebrow}</p>
+          <h3 className="mt-1 text-lg font-black text-ink">{title}</h3>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{body}</p>
+        </div>
+        <Button className="w-fit shrink-0" onClick={onAction} disabled={disabled || loading}>
+          {loading && <Loader2 size={14} className="animate-spin" />}
+          {actionLabel}
+        </Button>
+      </div>
     </section>
   );
 }
@@ -2394,7 +2428,7 @@ function HiringOutlookCard({ outlook, recommendation, readiness, addressedCount,
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <h3 className="text-2xl font-black text-ink">{outlook.label}</h3>
         <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{recommendation.label}</span>
-        <Button className="min-h-8 px-3 text-xs" onClick={onContinue}>Continue to Interview Prep</Button>
+        {onContinue && <Button className="min-h-8 px-3 text-xs" onClick={onContinue}>Continue to Interview Prep</Button>}
         {recommendation.action && (
           <Button variant={recommendation.actionVariant} className="min-h-8 px-3 text-xs" onClick={() => onSelectSection?.(recommendation.actionSection)}>
             {recommendation.action}
@@ -2899,8 +2933,9 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
   );
 }
 
-function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, user, updateJob, onJobUpdate, onSavePrep, onLogActivity, onUnsavedChange }) {
+function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, user, updateJob, onJobUpdate, onSavePrep, onLogActivity, onUnsavedChange, onContinue }) {
   const toast = useToast();
+  const { resumeUploads, jobs, jobScores, resumeVersions, interviewPrep } = useWorkspaceStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [prepTab, setPrepTab] = useState("overview");
@@ -2921,6 +2956,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const [mockStarted, setMockStarted] = useState(false);
   const showPrepSlowHint = useSlowLoading(loading);
   const content = prep?.content;
+  const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep });
   const practiced = new Set(prep?.practiced_questions ?? []);
   const confident = new Set(prep?.confident_questions ?? []);
   const notes = prep?.answer_notes ?? {};
@@ -3111,20 +3147,34 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       onToggle={() => setScheduleExpanded((value) => !value)}
     />
   );
+  const showInterviewOnboarding = !onboarding.completed && !onboarding.hasInterviewPrep;
 
   if (!content) {
     return (
       <section className="grid gap-5">
+        {showInterviewOnboarding && (
+          <CommandCenterOnboardingCard
+            eyebrow="Step 6 of 8"
+            title="Interview Prep"
+            body="OccuBoard prepares likely questions, talking points, STAR stories, and a cheat sheet so you are not starting from scratch if this turns into an interview."
+            actionLabel={loading ? "Preparing..." : "Generate Interview Prep"}
+            onAction={generatePrep}
+            loading={loading}
+            disabled={loading}
+          />
+        )}
         {scheduleCard}
         <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Prep</p>
           <h3 className="mt-2 text-xl font-bold text-ink">Build a calm prep workspace for this interview.</h3>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Generate focus areas, likely questions, talking points, STAR stories, and a thank-you message grounded in this role and your resume.</p>
           {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
-          <Button className="mt-5" onClick={generatePrep} disabled={loading}>
-            {loading && <Loader2 size={14} className="animate-spin" />}
-            {loading ? "Preparing..." : "Generate interview prep"}
-          </Button>
+          {!showInterviewOnboarding && (
+            <Button className="mt-5" onClick={generatePrep} disabled={loading}>
+              {loading && <Loader2 size={14} className="animate-spin" />}
+              {loading ? "Preparing..." : "Generate interview prep"}
+            </Button>
+          )}
           {showPrepSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
         </div>
       </section>
@@ -3155,6 +3205,15 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
 
   return (
     <section className="grid gap-4">
+      {!onboarding.completed && onboarding.hasInterviewPrep && !onboarding.hasExport && (
+        <CommandCenterOnboardingCard
+          eyebrow="Step 6 Complete"
+          title="Interview Prep Ready"
+          body="Your interview support is ready. Next, choose the files and prep materials you want to include in one focused application package."
+          actionLabel="Continue to Export Package"
+          onAction={onContinue}
+        />
+      )}
       {scheduleCard}
       <div className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

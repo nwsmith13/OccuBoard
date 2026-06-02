@@ -51,7 +51,7 @@ export function DashboardPage() {
   const momentum = getMomentumSummary({ jobs: activeJobs, resumeVersions, jobScores, messages });
   const insights = buildDashboardInsights({ jobs: activeJobs, jobScores, resumeVersions, messages, jobActivityLogs, interviewPrep });
   const visibleActivity = showAllActivity ? activityLogs : activityLogs.slice(0, 4);
-  const onboarding = useMemo(() => buildOnboardingState({ profile, resumeUploads, jobs: activeJobs, jobScores, resumeVersions }), [activeJobs, jobScores, profile, resumeUploads, resumeVersions]);
+  const onboarding = useMemo(() => buildOnboardingState({ profile, resumeUploads, jobs: activeJobs, jobScores, resumeVersions, interviewPrep }), [activeJobs, interviewPrep, jobScores, profile, resumeUploads, resumeVersions]);
 
   async function moveToApplied(job) {
     const saved = await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || new Date().toISOString().slice(0, 10) });
@@ -255,8 +255,8 @@ function NewAccountWelcome() {
       <p className={tinyLabelClass}>Welcome</p>
       <h2 className="mt-2 text-2xl font-black text-ink">Welcome To OccuBoard</h2>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Complete your first application to start building momentum.</p>
-      <div className="mt-4 grid gap-2 sm:grid-cols-4">
-        {["Upload Resume", "Analyze Job", "Generate Resume", "Export Package"].map((label) => (
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {["Upload Resume", "Add Job", "Analyze Fit", "Generate Resume", "Recruiter View", "Interview Prep", "Export Package", "Track Application"].map((label) => (
           <div key={label} className="flex items-center gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm font-bold text-slate-700 ring-1 ring-white/80">
             <span className="text-emerald-700">{"\u2713"}</span>
             {label}

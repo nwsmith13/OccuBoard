@@ -39,7 +39,7 @@ export function NewJobsPage() {
   const [onboardingHelpOpen, setOnboardingHelpOpen] = useState(true);
   const descriptionRef = useRef(null);
   const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions });
-  const showOnboardingHelp = onboarding.hasResume && !onboarding.hasAnalysis && onboardingHelpOpen;
+  const showOnboardingHelp = onboarding.hasResume && !onboarding.hasJob && onboardingHelpOpen;
 
   const canAnalyze = useMemo(() => Boolean(form.source_url.trim() || form.job_description.trim()), [form]);
   const missingCompany = !form.company_name.trim();
@@ -159,8 +159,8 @@ export function NewJobsPage() {
         <section className="rounded-xl bg-brand-50/80 p-4 shadow-card ring-1 ring-brand-100 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Step 2 of 5</p>
-              <h3 className="mt-1 text-xl font-black text-ink">Analyze Your First Job</h3>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Step 2 of 8</p>
+              <h3 className="mt-1 text-xl font-black text-ink">Add Your First Job</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Great - your resume is ready. Now paste a job posting URL or the full job description below.</p>
             </div>
             <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={() => setOnboardingHelpOpen(false)}>Got it</Button>
@@ -314,7 +314,7 @@ export function NewJobsPage() {
             </div>
           )}
 
-          {onboarding.hasResume && !onboarding.hasAnalysis && (
+          {onboarding.hasResume && !onboarding.hasJob && (
             <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-900">
               Next: Review your match, then generate your tailored resume.
             </p>

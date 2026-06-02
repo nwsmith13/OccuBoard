@@ -27,10 +27,10 @@ export function AppLayout() {
   const [trackerDismissed, setTrackerDismissed] = useState(() => readBooleanFlag(onboardingTrackerDismissedKey));
   const [onboardingRefresh, setOnboardingRefresh] = useState(0);
   const { signOut, user, isConfigured } = useAuth();
-  const { loadWorkspace, profile, resumeUploads, jobs, jobScores, resumeVersions, loading, loadedFor } = useWorkspaceStore();
+  const { loadWorkspace, profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep, loading, loadedFor } = useWorkspaceStore();
   const location = useLocation();
   const current = navItems.find((item) => location.pathname === item.path) ?? navItems.find((item) => location.pathname.startsWith(item.path));
-  const onboardingState = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, refreshKey: onboardingRefresh });
+  const onboardingState = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep, refreshKey: onboardingRefresh });
 
   useEffect(() => {
     loadWorkspace(user);

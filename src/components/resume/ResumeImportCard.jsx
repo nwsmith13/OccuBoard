@@ -136,9 +136,9 @@ function ResumeOnboardingHandoff({ onContinue }) {
         <p className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-brand-600">Getting Started</p>
         <h2 className="mt-2 text-2xl font-black text-ink">Resume Uploaded</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">Your resume is now the foundation for tailored applications.</p>
-        <p className="mt-2 text-sm font-semibold text-slate-700">1 of 5 complete</p>
-        <div className="mx-auto mt-4 h-2 max-w-xs overflow-hidden rounded-full bg-slate-100" aria-label="1 of 5 onboarding steps complete">
-          <div className="h-full w-1/5 rounded-full bg-emerald-500 transition-[width] duration-500" />
+        <p className="mt-2 text-sm font-semibold text-slate-700">1 of 8 complete</p>
+        <div className="mx-auto mt-4 h-2 max-w-xs overflow-hidden rounded-full bg-slate-100" aria-label="1 of 8 onboarding steps complete">
+          <div className="h-full w-[12.5%] rounded-full bg-emerald-500 transition-[width] duration-500" />
         </div>
         <p className="mt-5 text-sm leading-6 text-slate-600">Next step: Analyze your first job posting.</p>
         <Button className="mt-4" onClick={onContinue}>Continue to Analyze Job</Button>
