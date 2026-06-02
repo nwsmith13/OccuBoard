@@ -1,6 +1,8 @@
-import { FileText, UploadCloud, X } from "lucide-react";
+import { CheckCircle2, FileText, UploadCloud, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { buildOnboardingState } from "../../lib/onboarding.js";
 import { extractResumeText, getResumeFileKind, normalizeResumeText, validateResumeFile } from "../../lib/resumeParser.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { Button } from "../ui/Button.jsx";
@@ -8,11 +10,14 @@ import { Card } from "../ui/Card.jsx";
 
 export function ResumeImportCard({ compact = false }) {
   const { user } = useAuth();
-  const { profile, saveProfile, saveResumeUpload } = useWorkspaceStore();
+  const navigate = useNavigate();
+  const { profile, resumeUploads, jobs, jobScores, resumeVersions, saveProfile, saveResumeUpload } = useWorkspaceStore();
   const [state, setState] = useState({ loading: false, error: "", success: "", storageNote: "" });
   const [review, setReview] = useState(null);
+  const [handoff, setHandoff] = useState(false);
   const inputRef = useRef(null);
   const hasBaseResume = Boolean(profile?.base_resume_text?.trim());
+  const firstTimeBeforeUpload = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions }).isNewWorkspace;
 
   async function importFile(selectedFile) {
     const validationError = validateResumeFile(selectedFile);
@@ -48,6 +53,10 @@ export function ResumeImportCard({ compact = false }) {
         storageNote: upload?.storage_note ?? "",
       });
       setReview(null);
+      if (firstTimeBeforeUpload) {
+        setHandoff(true);
+        window.setTimeout(() => navigate("/app/new-jobs", { state: { onboardingStep: "analyze-job" } }), 1500);
+      }
     } catch (error) {
       setState({ loading: false, error: error.message, success: "", storageNote: "" });
     }
@@ -61,6 +70,7 @@ export function ResumeImportCard({ compact = false }) {
 
   return (
     <Card className={compact ? "bg-brand-50/40" : ""}>
+      {handoff && <ResumeOnboardingHandoff />}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-xl font-bold">{hasBaseResume ? "Import Resume" : "Upload Your First Resume"}</h2>
@@ -113,6 +123,26 @@ export function ResumeImportCard({ compact = false }) {
         />
       )}
     </Card>
+  );
+}
+
+function ResumeOnboardingHandoff() {
+  return (
+    <div className="fixed inset-0 z-[70] grid place-items-center bg-white/95 px-4 backdrop-blur-sm">
+      <section className="w-full max-w-lg rounded-3xl bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-6 text-center shadow-soft ring-1 ring-brand-100 sm:p-8">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+          <CheckCircle2 size={30} />
+        </span>
+        <p className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-brand-600">Getting Started</p>
+        <h2 className="mt-2 text-2xl font-black text-ink">Resume uploaded</h2>
+        <p className="mt-2 text-sm font-semibold text-slate-700">1 of 5 complete</p>
+        <div className="mx-auto mt-4 h-2 max-w-xs overflow-hidden rounded-full bg-slate-100" aria-label="1 of 5 onboarding steps complete">
+          <div className="h-full w-1/5 rounded-full bg-emerald-500 transition-[width] duration-500" />
+        </div>
+        <p className="mt-5 text-sm leading-6 text-slate-600">Nice. Next, analyze a job so OccuBoard can show your match and help tailor your first application.</p>
+        <p className="mt-4 text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Opening Analyze Job...</p>
+      </section>
+    </div>
   );
 }
 
