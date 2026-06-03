@@ -24,7 +24,7 @@ export function buildOnboardingState({ profile, resumeUploads = [], jobs = [], j
     { id: "recruiterView", label: "Recruiter View", done: hasRecruiterView },
     { id: "interviewPrep", label: "Interview Prep", done: hasInterviewPrep },
     { id: "export", label: "Export Package", done: hasExport },
-    { id: "track", label: "Track Application", done: hasExport && (trackedApplication || hasJob) },
+    { id: "track", label: "Track Application", done: hasExport && trackedApplication },
   ];
   let previousComplete = true;
   const steps = rawSteps.map((step) => {

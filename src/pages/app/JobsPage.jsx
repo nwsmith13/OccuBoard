@@ -274,6 +274,10 @@ function getDisplayStage(status) {
   return status || "Saved";
 }
 
+function isTrackedApplicationStatus(status) {
+  return ["Applied", "Recruiter Screen", "Interview", "Final Interview", "Offer", "Closed"].includes(status);
+}
+
 export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onMove, onJobUpdate, pageMode = false }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -752,7 +756,16 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
             </div>
           )}
           {activeTab === "export" && (
-            <div className="mx-auto max-w-6xl">
+            <div className="mx-auto grid max-w-6xl gap-4">
+              {markAppliedOpen && (
+                <MarkAppliedPanel
+                  form={markAppliedForm}
+                  saving={markAppliedSaving}
+                  onChange={(field, value) => setMarkAppliedForm((current) => ({ ...current, [field]: value }))}
+                  onCancel={() => setMarkAppliedOpen(false)}
+                  onSave={saveMarkApplied}
+                />
+              )}
               <ApplicationMaterialsWorkspace
                 job={job}
                 profile={profile}
@@ -769,6 +782,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 onGoToCoverLetter={() => requestTabChange("coverLetter")}
                 onGoToMessage={() => requestTabChange("message")}
                 onGoToInterview={() => requestTabChange("interview")}
+                onMarkApplied={() => setMarkAppliedOpen(true)}
                 prep={prep}
                 onExportComplete={(resume) => {
                   if (resume?.id) setExportedResumeIds((current) => new Set([...current, resume.id]));
@@ -1741,7 +1755,7 @@ function useSlowLoading(active) {
   return show;
 }
 
-function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, coverLetterSkipped, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, prep, onExportComplete }) {
+function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLetter, coverLetterSkipped, recruiterMessage, contacts, user, onSaveCoverLetter, onLogActivity, onGoToResume, onGoToCoverLetter, onGoToMessage, onGoToInterview, onMarkApplied, prep, onExportComplete }) {
   const toast = useToast();
   const { resumeUploads, jobs, jobScores, resumeVersions, interviewPrep } = useWorkspaceStore();
   const [coverLoading, setCoverLoading] = useState(false);
@@ -1749,6 +1763,9 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   const [coverCopied, setCoverCopied] = useState(false);
   const [packageDownloading, setPackageDownloading] = useState(false);
   const [packageCompleted, setPackageCompleted] = useState(false);
+  const [finishLineDismissed, setFinishLineDismissed] = useState(false);
+  const [waitingForAppliedCompletion, setWaitingForAppliedCompletion] = useState(false);
+  const [onboardingAppliedComplete, setOnboardingAppliedComplete] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [error, setError] = useState("");
   const showSlowHint = useSlowLoading(coverLoading);
@@ -1763,6 +1780,13 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   useEffect(() => {
     setPackageSelections(defaultPackageSelections);
   }, [defaultPackageSelections]);
+
+  useEffect(() => {
+    if (!waitingForAppliedCompletion) return;
+    if (!isTrackedApplicationStatus(job.status)) return;
+    setOnboardingAppliedComplete(true);
+    setWaitingForAppliedCompletion(false);
+  }, [job.status, waitingForAppliedCompletion]);
 
   async function generateCoverLetter() {
     if (coverLoading) return;
@@ -1918,7 +1942,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
           prep={prep}
         />
 
-      {!onboarding.completed && (
+      {!onboarding.completed && !onboarding.hasExport && (
         <ExportOnboardingHelp
           downloading={packageDownloading}
           selectedCount={selectedPackageItems.length}
@@ -1926,7 +1950,17 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         />
       )}
 
-      {packageCompleted && <FirstApplicationReadyCard />}
+      {(packageCompleted || onboarding.hasExport) && !onboarding.completed && !finishLineDismissed && !onboardingAppliedComplete && (
+        <ApplicationPackageReadyCard
+          onMarkApplied={() => {
+            setWaitingForAppliedCompletion(true);
+            onMarkApplied?.();
+          }}
+          onApplyLater={() => setFinishLineDismissed(true)}
+        />
+      )}
+
+      {onboardingAppliedComplete && <FirstApplicationWorkflowCompleteCard />}
 
       <PackageBuilderSection
         items={packageItems}
@@ -2059,15 +2093,49 @@ function ExportOnboardingHelp({ downloading, selectedCount, onDownload }) {
   );
 }
 
-function FirstApplicationReadyCard() {
+function ApplicationPackageReadyCard({ onMarkApplied, onApplyLater }) {
+  const readyItems = [
+    "Tailored Resume",
+    "Recruiter Message",
+    "Interview Preparation Materials",
+    "Talking Points",
+    "Questions To Ask",
+  ];
+  return (
+    <section className="rounded-xl bg-gradient-to-r from-emerald-50 via-white to-brand-50 p-4 shadow-sm ring-1 ring-emerald-100">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Application package exported</p>
+          <h3 className="mt-1 text-lg font-black text-emerald-950">Your Application Package Is Ready</h3>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-emerald-900">You now have everything needed for a strong application:</p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {readyItems.map((item) => (
+              <li key={item} className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100">
+                <CheckCircle2 size={13} aria-hidden="true" />
+                {item}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-sm font-semibold text-slate-700">Recommended next step: Submit your application and track it in OccuBoard.</p>
+        </div>
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <Button className="w-fit" onClick={onMarkApplied}>Mark Applied</Button>
+          <Button variant="secondary" className="w-fit" onClick={onApplyLater}>{"I'll Apply Later"}</Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FirstApplicationWorkflowCompleteCard() {
   return (
     <section className="rounded-xl bg-emerald-50 p-4 shadow-sm ring-1 ring-emerald-100">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Getting Started Complete</p>
-          <h3 className="mt-1 text-lg font-black text-emerald-950">Your First Application Command Center Is Ready</h3>
+          <h3 className="mt-1 text-lg font-black text-emerald-950">Congratulations!</h3>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-emerald-900">
-            You created a tailored resume, reviewed recruiter perspective, prepared interview support, and exported an application package. This job is now saved in Applications so you can track follow-ups and interviews.
+            Your first application workflow is complete. OccuBoard is now ready to help manage future applications, interviews, follow-ups, and recruiter conversations.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -3378,7 +3446,7 @@ function InterviewPrepHelperCallout({ onDismiss }) {
         <div>
           <p className="text-sm font-black text-brand-950">What is Interview Prep?</p>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
-            OccuBoard identifies likely questions, talking points, STAR stories, company research, and hiring concerns so you can prepare before an interview.
+            OccuBoard identifies likely questions, talking points, STAR stories, company research, and conversation topics so you can prepare before an interview.
           </p>
         </div>
         <button
@@ -3457,7 +3525,7 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, con
                 <div>
                   <p className="text-sm font-black text-brand-950">What am I looking at?</p>
                   <p className="mt-1 text-sm leading-6 text-slate-700">
-                    OccuBoard has already prepared likely interview questions, STAR stories, company research, and identified areas that may need stronger responses. Review the highlighted concern areas before moving to Export Package.
+                    OccuBoard has already prepared likely interview questions, STAR stories, company research, and conversation topics that may need stronger responses. Review the highlighted topics before moving to Export Package.
                   </p>
                 </div>
                 <button
@@ -3480,13 +3548,13 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, con
       </PrepSection>
       <PrepSection title="Fastest Way To Improve" featured>
         <div className="rounded-xl bg-white/80 p-4 ring-1 ring-emerald-100">
-          <p className="text-sm font-black text-ink">Biggest remaining concern:</p>
+          <p className="text-sm font-black text-ink">Most useful topic to prepare:</p>
           <p className="mt-1 text-base font-black text-brand-950">{fastestWay.concern}</p>
           <p className="mt-4 text-sm font-black text-ink">Suggested response:</p>
           <p className="mt-1 text-sm leading-6 text-slate-700">{fastestWay.response}</p>
           {fastestWay.why && (
             <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold leading-5 text-emerald-900 ring-1 ring-emerald-100">
-              Why this matters: {fastestWay.why}
+              Why this helps: {fastestWay.why}
             </p>
           )}
         </div>
@@ -3506,16 +3574,16 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, con
         </div>
       </PrepSection>
       <div ref={concernsRef} className="scroll-mt-6">
-        <PrepSection title="Potential Interview Questions">
+        <PrepSection title="Topics Recruiters May Ask About">
           <p className="mb-3 text-sm leading-6 text-slate-600">
-            These are areas a recruiter or hiring manager may ask you about.
+            These are conversation topics that may come up during screening calls, interviews, or hiring manager discussions.
           </p>
           {concerns.length ? (
             <div className="grid gap-3">
               {concerns.map((concern) => <InterviewConcernCard key={concern.id} concern={concern} />)}
             </div>
           ) : (
-            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">No major interview risk areas were identified from the current analysis.</p>
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">No major recruiter conversation topics need extra preparation from the current analysis.</p>
           )}
         </PrepSection>
       </div>
@@ -3777,18 +3845,16 @@ function getInterviewReadinessTone(label) {
 }
 
 function InterviewConcernCard({ concern }) {
+  const topicTitle = getInterviewConcernTopicTitle(concern.title);
   return (
-    <article className="rounded-lg bg-white p-3 ring-1 ring-amber-100">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="font-bold text-ink">{concern.title}</p>
-          <p className="mt-1 text-xs font-semibold text-amber-700">Confidence: {concern.confidence}</p>
-        </div>
-        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 ring-1 ring-amber-100">{concern.severity}</span>
+    <article className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+      <div>
+        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-brand-600">Topic</p>
+        <p className="mt-1 font-bold text-ink">{topicTitle}</p>
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2">
-        <PrepInfoBlock label="Why it may come up" value={concern.why} />
-        <PrepInfoBlock label="How to address it" value={concern.how} />
+        <PrepInfoBlock label="Why it may come up" value={getInterviewConcernWhy(concern, topicTitle)} />
+        <PrepInfoBlock label="How to address it" value={getInterviewConcernHow(concern, topicTitle)} />
       </div>
     </article>
   );
@@ -3932,8 +3998,8 @@ function getInterviewReadinessScore({ content, practicedCount, interviewDetails,
     description: label === "Excellent"
       ? "Your interview toolkit is prepared and ready for review."
       : label === "Good Progress"
-        ? "Most interview materials are prepared. Review the highlighted concern areas below."
-        : "Several concern areas still need stronger responses before this prep feels complete.",
+        ? "Most interview materials are prepared. Review the highlighted conversation topics below."
+        : "Several conversation topics still need stronger responses before this prep feels complete.",
   };
 }
 
@@ -3970,27 +4036,84 @@ function getHiringConcernsStatus(concerns = []) {
   if (!concerns.length) {
     return {
       id: "concerns",
-      label: "Potential Interview Questions Prepared",
+      label: "Recruiter Topics Prepared",
       status: "complete",
-      detail: "No major concerns identified.",
+      detail: "No major conversation topics need extra preparation.",
     };
   }
   if (concerns.length <= 1) {
     return {
       id: "concerns",
-      label: "Potential Interview Question To Prepare",
+      label: "Recruiter Topic To Prepare",
       status: "attention",
-      detail: "1 area a recruiter or hiring manager may ask you about.",
-      actionLabel: "View Concerns",
+      detail: "1 conversation topic a recruiter or hiring manager may ask about.",
+      actionLabel: "View Topics",
     };
   }
   return {
     id: "concerns",
-    label: "Potential Interview Questions To Prepare",
+    label: "Recruiter Topics To Prepare",
     status: "attention",
-    detail: `${concerns.length} areas a recruiter or hiring manager may ask you about.`,
-    actionLabel: "View Concerns",
+    detail: `${concerns.length} conversation topics a recruiter or hiring manager may ask about.`,
+    actionLabel: "View Topics",
   };
+}
+
+function getInterviewConcernTopicTitle(text = "") {
+  const lower = String(text || "").toLowerCase();
+  if (lower.includes("workforce management") || lower.includes("wfm")) return "Workforce Management Software Experience";
+  if ((lower.includes("retail") && lower.includes("customer")) || lower.includes("enterprise customer") || lower.includes("large customer")) return "Large Retail Customer Deployments";
+  if (lower.includes("executive") || lower.includes("strategic advising") || lower.includes("senior stakeholder")) return "Executive-Level Customer Advising";
+  if (lower.includes("itsm") || lower.includes("service desk") || lower.includes("service-desk")) return "ITSM & Service Desk Processes";
+  if (lower.includes("jira") || lower.includes("ticket") || lower.includes("intake") || lower.includes("queue")) return "Jira & Ticket Workflow Experience";
+  if (lower.includes("customer success") || lower.includes("renewal") || lower.includes("success planning")) return "Customer Success Planning & Renewals";
+  if (lower.includes("uat") || lower.includes("testing") || lower.includes("validation") || lower.includes("qa") || lower.includes("go-live")) return "UAT & Rollout Validation";
+  if (lower.includes("documentation") || lower.includes("training") || lower.includes("onboarding")) return "Documentation, Training & Enablement";
+  if (lower.includes("platform") || lower.includes("buildops") || lower.includes("sage") || lower.includes("smartsheet") || lower.includes("software")) return "Platform & Tool Familiarity";
+  return toTopicTitle(
+    String(text || "Interview topic")
+      .replace(/^(limited|missing|no|lack of)\s+/i, "")
+      .replace(/^(documented|explicit|direct)\s+/i, "")
+      .replace(/^experience\s+with\s+/i, "")
+      .replace(/^with\s+/i, ""),
+  );
+}
+
+function toTopicTitle(value = "") {
+  const clean = value
+    .replace(/[.:;]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) return "Interview Topic";
+  return clean
+    .split(" ")
+    .map((word) => {
+      if (/^(ITSM|UAT|QA|WFM|CRM|ERP|SaaS|Jira)$/i.test(word)) return word.toUpperCase() === "SAAS" ? "SaaS" : word.toUpperCase();
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
+function getInterviewConcernWhy(concern = {}, topicTitle = "this topic") {
+  if (concern.why) return concern.why;
+  const topic = topicTitle.toLowerCase();
+  if (topic.includes("workforce management")) return "This role may involve workforce management tools, so recruiters may ask how your systems and workflow experience transfers.";
+  if (topic.includes("retail")) return "This role supports large retail organizations and recruiters may ask about experience operating at this scale.";
+  if (topic.includes("executive")) return "Recruiters may ask how you communicate with senior stakeholders while staying hands-on and execution-focused.";
+  if (topic.includes("service desk") || topic.includes("itsm")) return "Support intake and service workflows may be part of the role, so this topic can come up during screening.";
+  if (topic.includes("uat") || topic.includes("rollout")) return "They may ask how you validate workflows before launch or confirm stakeholder acceptance.";
+  return "This may come up as a clarification point during screening or deeper interview questions.";
+}
+
+function getInterviewConcernHow(concern = {}, topicTitle = "this topic") {
+  if (concern.how) return concern.how;
+  const topic = topicTitle.toLowerCase();
+  if (topic.includes("workforce management")) return "Prepare a concise example connecting systems coordination, scheduling workflows, reporting, or operational tooling to WFM-adjacent responsibilities.";
+  if (topic.includes("retail")) return "Prepare an example showing transferable experience managing multiple customers, projects, stakeholders, or large-scale implementations.";
+  if (topic.includes("executive")) return "Use an example that shows clear stakeholder communication, practical recommendations, and follow-through without over-positioning.";
+  if (topic.includes("service desk") || topic.includes("itsm") || topic.includes("jira")) return "Use Jira, escalation coordination, issue follow-through, and implementation support examples without overstating formal ITSM ownership.";
+  if (topic.includes("uat") || topic.includes("rollout")) return "Prepare a go-live readiness or workflow validation example from implementation work.";
+  return "Prepare a concise explanation of your related experience and how it transfers to this environment.";
 }
 
 function getInterviewConcernAreas(score = {}) {
@@ -4112,9 +4235,9 @@ function getFastestInterviewImprovement(readiness, concerns = []) {
   if (concerns.length) {
     const concern = concerns[0];
     return {
-      concern: concern.title,
-      response: concern.how || "Prepare a concise explanation of your related experience and how it transfers to this environment.",
-      why: concern.why || "This is the concern most likely to come up during screening or interview follow-up.",
+      concern: getInterviewConcernTopicTitle(concern.title),
+      response: getInterviewConcernHow(concern, getInterviewConcernTopicTitle(concern.title)),
+      why: getInterviewConcernWhy(concern, getInterviewConcernTopicTitle(concern.title)),
     };
   }
   if (readiness.subscores.stories < 80) {
@@ -4282,8 +4405,8 @@ function buildInterviewCheatSheetHtml({ job, score, content, interviewDetails, q
             ${renderPrintList(topStrengths)}
           </section>
           <section class="card">
-            <h2>Risks to manage</h2>
-            ${renderPrintList(concerns.map((concern) => `${concern.title}: ${concern.how}`))}
+            <h2>Topics to prepare</h2>
+            ${renderPrintList(concerns.map((concern) => `${getInterviewConcernTopicTitle(concern.title)}: ${getInterviewConcernHow(concern, getInterviewConcernTopicTitle(concern.title))}`))}
           </section>
           <section class="card">
             <h2>Top questions</h2>
