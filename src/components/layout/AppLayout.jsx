@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { buildOnboardingState, onboardingStorageKey, onboardingTrackerDismissedKey, onboardingUpdatedEvent, readBooleanFlag, shouldShowFullOnboarding, writeBooleanFlag } from "../../lib/onboarding.js";
+import { getPlanLabel, isProSubscription } from "../../lib/billing.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { CommandPalette } from "../command/CommandPalette.jsx";
 import { CompletionRibbon, GettingStartedRibbon } from "../onboarding/GettingStartedRibbon.jsx";
@@ -27,7 +28,7 @@ export function AppLayout() {
   const [trackerDismissed, setTrackerDismissed] = useState(() => readBooleanFlag(onboardingTrackerDismissedKey));
   const [onboardingRefresh, setOnboardingRefresh] = useState(0);
   const { signOut, user, isConfigured } = useAuth();
-  const { loadWorkspace, profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep, loading, loadedFor } = useWorkspaceStore();
+  const { loadWorkspace, profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep, billing, loading, loadedFor } = useWorkspaceStore();
   const location = useLocation();
   const current = navItems.find((item) => location.pathname === item.path) ?? navItems.find((item) => location.pathname.startsWith(item.path));
   const onboardingState = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep, refreshKey: onboardingRefresh });
@@ -118,7 +119,7 @@ export function AppLayout() {
       <div className="hidden min-h-screen lg:flex">
         {sidebar}
         <main className="min-w-0 flex-1">
-          <Header title={current?.label ?? "Dashboard"} onMenu={() => setMobileOpen(true)} onCommand={() => setCommandOpen(true)} />
+          <Header title={current?.label ?? "Dashboard"} billing={billing} onMenu={() => setMobileOpen(true)} onCommand={() => setCommandOpen(true)} />
           <div className="mx-auto max-w-7xl px-6 py-6">
             {showOnboardingRibbon && (
               <>
@@ -132,7 +133,7 @@ export function AppLayout() {
       </div>
 
       <div className="lg:hidden">
-        <Header title={current?.label ?? "Dashboard"} onMenu={() => setMobileOpen(true)} onCommand={() => setCommandOpen(true)} />
+        <Header title={current?.label ?? "Dashboard"} billing={billing} onMenu={() => setMobileOpen(true)} onCommand={() => setCommandOpen(true)} />
         {mobileOpen && (
           <div className="fixed inset-0 z-40 bg-ink/30">
             <div className="h-full max-w-80 bg-white shadow-soft">
@@ -169,7 +170,8 @@ function shouldShowOnboardingRibbon(pathname = "") {
   ].some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
-function Header({ title, onMenu, onCommand }) {
+function Header({ title, billing, onMenu, onCommand }) {
+  const pro = isProSubscription(billing?.subscription);
   return (
     <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur lg:px-6">
       <div className="flex items-center gap-3">
@@ -182,6 +184,9 @@ function Header({ title, onMenu, onCommand }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <span className={`hidden rounded-full px-2.5 py-1 text-[11px] font-black ring-1 sm:inline-flex ${pro ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-700 ring-slate-100"}`}>
+          {getPlanLabel(billing?.subscription)}
+        </span>
         <button
           type="button"
           className="hidden min-h-10 items-center gap-3 rounded-lg border border-brand-100 bg-white px-3 text-sm font-semibold text-slate-500 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-800 sm:inline-flex"

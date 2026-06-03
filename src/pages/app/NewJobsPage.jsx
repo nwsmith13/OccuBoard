@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp, Link as LinkIcon, Sparkles } from "lucide-react
 import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
+import { BillingLimitModal } from "../../components/billing/BillingLimitModal.jsx";
 import { Card } from "../../components/ui/Card.jsx";
 import { Field } from "../../components/ui/Field.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -9,6 +10,7 @@ import { priorities, remoteTypes } from "../../data/seedData.js";
 import { todayIso } from "../../lib/date.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { buildOnboardingState } from "../../lib/onboarding.js";
+import { canUseUsageFeature, createCheckoutSession, getUsageRemaining, isProSubscription, usageActions } from "../../lib/billing.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { JobDetail } from "./JobsPage.jsx";
 
@@ -28,7 +30,7 @@ const emptyIntake = {
 export function NewJobsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { profile, resumeUploads, jobs, jobScores, resumeVersions, createJob, updateJob, deleteJob } = useWorkspaceStore();
+  const { profile, resumeUploads, jobs, jobScores, resumeVersions, billing, createJob, updateJob, deleteJob } = useWorkspaceStore();
   const [form, setForm] = useState(emptyIntake);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -37,9 +39,13 @@ export function NewJobsPage() {
   const [savedJob, setSavedJob] = useState(null);
   const [success, setSuccess] = useState(false);
   const [onboardingHelpOpen, setOnboardingHelpOpen] = useState(true);
+  const [limitOpen, setLimitOpen] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
   const descriptionRef = useRef(null);
   const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions });
   const showOnboardingHelp = onboarding.hasResume && !onboarding.hasJob && onboardingHelpOpen;
+  const applicationRemaining = getUsageRemaining(billing, usageActions.application);
+  const pro = isProSubscription(billing?.subscription);
 
   const canAnalyze = useMemo(() => Boolean(form.source_url.trim() || form.job_description.trim()), [form]);
   const missingCompany = !form.company_name.trim();
@@ -86,6 +92,10 @@ export function NewJobsPage() {
   }
 
   async function saveAndAnalyze() {
+    if (!canUseUsageFeature(billing, usageActions.application)) {
+      setLimitOpen(true);
+      return;
+    }
     setSaving(true);
     setError("");
     setGuardrailOpen(false);
@@ -135,6 +145,23 @@ export function NewJobsPage() {
 
   return (
     <div className="mx-auto grid max-w-4xl gap-6">
+      <BillingLimitModal
+        open={limitOpen}
+        title="You've used your 3 free applications"
+        body="Upgrade to OccuBoard Pro for unlimited job analyses, tailored resumes, recruiter messages, interview prep, and application tracking."
+        upgrading={upgrading}
+        onUpgrade={async () => {
+          setUpgrading(true);
+          try {
+            const url = await createCheckoutSession(user);
+            window.location.assign(url);
+          } catch {
+            setError("Could not open checkout. Please try again from Settings.");
+            setUpgrading(false);
+          }
+        }}
+        onClose={() => setLimitOpen(false)}
+      />
       <section className="text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">Job Intake</p>
         <h2 className="mt-2 text-3xl font-bold text-ink">Analyze a New Job</h2>
@@ -178,6 +205,11 @@ export function NewJobsPage() {
 
       <Card>
         <form className="grid gap-5" onSubmit={analyzeJob}>
+          {!pro && (
+            <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-900">
+              {applicationRemaining} free application{applicationRemaining === 1 ? "" : "s"} remaining.
+            </p>
+          )}
           <label className="grid gap-2 text-sm font-medium text-ink">
             Job URL
             <div className="relative">

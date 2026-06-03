@@ -1,10 +1,12 @@
 import { CheckCircle2, ChevronDown, Clipboard, Lightbulb, Loader2, RefreshCcw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { BillingLimitModal } from "../billing/BillingLimitModal.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useIntelligenceMode } from "../../contexts/IntelligenceModeContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { calculateApplicationReadiness } from "../../lib/applicationReadiness.js";
+import { canUseUsageFeature, createCheckoutSession, usageActions } from "../../lib/billing.js";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { formatDate } from "../../lib/date.js";
 import { getLatestForJob, isCoverLetter, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
@@ -33,8 +35,11 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
     saveMessage,
     updateMessage,
     logJobActivity,
+    billing,
   } = useWorkspaceStore();
   const [aiState, setAiState] = useState({ loading: "", error: "", latest: null, confirm: "" });
+  const [limitAction, setLimitAction] = useState("");
+  const [upgrading, setUpgrading] = useState(false);
   const [intensity, setIntensity] = useState("Balanced");
   const [manualIntensity, setManualIntensity] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState("");
@@ -59,6 +64,11 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
 
   async function runAi(action, { regenerate = false } = {}) {
     if (aiState.loading) return;
+    const usageField = getAiUsageField(action);
+    if (usageField && !canUseUsageFeature(billing, usageField)) {
+      setLimitAction(action);
+      return;
+    }
     if (regenerate && aiState.confirm !== action) {
       setAiState({ loading: "", latest: null, error: "", confirm: action });
       return;
@@ -76,6 +86,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       const placement = action === "resume" ? "Resume" : action === "message" ? "Recruiter message" : "";
       const appliedMitigations = getAppliedMitigations(mitigationPlan, placement);
       const result = await generateAiOutput(action, profile, job, {
+        userId: user?.id,
         tailoringIntensity: effectiveIntensity,
         manualIntensityOverride: manualIntensity,
         fitRecommendation: latestScore?.recommendation,
@@ -107,6 +118,23 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   if (contentOnly) {
     return (
       <section className="grid gap-4">
+        <BillingLimitModal
+          open={Boolean(limitAction)}
+          title={getLimitTitle(limitAction)}
+          body="Upgrade to OccuBoard Pro for unlimited job analyses, tailored resumes, recruiter messages, interview prep, and application tracking."
+          upgrading={upgrading}
+          onUpgrade={async () => {
+            setUpgrading(true);
+            try {
+              const url = await createCheckoutSession(user);
+              window.location.assign(url);
+            } catch (error) {
+              toast.error(error.message || "Could not open checkout.");
+              setUpgrading(false);
+            }
+          }}
+          onClose={() => setLimitAction("")}
+        />
         {aiState.loading && <div ref={loadingRef}><AiSkeleton action={aiState.loading} /></div>}
         {showSlowHint && <LoadingHint />}
         {aiState.error && <MissingOrError message={aiState.error} />}
@@ -194,6 +222,23 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
 
   return (
     <section className={compact ? "grid gap-3" : "rounded-lg border border-brand-100 bg-white p-5 shadow-card"}>
+      <BillingLimitModal
+        open={Boolean(limitAction)}
+        title={getLimitTitle(limitAction)}
+        body="Upgrade to OccuBoard Pro for unlimited job analyses, tailored resumes, recruiter messages, interview prep, and application tracking."
+        upgrading={upgrading}
+        onUpgrade={async () => {
+          setUpgrading(true);
+          try {
+            const url = await createCheckoutSession(user);
+            window.location.assign(url);
+          } catch (error) {
+            toast.error(error.message || "Could not open checkout.");
+            setUpgrading(false);
+          }
+        }}
+        onClose={() => setLimitAction("")}
+      />
       {!compact && (
         <>
           <h3 className="flex items-center gap-2 font-bold"><Sparkles size={18} className="text-brand-700" /> AI Tools</h3>
@@ -328,6 +373,17 @@ function AiOnboardingHelpCard({ eyebrow, title, body, bullets = [], actionLabel,
 function getEffectiveIntensity(action, intensity, manualIntensity, latestScore) {
   if (action === "resume" && latestScore?.recommendation === "Skip" && !manualIntensity) return "Conservative";
   return intensity;
+}
+
+function getAiUsageField(action) {
+  if (action === "fit") return usageActions.jobAnalysis;
+  if (action === "resume") return usageActions.resumeGeneration;
+  return "";
+}
+
+function getLimitTitle(action) {
+  if (action === "resume") return "You've used your 3 free resume generations";
+  return "You've used your 3 free job analyses";
 }
 
 function useSlowLoading(active) {

@@ -2,7 +2,7 @@ export async function generateAiOutput(action, profile, job, options = {}) {
   const response = await fetch("/api/generate", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ action, profile, job, options }),
+    body: JSON.stringify({ action, profile, job, options, userId: options.userId }),
   });
 
   let data;

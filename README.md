@@ -28,6 +28,16 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 # Serverless/API route only. Never prefix this with VITE_.
 OPENAI_API_KEY=your_server_only_openai_api_key
 OPENAI_MODEL=gpt-5-mini
+
+# Stripe test mode billing.
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRO_PRICE_ID=price_1Te8BxDhoHP54GBjlCbY2coq
+APP_URL=http://localhost:5173
+
+# Required for server-side Stripe webhook writes to Supabase.
+SUPABASE_SERVICE_ROLE_KEY=your_server_only_service_role_key
 ```
 
 If `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are missing, the app falls back to local demo mode. Auth forms will open the local workspace and data is stored in browser `localStorage`.
@@ -42,6 +52,12 @@ For local AI testing, Vite mounts a development-only `/api/generate` middleware 
 | `VITE_SUPABASE_ANON_KEY` | Browser-safe | Production yes | Public Supabase anon key. Use RLS policies to protect user data. |
 | `OPENAI_API_KEY` | Server only | AI yes | Must be set only in serverless/deployment env settings. Never prefix with `VITE_`. |
 | `OPENAI_MODEL` | Server only | No | Defaults to the app's configured model if omitted. |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Browser-safe | Billing yes | Stripe test publishable key. Present for future Stripe.js usage; Checkout currently redirects using a server-created URL. |
+| `STRIPE_SECRET_KEY` | Server only | Billing yes | Stripe test secret key for Checkout and Billing Portal. Never prefix with `VITE_`. |
+| `STRIPE_WEBHOOK_SECRET` | Server only | Billing yes | Stripe webhook signing secret for `/api/stripe-webhook`. |
+| `STRIPE_PRO_PRICE_ID` | Server only | Billing yes | Defaults to `price_1Te8BxDhoHP54GBjlCbY2coq` if omitted. |
+| `APP_URL` | Server only | Billing yes | Base URL used for Stripe success, cancel, and portal return URLs. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only | Billing webhooks yes | Required for webhook subscription updates. Never expose this to browser code. |
 
 Do not create `VITE_OPENAI_API_KEY`, `VITE_OPENAI_KEY`, or any other `VITE_` OpenAI secret. Vite embeds `VITE_` variables into client bundles.
 
@@ -55,6 +71,7 @@ For older databases, apply these migrations if they have not already been run:
 -- supabase/ai_guidance_migration.sql
 -- supabase/resume_uploads_migration.sql
 -- supabase/resume_versions_updated_at_migration.sql
+-- supabase/billing_subscriptions_usage_migration.sql
 ```
 
 Production requirements:

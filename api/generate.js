@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { refineFitAnalysisEvidence } from "./analysisEvidence.js";
+import { freeLimit, getSubscriptionByUserId, getUsageByUserId, hasBillingDatabase, proStatuses } from "./billingStore.js";
 import { DEFAULT_MODEL, GLOBAL_AI_RULES, buildPrompt, getSchema } from "./prompts.js";
 
 const supportedActions = ["fit", "resume", "message", "followupMessage", "coverLetter", "interviewPrep"];
@@ -27,10 +28,14 @@ export default async function handler(req, res) {
     return send(res, 400, { error: "The AI request could not be read. Please try again." });
   }
 
-  const { action, profile, job, options } = body ?? {};
+  const { action, profile, job, options, userId } = body ?? {};
   const validationError = validateRequest(action, profile, job);
   if (validationError) {
     return send(res, 400, { error: validationError });
+  }
+  const billingError = await validateBillingAccess(action, userId || options?.userId);
+  if (billingError) {
+    return send(res, 402, { error: billingError, code: "free_limit_reached" });
   }
 
   const client = new OpenAI({ apiKey });
@@ -59,6 +64,27 @@ export default async function handler(req, res) {
   } catch (error) {
     return send(res, getStatus(error), { error: getFriendlyError(error), code: error.code });
   }
+}
+
+async function validateBillingAccess(action, userId) {
+  if (!["fit", "resume"].includes(action)) return "";
+  if (!hasBillingDatabase()) return "";
+  // TODO: Verify the Supabase access token matches userId once API auth middleware is added.
+  if (!userId) return "Sign in before using AI generation.";
+  try {
+    const subscription = await getSubscriptionByUserId(userId);
+    if (subscription?.plan === "pro" || proStatuses.has(subscription?.status)) return "";
+    const usage = await getUsageByUserId(userId);
+    const field = action === "fit" ? "job_analyses_used" : "resume_generations_used";
+    if (Number(usage?.[field] || 0) >= freeLimit) {
+      return action === "fit"
+        ? "You've used your 3 free job analyses. Upgrade to OccuBoard Pro for unlimited analyses."
+        : "You've used your 3 free resume generations. Upgrade to OccuBoard Pro for unlimited tailored resumes.";
+    }
+  } catch {
+    return "";
+  }
+  return "";
 }
 
 function validateRequest(action, profile, job) {
