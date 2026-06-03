@@ -2954,6 +2954,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const [thankYouSaved, setThankYouSaved] = useState(false);
   const [interviewCompleted, setInterviewCompleted] = useState(false);
   const [mockStarted, setMockStarted] = useState(false);
+  const [prepGeneratedSuccess, setPrepGeneratedSuccess] = useState(false);
   const [prepHelpDismissed, setPrepHelpDismissed] = useState(false);
   const [statusHelpDismissed, setStatusHelpDismissed] = useState(false);
   const concernsSectionRef = useRef(null);
@@ -2998,6 +2999,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       setThankYouDraft(result.thankYouMessage || "");
       setLastSavedThankYou(result.thankYouMessage || "");
       setDraftNotes(prep?.answer_notes ?? {});
+      setPrepGeneratedSuccess(true);
       toast.success("Interview prep saved.");
     } catch (err) {
       setError(err.message || "Interview prep could not be generated yet.");
@@ -3219,7 +3221,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
         <CommandCenterOnboardingCard
           eyebrow="Step 6 Complete"
           title="Interview Prep Ready"
-          body="Your interview support is ready. Next, choose the files and prep materials you want to include in one focused application package."
+          body="Your interview support materials are ready. Recommended next step: continue to Export Package."
           actionLabel="Continue to Export Package"
           onAction={onContinue}
         />
@@ -3227,6 +3229,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       {!onboarding.completed && !prepHelpDismissed && (
         <InterviewPrepHelperCallout onDismiss={() => setPrepHelpDismissed(true)} />
       )}
+      {prepGeneratedSuccess && <InterviewPrepGeneratedBanner />}
       {scheduleCard}
       <div className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -3391,6 +3394,17 @@ function InterviewPrepHelperCallout({ onDismiss }) {
   );
 }
 
+function InterviewPrepGeneratedBanner() {
+  return (
+    <section className="rounded-xl bg-emerald-50 p-4 shadow-sm ring-1 ring-emerald-100">
+      <p className="text-sm font-black text-emerald-950">Interview preparation completed.</p>
+      <p className="mt-1 max-w-3xl text-sm leading-6 text-emerald-900">
+        OccuBoard has prepared likely questions, talking points, STAR stories, research notes, and areas to review before an interview.
+      </p>
+    </section>
+  );
+}
+
 function InterviewToolkit({ focusAreas, questionsToAsk, onPrintCheatSheet, onDownloadCheatSheet }) {
   const talkingPointsText = focusAreas.map((area) => area.emphasize || area.title).filter(Boolean).join("\n");
   const questionsText = questionsToAsk.map((question) => question).filter(Boolean).join("\n");
@@ -3402,9 +3416,9 @@ function InterviewToolkit({ focusAreas, questionsToAsk, onPrintCheatSheet, onDow
             <CheckCircle2 size={17} aria-hidden="true" />
           </span>
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-700">Before Your Interview</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-700">Optional Interview Tools</p>
             <h3 className="mt-1 text-lg font-black text-ink">Interview Toolkit</h3>
-            <p className="mt-1 text-sm leading-6 text-slate-700">Quick-access preparation tools.</p>
+            <p className="mt-1 text-sm leading-6 text-slate-700">These resources help you prepare for interviews but are not required to complete your application package.</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -3492,7 +3506,10 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, con
         </div>
       </PrepSection>
       <div ref={concernsRef} className="scroll-mt-6">
-        <PrepSection title="Potential Concern Areas">
+        <PrepSection title="Potential Interview Questions">
+          <p className="mb-3 text-sm leading-6 text-slate-600">
+            These are areas a recruiter or hiring manager may ask you about.
+          </p>
           {concerns.length ? (
             <div className="grid gap-3">
               {concerns.map((concern) => <InterviewConcernCard key={concern.id} concern={concern} />)}
@@ -3755,7 +3772,7 @@ function getToolkitStatusTone(status) {
 
 function getInterviewReadinessTone(label) {
   if (label === "Excellent") return "bg-emerald-50 text-emerald-800 ring-emerald-100";
-  if (label === "Good") return "bg-brand-50 text-brand-800 ring-brand-100";
+  if (label === "Good Progress") return "bg-amber-50 text-amber-800 ring-amber-100";
   return "bg-amber-50 text-amber-800 ring-amber-100";
 }
 
@@ -3901,8 +3918,9 @@ function getInterviewReadinessScore({ content, practicedCount, interviewDetails,
     (thankYouDraft?.trim() ? 3 : 0);
   const clamped = Math.min(100, score);
   const significantConcernCount = concerns.length;
-  const hasCriticalConcern = concerns.some((concern) => ["critical", "high"].includes(String(concern.severity).toLowerCase()));
-  const label = getInterviewReadinessLabel({ score: clamped, concernCount: significantConcernCount, hasCriticalConcern });
+  const criticalConcernCount = concerns.filter((concern) => ["critical", "high"].includes(String(concern.severity).toLowerCase())).length;
+  const prepIncomplete = !questionCount || !storyCount || !focusCount;
+  const label = getInterviewReadinessLabel({ score: clamped, concernCount: significantConcernCount, criticalConcernCount, prepIncomplete });
   return {
     score: clamped,
     subscores,
@@ -3913,16 +3931,16 @@ function getInterviewReadinessScore({ content, practicedCount, interviewDetails,
     label,
     description: label === "Excellent"
       ? "Your interview toolkit is prepared and ready for review."
-      : label === "Good"
-        ? "Preparation is strong. Review the remaining concern areas before moving to Export Package."
+      : label === "Good Progress"
+        ? "Most interview materials are prepared. Review the highlighted concern areas below."
         : "Several concern areas still need stronger responses before this prep feels complete.",
   };
 }
 
-function getInterviewReadinessLabel({ score, concernCount, hasCriticalConcern }) {
+function getInterviewReadinessLabel({ score, concernCount, criticalConcernCount, prepIncomplete }) {
   if (concernCount === 0 && score >= 85) return "Excellent";
-  if (concernCount >= 4 || hasCriticalConcern) return "Needs Attention";
-  if (score >= 70 || concernCount > 0) return "Good";
+  if (prepIncomplete || criticalConcernCount >= 2) return "Needs Attention";
+  if (score >= 70 || concernCount > 0) return "Good Progress";
   return "Needs Attention";
 }
 
@@ -3952,7 +3970,7 @@ function getHiringConcernsStatus(concerns = []) {
   if (!concerns.length) {
     return {
       id: "concerns",
-      label: "Hiring Concerns Addressed",
+      label: "Potential Interview Questions Prepared",
       status: "complete",
       detail: "No major concerns identified.",
     };
@@ -3960,17 +3978,17 @@ function getHiringConcernsStatus(concerns = []) {
   if (concerns.length <= 1) {
     return {
       id: "concerns",
-      label: "Hiring Concern Needs Attention",
+      label: "Potential Interview Question To Prepare",
       status: "attention",
-      detail: "1 hiring concern still needs a stronger response.",
+      detail: "1 area a recruiter or hiring manager may ask you about.",
       actionLabel: "View Concerns",
     };
   }
   return {
     id: "concerns",
-    label: "Hiring Concerns Need Attention",
+    label: "Potential Interview Questions To Prepare",
     status: "attention",
-    detail: `${concerns.length} hiring concerns still need stronger responses.`,
+    detail: `${concerns.length} areas a recruiter or hiring manager may ask you about.`,
     actionLabel: "View Concerns",
   };
 }
