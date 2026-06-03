@@ -623,7 +623,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <WorkspaceRail activeTab={activeTab} completed={completedSteps} score={latestScore} onSelect={requestTabChange} />
+          <WorkspaceRail activeTab={activeTab} completed={completedSteps} score={latestScore} job={job} onSelect={requestTabChange} />
           <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
           {activeTab === "overview" && (
             <div className="mx-auto grid max-w-6xl gap-5">
@@ -1934,12 +1934,14 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
       </div>
 
         <ApplicationChecklist
+          job={job}
           score={score}
           resume={resume}
           coverLetter={coverLetter}
           coverLetterSkipped={coverLetterSkipped}
           recruiterMessage={recruiterMessage}
           prep={prep}
+          onboardingCompleted={onboarding.completed}
         />
 
       {!onboarding.completed && !onboarding.hasExport && (
@@ -1968,6 +1970,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         selectedItems={selectedPackageItems}
         packageFileName={packageFileName}
         downloading={packageDownloading}
+        onboardingCompleted={onboarding.completed}
         onToggle={(key) => setPackageSelections((current) => ({ ...current, [key]: !current[key] }))}
         onDownload={downloadSelectedPackage}
         onGoToInterview={onGoToInterview}
@@ -2032,7 +2035,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   );
 }
 
-function ApplicationChecklist({ score, resume, coverLetter, coverLetterSkipped, recruiterMessage, prep }) {
+function ApplicationChecklist({ job, score, resume, coverLetter, coverLetterSkipped, recruiterMessage, prep, onboardingCompleted = false }) {
   const rows = [
     { label: "Analysis", done: Boolean(score), status: score ? "Complete" : "Not started" },
     { label: "Resume", done: Boolean(resume), status: resume ? "Complete" : "Not started" },
@@ -2042,6 +2045,23 @@ function ApplicationChecklist({ score, resume, coverLetter, coverLetterSkipped, 
   ];
   const complete = rows.filter((row) => row.done).length;
   const percent = Math.round((complete / rows.length) * 100);
+  if (onboardingCompleted) {
+    const stage = getDisplayStage(job?.status);
+    const status = isTrackedApplicationStatus(job?.status) ? stage : "In Progress";
+    const tone = status === "Applied" ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-brand-50 text-brand-800 ring-brand-100";
+    return (
+      <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Status</p>
+            <h3 className="mt-1 text-lg font-bold text-ink">{status}</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-600">Preparation assets remain available below whenever you need them.</p>
+          </div>
+          <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ring-1 ${tone}`}>{status}</span>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2132,15 +2152,15 @@ function FirstApplicationWorkflowCompleteCard() {
     <section className="rounded-xl bg-emerald-50 p-4 shadow-sm ring-1 ring-emerald-100">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Getting Started Complete</p>
-          <h3 className="mt-1 text-lg font-black text-emerald-950">Congratulations!</h3>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Application tracked</p>
+          <h3 className="mt-1 text-lg font-black text-emerald-950">Your First Application Is Tracked</h3>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-emerald-900">
-            Your first application workflow is complete. OccuBoard is now ready to help manage future applications, interviews, follow-ups, and recruiter conversations.
+            {"You've completed your first application workflow. OccuBoard is now ready to help manage future applications, interviews, recruiter conversations, and follow-ups."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link to="/app/applications">
-            <Button className="w-fit">Go to Applications</Button>
+            <Button className="w-fit">View Applications</Button>
           </Link>
           <Link to="/app/new-jobs">
             <Button variant="secondary" className="w-fit">Analyze Another Job</Button>
@@ -2151,16 +2171,20 @@ function FirstApplicationWorkflowCompleteCard() {
   );
 }
 
-function PackageBuilderSection({ items, selections, selectedItems, packageFileName, downloading, onToggle, onDownload, onGoToInterview }) {
+function PackageBuilderSection({ items, selections, selectedItems, packageFileName, downloading, onboardingCompleted = false, onToggle, onDownload, onGoToInterview }) {
   const unavailableInterviewItems = items.filter((item) => item.group === "Interview Prep Kit" && !item.available).length;
   const ctaLabel = selectedItems.length ? `Download Package (${selectedItems.length})` : "Select items to download";
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100 sm:p-5">
       <div>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Download Package</p>
-          <h3 className="mt-1 text-xl font-bold text-ink">Build your export package</h3>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Select the ready files and prep assets to include. Unavailable items stay visible so the missing pieces are clear.</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">{onboardingCompleted ? "Application Assets" : "Download Package"}</p>
+          <h3 className="mt-1 text-xl font-bold text-ink">{onboardingCompleted ? "Application Assets" : "Build your export package"}</h3>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+            {onboardingCompleted
+              ? "Your resume, recruiter messages, interview preparation materials, and supporting documents remain available here anytime."
+              : "Select the ready files and prep assets to include. Unavailable items stay visible so the missing pieces are clear."}
+          </p>
         </div>
       </div>
 
@@ -4620,7 +4644,7 @@ function formatDateTime(value) {
   return date.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function WorkspaceRail({ activeTab, completed, score, onSelect }) {
+function WorkspaceRail({ activeTab, completed, score, job, onSelect }) {
   const groups = [
     ["Prepare", [
       ["overview", "Overview"],
@@ -4647,18 +4671,32 @@ function WorkspaceRail({ activeTab, completed, score, onSelect }) {
   ];
   const current = activeTab;
   const readiness = getWorkflowReadiness(completed);
+  const showApplicationStatus = Boolean(completed.export && isTrackedApplicationStatus(job?.status));
+  const applicationStatus = showApplicationStatus ? getDisplayStage(job.status) : "In Progress";
   return (
     <aside className="shrink-0 border-b border-brand-100 bg-slate-50/80 md:w-56 md:border-b-0 md:border-r">
       <div className="kanban-scroll flex gap-2 overflow-x-auto p-3 md:sticky md:top-0 md:block md:h-full md:space-y-4 md:overflow-y-auto">
         <div className="hidden rounded-xl bg-white p-3 shadow-sm ring-1 ring-brand-100 md:block">
-          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">Application Readiness</p>
-          <div className="mt-2 flex items-center gap-2">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.percent}% application readiness`}>
-              <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${readiness.percent}%` }} />
-            </div>
-            <span className="text-xs font-black text-brand-900">{readiness.percent}%</span>
-          </div>
-          <p className="mt-2 text-xs font-semibold text-slate-600">{readiness.complete} of {readiness.total} sections complete</p>
+          {showApplicationStatus ? (
+            <>
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">Application Status</p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="text-sm font-black text-ink">{applicationStatus}</span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-800 ring-1 ring-emerald-100">{applicationStatus}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">Application Checklist</p>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" aria-label={`${readiness.percent}% application readiness`}>
+                  <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${readiness.percent}%` }} />
+                </div>
+                <span className="text-xs font-black text-brand-900">{readiness.percent}%</span>
+              </div>
+              <p className="mt-2 text-xs font-semibold text-slate-600">{readiness.complete} of {readiness.total} sections complete</p>
+            </>
+          )}
         </div>
         <p className="hidden px-2 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 md:block">Application Workflow</p>
         {groups.map(([groupLabel, steps]) => (

@@ -62,7 +62,7 @@ export function AppLayout() {
   if (workspaceReady && shouldShowFullOnboarding(onboardingState, { pathname: location.pathname, dismissed: onboardingDismissed })) {
     return <OnboardingFlow state={onboardingState} onDismiss={dismissOnboarding} />;
   }
-  const showOnboardingRibbon = workspaceReady && shouldShowOnboardingRibbon(location.pathname);
+  const showOnboardingRibbon = workspaceReady && !onboardingState.completed && shouldShowOnboardingRibbon(location.pathname);
 
   const sidebar = (
     <aside className={`${collapsed ? "w-20" : "w-72"} flex h-full flex-col border-r border-slate-200 bg-white/95 transition-all lg:sticky lg:top-0 lg:h-screen`}>
