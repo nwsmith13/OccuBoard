@@ -278,6 +278,35 @@ function isTrackedApplicationStatus(status) {
   return ["Applied", "Recruiter Screen", "Interview", "Final Interview", "Offer", "Closed"].includes(status);
 }
 
+function getApplicationStatusDisplay(status) {
+  const normalized = getDisplayStage(status);
+  return {
+    Saved: "Draft",
+    Draft: "Draft",
+    Tailoring: "Draft",
+    Applied: "Applied",
+    "Recruiter Contacted": "Recruiter Contacted",
+    "Recruiter Screen": "Recruiter Contacted",
+    "Phone Screen": "Phone Screen",
+    Interview: "Interviewing",
+    Interviewing: "Interviewing",
+    "Final Interview": "Final Round",
+    "Final Round": "Final Round",
+    Offer: "Offer",
+    Rejected: "Rejected",
+    Closed: "Closed",
+  }[normalized] || normalized || "In Progress";
+}
+
+function getApplicationStatusTone(status) {
+  const label = getApplicationStatusDisplay(status);
+  if (["Applied", "Recruiter Contacted"].includes(label)) return "bg-emerald-50 text-emerald-800 ring-emerald-100";
+  if (["Phone Screen", "Interviewing", "Final Round"].includes(label)) return "bg-brand-50 text-brand-800 ring-brand-100";
+  if (label === "Offer") return "bg-emerald-100 text-emerald-900 ring-emerald-200";
+  if (["Rejected", "Closed"].includes(label)) return "bg-slate-100 text-slate-700 ring-slate-200";
+  return "bg-slate-50 text-slate-700 ring-slate-100";
+}
+
 export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onMove, onJobUpdate, pageMode = false }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -646,6 +675,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
               )}
 
               <ApplicationPackageOverview
+                job={job}
                 score={latestScore}
                 resume={latestResume}
                 coverLetter={latestCoverLetter}
@@ -951,12 +981,12 @@ function OverviewDisclosure({ title, summary, open, onToggle, children }) {
   );
 }
 
-function ApplicationPackageOverview({ score, resume, coverLetter, coverLetterSkipped, recruiterMessage, prep, onOpenAnalysis, onOpenResume, onOpenCoverLetter, onOpenMessage, onOpenInterview }) {
+function ApplicationPackageOverview({ job, score, resume, coverLetter, coverLetterSkipped, recruiterMessage, prep, onOpenAnalysis, onOpenResume, onOpenCoverLetter, onOpenMessage, onOpenInterview }) {
   const assets = [
-    { title: "Resume", status: resume ? "Ready" : "Not Generated", actionLabel: resume ? "Open" : score ? "Generate Resume" : "Start Analysis", onAction: resume || score ? onOpenResume : onOpenAnalysis, ready: Boolean(resume) },
-    { title: "Cover Letter", status: coverLetter ? "Ready" : coverLetterSkipped ? "Optional ✓" : "Optional", actionLabel: coverLetter ? "Open" : coverLetterSkipped ? "Generate" : "Review", onAction: onOpenCoverLetter, ready: true },
-    { title: "Recruiter Message", status: recruiterMessage ? "Ready" : "Not Generated", actionLabel: recruiterMessage ? "Open" : "Draft Message", onAction: onOpenMessage, ready: Boolean(recruiterMessage) },
-    { title: "Interview Prep", status: prep ? "Ready" : "Not Started", actionLabel: prep ? "Open" : "Prepare Interview Prep", onAction: onOpenInterview, ready: Boolean(prep) },
+    { title: "Resume", status: resume ? "Generated" : "Not Generated", actionLabel: resume ? "Open" : score ? "Generate Resume" : "Start Analysis", onAction: resume || score ? onOpenResume : onOpenAnalysis, ready: Boolean(resume) },
+    { title: "Cover Letter", status: coverLetter ? "Generated" : coverLetterSkipped ? "Optional ✓" : "Optional", actionLabel: coverLetter ? "Open" : coverLetterSkipped ? "Generate" : "Review", onAction: onOpenCoverLetter, ready: true },
+    { title: "Recruiter Message", status: recruiterMessage ? "Generated" : "Not Generated", actionLabel: recruiterMessage ? "Open" : "Draft Message", onAction: onOpenMessage, ready: Boolean(recruiterMessage) },
+    { title: "Interview Prep", status: prep ? "Prepared" : "Not Started", actionLabel: prep ? "Open" : "Prepare Interview Prep", onAction: onOpenInterview, ready: Boolean(prep) },
   ];
   const packageReady = assets.every((asset) => asset.ready);
   return (
@@ -964,11 +994,11 @@ function ApplicationPackageOverview({ score, resume, coverLetter, coverLetterSki
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Assets</p>
-          <h3 className="mt-1 text-lg font-bold text-ink">{getAssetProgressLabel(assets)}</h3>
+          <h3 className="mt-1 text-lg font-bold text-ink">{isTrackedApplicationStatus(job?.status) && packageReady ? "Assets available" : getAssetProgressLabel(assets)}</h3>
         </div>
         {packageReady && (
           <span className="w-fit whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100">
-            {"\u2713"} Package Ready
+            {"\u2713"} Package Complete
           </span>
         )}
       </div>
@@ -1927,9 +1957,13 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   return (
     <section className="grid gap-4">
       <div className="rounded-xl bg-white/90 p-5 shadow-card ring-1 ring-brand-100">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Export</p>
-        <h3 className="mt-1 text-xl font-bold text-ink">Export Workspace</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Choose the ready items you want and download one focused application package.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">{isTrackedApplicationStatus(job.status) ? "Application Resources" : "Export"}</p>
+        <h3 className="mt-1 text-xl font-bold text-ink">{isTrackedApplicationStatus(job.status) ? "Application Resources" : "Export Workspace"}</h3>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          {isTrackedApplicationStatus(job.status)
+            ? "Access your resume versions, recruiter materials, interview preparation assets, and supporting documents at any time."
+            : "Choose the ready items you want and download one focused application package."}
+        </p>
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
       </div>
 
@@ -1992,7 +2026,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         </button>
         {advancedOpen && (
           <div id="advanced-individual-downloads" className="grid gap-3 border-t border-brand-100 p-4">
-            <MaterialCard title="Resume" status={resume ? "Ready" : "Not generated"} description={resume ? "Preview or download your tailored resume." : "Create a tailored resume before exporting your application package."}>
+            <MaterialCard title="Resume" status={resume ? "Generated" : "Not generated"} description={resume ? "Preview or download your tailored resume." : "Create a tailored resume before exporting your application package."}>
               {resume ? (
                 <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
               ) : (
@@ -2000,7 +2034,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
               )}
             </MaterialCard>
 
-            <MaterialCard title="Cover Letter" status={coverLetter ? "Ready" : coverLetterSkipped ? "Optional ✓" : "Optional"} description={coverLetter ? "Copy or export the tailored cover letter." : coverLetterSkipped ? "You chose not to include a cover letter for this application." : "Cover letter optional. Generate one only when it strengthens the application."}>
+            <MaterialCard title="Cover Letter" status={coverLetter ? "Generated" : coverLetterSkipped ? "Optional ✓" : "Optional"} description={coverLetter ? "Copy or export the tailored cover letter." : coverLetterSkipped ? "You chose not to include a cover letter for this application." : "Cover letter optional. Generate one only when it strengthens the application."}>
               {coverLetter ? (
                 <div className="flex flex-wrap gap-2">
                   <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={copyCoverLetter}>{coverCopied ? "Copied" : "Copy"}</Button>
@@ -2025,12 +2059,14 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
               )}
             </MaterialCard>
 
-            <MaterialCard title="Recruiter Message" status={recruiterMessage ? "Ready" : "Not generated"} description={recruiterMessage ? "Copy your outreach note when you are ready to contact someone." : "Draft this after your application materials are ready."}>
+            <MaterialCard title="Recruiter Message" status={recruiterMessage ? "Generated" : "Not generated"} description={recruiterMessage ? "Copy your outreach note when you are ready to contact someone." : "Draft this after your application materials are ready."}>
               {recruiterMessage ? <CopyButton text={recruiterMessage.content} /> : <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToMessage}>Draft Recruiter Message</Button>}
             </MaterialCard>
           </div>
         )}
       </section>
+
+      {onboarding.completed && <ApplicationActivityPlaceholder />}
     </section>
   );
 }
@@ -2039,16 +2075,15 @@ function ApplicationChecklist({ job, score, resume, coverLetter, coverLetterSkip
   const rows = [
     { label: "Analysis", done: Boolean(score), status: score ? "Complete" : "Not started" },
     { label: "Resume", done: Boolean(resume), status: resume ? "Complete" : "Not started" },
-    { label: "Cover Letter", done: true, status: coverLetter ? "Ready" : coverLetterSkipped ? "Optional ✓" : "Optional" },
+    { label: "Cover Letter", done: true, status: coverLetter ? "Generated" : coverLetterSkipped ? "Optional ✓" : "Optional" },
     { label: "Recruiter Message", done: Boolean(recruiterMessage), status: recruiterMessage ? "Complete" : "Not started" },
     { label: "Interview Prep", done: Boolean(prep), status: prep ? "Complete" : "Not started" },
   ];
   const complete = rows.filter((row) => row.done).length;
   const percent = Math.round((complete / rows.length) * 100);
   if (onboardingCompleted) {
-    const stage = getDisplayStage(job?.status);
-    const status = isTrackedApplicationStatus(job?.status) ? stage : "In Progress";
-    const tone = status === "Applied" ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-brand-50 text-brand-800 ring-brand-100";
+    const status = isTrackedApplicationStatus(job?.status) ? getApplicationStatusDisplay(job.status) : "In Progress";
+    const tone = getApplicationStatusTone(job?.status);
     return (
       <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2089,6 +2124,18 @@ function ApplicationChecklist({ job, score, resume, coverLetter, coverLetterSkip
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+function ApplicationActivityPlaceholder() {
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Activity</p>
+      <h3 className="mt-1 text-lg font-bold text-ink">No activity recorded yet.</h3>
+      <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+        Future updates such as application submission, interviews, recruiter conversations, and status changes will appear here.
+      </p>
     </section>
   );
 }
@@ -2211,7 +2258,7 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
                     <span className="min-w-0">
                       <span className="block font-bold">{item.label}</span>
                       <span className={`mt-0.5 block text-xs font-semibold ${item.available ? "text-emerald-700" : "text-slate-500"}`}>
-                        {item.available ? "Ready" : item.missingLabel}
+                        {item.available ? onboardingCompleted ? "Available" : "Ready" : item.missingLabel}
                       </span>
                     </span>
                   </label>
@@ -2342,14 +2389,15 @@ function buildResearchNotesExportText({ job, focusAreas = [], questionsToAsk = [
 }
 
 function MaterialCard({ title, status, description, children }) {
-  const optional = status === "Optional";
+  const optional = status === "Optional" || status.includes("Optional");
+  const complete = ["Ready", "Generated", "Prepared", "Reviewed"].includes(status);
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
       <div className="flex flex-col gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="font-bold text-ink">{title}</h4>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${optional ? "bg-slate-50 text-slate-500 ring-slate-100" : status === "Ready" ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-brand-50 text-brand-700 ring-brand-100"}`}>{status}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${optional ? "bg-slate-50 text-slate-500 ring-slate-100" : complete ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-brand-50 text-brand-700 ring-brand-100"}`}>{status}</span>
           </div>
           <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
         </div>
@@ -4672,7 +4720,8 @@ function WorkspaceRail({ activeTab, completed, score, job, onSelect }) {
   const current = activeTab;
   const readiness = getWorkflowReadiness(completed);
   const showApplicationStatus = Boolean(completed.export && isTrackedApplicationStatus(job?.status));
-  const applicationStatus = showApplicationStatus ? getDisplayStage(job.status) : "In Progress";
+  const applicationStatus = showApplicationStatus ? getApplicationStatusDisplay(job.status) : "In Progress";
+  const applicationStatusTone = getApplicationStatusTone(job?.status);
   return (
     <aside className="shrink-0 border-b border-brand-100 bg-slate-50/80 md:w-56 md:border-b-0 md:border-r">
       <div className="kanban-scroll flex gap-2 overflow-x-auto p-3 md:sticky md:top-0 md:block md:h-full md:space-y-4 md:overflow-y-auto">
@@ -4682,7 +4731,7 @@ function WorkspaceRail({ activeTab, completed, score, job, onSelect }) {
               <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">Application Status</p>
               <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="text-sm font-black text-ink">{applicationStatus}</span>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-800 ring-1 ring-emerald-100">{applicationStatus}</span>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ring-1 ${applicationStatusTone}`}>{applicationStatus}</span>
               </div>
             </>
           ) : (
@@ -4734,14 +4783,18 @@ function WorkspaceRail({ activeTab, completed, score, job, onSelect }) {
 
 function getStepCompletionLabel(id, score, done, completed = {}) {
   if (id === "coverLetter") {
-    if (done && completedCoverLetterState(completed) === "ready") return "Ready";
+    if (done && completedCoverLetterState(completed) === "ready") return "Generated";
     if (done && completedCoverLetterState(completed) === "optionalDone") return "Optional ✓";
     return "Optional";
   }
   if (id === "overview") return done ? "\u2713" : "\u25CB";
   if (id === "fit" && Number.isFinite(Number(score?.score))) return `${Math.round(Number(score.score))}%`;
+  if (id === "resume" && done) return "Generated";
+  if (id === "message" && done) return "Generated";
+  if (id === "interview" && done) return "Prepared";
+  if (id === "recruiterView" && done) return "Reviewed";
   if (!done) return "\u25CB";
-  return "Ready";
+  return "Done";
 }
 
 function completedCoverLetterState(completed = {}) {
