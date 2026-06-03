@@ -2955,6 +2955,8 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const [interviewCompleted, setInterviewCompleted] = useState(false);
   const [mockStarted, setMockStarted] = useState(false);
   const [prepHelpDismissed, setPrepHelpDismissed] = useState(false);
+  const [statusHelpDismissed, setStatusHelpDismissed] = useState(false);
+  const concernsSectionRef = useRef(null);
   const showPrepSlowHint = useSlowLoading(loading);
   const content = prep?.content;
   const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep });
@@ -3204,6 +3206,13 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     else toast.error("Could not download cheat sheet.");
   }
 
+  function scrollToConcerns() {
+    setPrepTab("overview");
+    window.setTimeout(() => {
+      concernsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  }
+
   return (
     <section className="grid gap-4">
       {!onboarding.completed && onboarding.hasInterviewPrep && !onboarding.hasExport && (
@@ -3251,7 +3260,16 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       )}
 
       {prepTab === "overview" && (
-        <InterviewPrepOverview focusAreas={focusAreas} questions={questions} readiness={readiness} concerns={concerns} />
+        <InterviewPrepOverview
+          focusAreas={focusAreas}
+          questions={questions}
+          readiness={readiness}
+          concerns={concerns}
+          concernsRef={concernsSectionRef}
+          onViewConcerns={scrollToConcerns}
+          showStatusHelp={!onboarding.completed && !statusHelpDismissed}
+          onDismissStatusHelp={() => setStatusHelpDismissed(true)}
+        />
       )}
 
       {prepTab === "questions" && (
@@ -3402,8 +3420,8 @@ function InterviewToolkit({ focusAreas, questionsToAsk, onPrintCheatSheet, onDow
   );
 }
 
-function InterviewPrepOverview({ focusAreas, questions, readiness, concerns }) {
-  const fastestWays = getFastestInterviewImprovements(readiness, concerns);
+function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, concernsRef, onViewConcerns, showStatusHelp, onDismissStatusHelp }) {
+  const fastestWay = getFastestInterviewImprovement(readiness, concerns);
   const toolkitStatus = getInterviewToolkitStatus({ focusAreas, questions, readiness, concerns });
   return (
     <section className="grid gap-4">
@@ -3419,21 +3437,50 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns }) {
         </div>
         <div className="mt-4 rounded-xl bg-white/80 p-3 ring-1 ring-brand-100">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-600">Interview Toolkit Status</p>
+          {showStatusHelp && (
+            <div className="mt-3 rounded-lg bg-brand-50/80 p-3 ring-1 ring-brand-100">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-brand-950">What am I looking at?</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-700">
+                    OccuBoard has already prepared likely interview questions, STAR stories, company research, and identified areas that may need stronger responses. Review the highlighted concern areas before moving to Export Package.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="shrink-0 rounded-lg p-2 text-slate-500 transition hover:bg-white/70 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                  onClick={onDismissStatusHelp}
+                  aria-label="Dismiss interview toolkit help"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+          )}
           <div className="mt-3 grid gap-2 md:grid-cols-2">
             {toolkitStatus.map((item) => (
-              <ToolkitStatusRow key={item.label} item={item} />
+              <ToolkitStatusRow key={item.label} item={item} onAction={item.id === "concerns" && item.status === "attention" ? onViewConcerns : null} />
             ))}
           </div>
         </div>
       </PrepSection>
       <PrepSection title="Fastest Way To Improve" featured>
-        <div className="grid gap-2 md:grid-cols-3">
-          {fastestWays.map((item) => (
-            <div key={item} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold leading-6 text-emerald-900 ring-1 ring-emerald-100">{item}</div>
-          ))}
+        <div className="rounded-xl bg-white/80 p-4 ring-1 ring-emerald-100">
+          <p className="text-sm font-black text-ink">Biggest remaining concern:</p>
+          <p className="mt-1 text-base font-black text-brand-950">{fastestWay.concern}</p>
+          <p className="mt-4 text-sm font-black text-ink">Suggested response:</p>
+          <p className="mt-1 text-sm leading-6 text-slate-700">{fastestWay.response}</p>
+          {fastestWay.why && (
+            <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold leading-5 text-emerald-900 ring-1 ring-emerald-100">
+              Why this matters: {fastestWay.why}
+            </p>
+          )}
         </div>
       </PrepSection>
       <PrepSection title="Likely Focus Areas">
+        <p className="mb-3 text-sm leading-6 text-slate-600">
+          Topics recruiters or hiring managers are most likely to discuss based on the job description and your background.
+        </p>
         <div className="grid gap-3 md:grid-cols-2">
           {focusAreas.slice(0, 6).map((area) => (
             <div key={area.title || area.emphasize} className="rounded-lg bg-brand-50/80 p-3">
@@ -3444,15 +3491,17 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns }) {
           ))}
         </div>
       </PrepSection>
-      <PrepSection title="Potential Concern Areas">
-        {concerns.length ? (
-          <div className="grid gap-3">
-            {concerns.map((concern) => <InterviewConcernCard key={concern.id} concern={concern} />)}
-          </div>
-        ) : (
-          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">No major interview risk areas were identified from the current analysis.</p>
-        )}
-      </PrepSection>
+      <div ref={concernsRef} className="scroll-mt-6">
+        <PrepSection title="Potential Concern Areas">
+          {concerns.length ? (
+            <div className="grid gap-3">
+              {concerns.map((concern) => <InterviewConcernCard key={concern.id} concern={concern} />)}
+            </div>
+          ) : (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">No major interview risk areas were identified from the current analysis.</p>
+          )}
+        </PrepSection>
+      </div>
     </section>
   );
 }
@@ -3665,18 +3714,35 @@ function PrepInfoBlock({ label, value }) {
   );
 }
 
-function ToolkitStatusRow({ item }) {
+function ToolkitStatusRow({ item, onAction }) {
   const tone = getToolkitStatusTone(item.status);
   const icon = item.status === "complete" ? "\u2713" : item.status === "attention" ? "!" : "\u25CB";
-  return (
-    <div className={`flex items-start gap-2 rounded-lg px-3 py-2 ring-1 ${tone.container}`}>
+  const content = (
+    <>
       <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-xs font-black ${tone.icon}`} aria-hidden="true">
         {icon}
       </span>
-      <div>
+      <div className="min-w-0 flex-1">
         <p className={`text-sm font-bold ${tone.text}`}>{item.label}</p>
         {item.detail && <p className="mt-0.5 text-xs font-semibold leading-5 text-slate-600">{item.detail}</p>}
+        {item.actionLabel && <span className="mt-2 inline-flex text-xs font-black text-brand-800">{item.actionLabel} {"\u2192"}</span>}
       </div>
+    </>
+  );
+  if (onAction) {
+    return (
+      <button
+        type="button"
+        className={`flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left ring-1 transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${tone.container}`}
+        onClick={onAction}
+      >
+        {content}
+      </button>
+    );
+  }
+  return (
+    <div className={`flex items-start gap-2 rounded-lg px-3 py-2 ring-1 ${tone.container}`}>
+      {content}
     </div>
   );
 }
@@ -3834,17 +3900,30 @@ function getInterviewReadinessScore({ content, practicedCount, interviewDetails,
     Math.round((subscores.research + subscores.stories + subscores.questions + subscores.riskMitigation) / 4) +
     (thankYouDraft?.trim() ? 3 : 0);
   const clamped = Math.min(100, score);
+  const significantConcernCount = concerns.length;
+  const hasCriticalConcern = concerns.some((concern) => ["critical", "high"].includes(String(concern.severity).toLowerCase()));
+  const label = getInterviewReadinessLabel({ score: clamped, concernCount: significantConcernCount, hasCriticalConcern });
   return {
     score: clamped,
     subscores,
     storyCount,
     questionCount,
     focusCount,
-    label: clamped >= 85 ? "Excellent" : clamped >= 70 ? "Good" : "Needs Work",
-    description: clamped >= 85
+    concernCount: significantConcernCount,
+    label,
+    description: label === "Excellent"
       ? "Your interview toolkit is prepared and ready for review."
-      : "Your prep is structured. Review the fastest improvements and tighten the most important examples before the interview.",
+      : label === "Good"
+        ? "Preparation is strong. Review the remaining concern areas before moving to Export Package."
+        : "Several concern areas still need stronger responses before this prep feels complete.",
   };
+}
+
+function getInterviewReadinessLabel({ score, concernCount, hasCriticalConcern }) {
+  if (concernCount === 0 && score >= 85) return "Excellent";
+  if (concernCount >= 4 || hasCriticalConcern) return "Needs Attention";
+  if (score >= 70 || concernCount > 0) return "Good";
+  return "Needs Attention";
 }
 
 function getInterviewToolkitStatus({ focusAreas = [], questions = [], readiness, concerns = [] }) {
@@ -3872,6 +3951,7 @@ function getInterviewToolkitStatus({ focusAreas = [], questions = [], readiness,
 function getHiringConcernsStatus(concerns = []) {
   if (!concerns.length) {
     return {
+      id: "concerns",
       label: "Hiring Concerns Addressed",
       status: "complete",
       detail: "No major concerns identified.",
@@ -3879,15 +3959,19 @@ function getHiringConcernsStatus(concerns = []) {
   }
   if (concerns.length <= 1) {
     return {
+      id: "concerns",
       label: "Hiring Concern Needs Attention",
       status: "attention",
       detail: "1 hiring concern still needs a stronger response.",
+      actionLabel: "View Concerns",
     };
   }
   return {
+    id: "concerns",
     label: "Hiring Concerns Need Attention",
     status: "attention",
     detail: `${concerns.length} hiring concerns still need stronger responses.`,
+    actionLabel: "View Concerns",
   };
 }
 
@@ -4006,13 +4090,34 @@ function getRelatedStory(question = {}, stories = []) {
   }) || stories[0];
 }
 
-function getFastestInterviewImprovements(readiness, concerns = []) {
-  const items = [];
-  if (readiness.subscores.stories < 80) items.push("Choose two STAR stories and practice the results out loud.");
-  if (readiness.subscores.questions < 80) items.push("Practice the first three very likely questions.");
-  if (concerns.length) items.push(`Prepare a concise answer for: ${concerns[0].title}`);
-  if (!items.length) items.push("Do one quick mock pass, then review your questions for the interviewer.");
-  return items.slice(0, 3);
+function getFastestInterviewImprovement(readiness, concerns = []) {
+  if (concerns.length) {
+    const concern = concerns[0];
+    return {
+      concern: concern.title,
+      response: concern.how || "Prepare a concise explanation of your related experience and how it transfers to this environment.",
+      why: concern.why || "This is the concern most likely to come up during screening or interview follow-up.",
+    };
+  }
+  if (readiness.subscores.stories < 80) {
+    return {
+      concern: "Story examples need one more pass",
+      response: "Choose two STAR stories and practice the situation, action, and result out loud.",
+      why: "Clear stories help recruiters connect your experience to the role quickly.",
+    };
+  }
+  if (readiness.subscores.questions < 80) {
+    return {
+      concern: "Question practice is the next useful step",
+      response: "Practice the first three very likely questions and tighten your answer direction.",
+      why: "A short practice pass makes the prepared toolkit easier to use in a real conversation.",
+    };
+  }
+  return {
+    concern: "Final practice pass",
+    response: "Do one quick mock pass, then review your questions for the interviewer.",
+    why: "This keeps the prep active without adding extra work.",
+  };
 }
 
 function getStoryUseCases(story = {}) {
