@@ -1,6 +1,7 @@
 import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, FileText, MessageCircle, Search, Sparkles, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { BillingLimitModal } from "../../components/billing/BillingLimitModal.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
@@ -37,6 +38,7 @@ export function DashboardPage() {
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const [upgrading, setUpgrading] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
   const completeness = getProfileCompleteness(profile);
   const missingProfileItems = getMissingProfileItems(profile);
@@ -89,6 +91,12 @@ export function DashboardPage() {
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <BillingLimitModal
+        open={upgradeModalOpen}
+        upgrading={upgrading}
+        onUpgrade={startProCheckout}
+        onClose={() => setUpgradeModalOpen(false)}
+      />
       <main className="grid min-w-0 gap-5">
         {error && <div className="rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
         {onboarding.isNewWorkspace && <NewAccountWelcome />}
@@ -205,11 +213,12 @@ export function DashboardPage() {
           <ProUpgradeCard upgrading={upgrading} onUpgrade={startProCheckout} />
         )}
         {!pro && (
-          <Card className="bg-brand-50/80 p-3.5 shadow-sm ring-1 ring-brand-100">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Free Plan</p>
-            <h2 className="mt-1 text-lg font-bold text-ink">{aiApplicationsRemaining} free AI-powered application{aiApplicationsRemaining === 1 ? "" : "s"} remaining</h2>
-            <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">Each application includes fit analysis, resume tailoring, recruiter messaging, and interview prep.</p>
-          </Card>
+          <DashboardUsageCard
+            remaining={aiApplicationsRemaining}
+            upgrading={upgrading}
+            onUpgrade={startProCheckout}
+            onOpenUpgrade={() => setUpgradeModalOpen(true)}
+          />
         )}
         <button
           type="button"
@@ -291,7 +300,7 @@ function ProUpgradeCard({ upgrading, onUpgrade }) {
   return (
     <Card className="bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-4 shadow-card ring-1 ring-brand-100">
       <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">OccuBoard Pro</p>
-      <h2 className="mt-1 text-lg font-black text-ink">🚀 Ready for unlimited applications?</h2>
+      <h2 className="mt-1 text-lg font-black text-ink">🚀 Continue your job search without limits</h2>
       <p className="mt-3 text-sm font-bold text-slate-800">OccuBoard Pro includes:</p>
       <ul className="mt-2 grid gap-1.5 text-sm font-semibold leading-5 text-slate-700">
         <li>• Unlimited AI-powered applications</li>
@@ -305,6 +314,52 @@ function ProUpgradeCard({ upgrading, onUpgrade }) {
         {upgrading ? "Opening checkout..." : "🚀 Start OccuBoard Pro — $7/month"}
       </Button>
     </Card>
+  );
+}
+
+function DashboardUsageCard({ remaining, upgrading, onUpgrade, onOpenUpgrade }) {
+  const exhausted = Number(remaining) <= 0;
+  function onKeyDown(event) {
+    if (!exhausted) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpenUpgrade();
+    }
+  }
+  return (
+    <div
+      role={exhausted ? "button" : undefined}
+      tabIndex={exhausted ? 0 : undefined}
+      className={`rounded-xl text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${exhausted ? "cursor-pointer" : ""}`}
+      onClick={exhausted ? onOpenUpgrade : undefined}
+      onKeyDown={onKeyDown}
+      aria-label={exhausted ? "Open OccuBoard Pro upgrade options" : undefined}
+    >
+      <Card className={`p-3.5 shadow-sm ring-1 ${exhausted ? "bg-gradient-to-br from-brand-50 via-white to-emerald-50 ring-brand-100 transition hover:shadow-card" : "bg-brand-50/80 ring-brand-100"}`}>
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">{exhausted ? "Free Plan Complete" : "Free Plan"}</p>
+        {exhausted ? (
+          <>
+            <h2 className="mt-1 text-lg font-bold text-ink">{"You've already completed your 3 free AI-powered applications."}</h2>
+            <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">Upgrade to continue creating tailored resumes, recruiter messages, and interview preparation materials.</p>
+            <Button
+              className="mt-3 w-full min-h-9 px-3 text-sm"
+              onClick={(event) => {
+                event.stopPropagation();
+                onUpgrade();
+              }}
+              disabled={upgrading}
+            >
+              {upgrading ? "Opening checkout..." : "🚀 Start OccuBoard Pro — $7/month"}
+            </Button>
+          </>
+        ) : (
+          <>
+            <h2 className="mt-1 text-lg font-bold text-ink">{remaining} free AI-powered application{remaining === 1 ? "" : "s"} remaining</h2>
+            <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">Each application includes fit analysis, resume tailoring, recruiter messaging, and interview prep.</p>
+          </>
+        )}
+      </Card>
+    </div>
   );
 }
 

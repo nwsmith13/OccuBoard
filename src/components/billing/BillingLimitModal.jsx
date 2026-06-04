@@ -10,7 +10,7 @@ export function BillingLimitModal({ open, title, upgrading = false, onUpgrade, o
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">OccuBoard Pro</p>
-            <h2 id="billing-limit-title" className="mt-1 text-xl font-black text-ink">{title || "You've used all 3 free applications 🎉"}</h2>
+            <h2 id="billing-limit-title" className="mt-1 text-xl font-black text-ink">{title || "🎉 You've completed your free applications"}</h2>
           </div>
           <button type="button" className="rounded-lg p-2 text-slate-500 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={onClose} aria-label="Close upgrade prompt">
             <X size={18} />

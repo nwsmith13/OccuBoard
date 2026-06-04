@@ -117,10 +117,10 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
           <div className="rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100">
             <p className="text-sm font-black text-emerald-950">Unlimited:</p>
             <ul className="mt-2 grid gap-1 text-sm font-semibold text-emerald-900">
-              <li>• Applications</li>
-              <li>• Resume generations</li>
-              <li>• Recruiter messages</li>
-              <li>• Interview prep</li>
+              <li>• Unlimited applications</li>
+              <li>• Unlimited resume tailoring</li>
+              <li>• Unlimited recruiter messages</li>
+              <li>• Unlimited interview prep</li>
             </ul>
             <p className="mt-1 text-xs font-semibold text-emerald-800">{getSubscriptionStatusText({ pro, subscription })}</p>
           </div>
@@ -134,8 +134,8 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
           <div className="rounded-lg bg-brand-50 p-3 ring-1 ring-brand-100">
             {Number(usage.application_count || 0) >= FREE_LIMIT ? (
               <>
-                <p className="text-sm font-black text-brand-950">{"You've used all 3 free AI-powered applications."}</p>
-                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">Upgrade to continue creating tailored resumes, recruiter messages, and interview preparation materials.</p>
+                <p className="text-sm font-black text-brand-950">{"You've already completed 3 AI-powered applications."}</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">Continue with unlimited applications, resume tailoring, recruiter messaging, and interview preparation.</p>
               </>
             ) : (
               <>
