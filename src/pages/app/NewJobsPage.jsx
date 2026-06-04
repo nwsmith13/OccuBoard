@@ -27,6 +27,8 @@ const emptyIntake = {
   notes: "",
 };
 
+const JOB_DESCRIPTION_PREVIEW_THRESHOLD = 800;
+
 export function NewJobsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -42,13 +44,18 @@ export function NewJobsPage() {
   const [limitOpen, setLimitOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [fetchingUrl, setFetchingUrl] = useState(false);
+  const [importWarning, setImportWarning] = useState("");
+  const [weakImportedDescription, setWeakImportedDescription] = useState("");
+  const [weakImportAccepted, setWeakImportAccepted] = useState(false);
+  const [clipboardState, setClipboardState] = useState("");
   const descriptionRef = useRef(null);
   const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions });
   const showOnboardingHelp = onboarding.hasResume && !onboarding.hasJob && onboardingHelpOpen;
   const applicationRemaining = getUsageRemaining(billing, usageActions.application);
   const pro = isProSubscription(billing?.subscription);
 
-  const canAnalyze = useMemo(() => Boolean(form.source_url.trim() || form.job_description.trim()), [form]);
+  const descriptionQuality = useMemo(() => assessJobDescriptionQuality(form.job_description), [form.job_description]);
+  const canAnalyze = useMemo(() => Boolean(form.job_description.trim()), [form.job_description]);
   const missingCompany = !form.company_name.trim();
   const missingTitle = !form.job_title.trim();
   const suggestions = useMemo(
@@ -59,6 +66,12 @@ export function NewJobsPage() {
   function update(event) {
     const { name, value } = event.target;
     setError("");
+    setImportWarning("");
+    setClipboardState("");
+    if (name === "job_description" || name === "source_url") {
+      setWeakImportedDescription("");
+      setWeakImportAccepted(false);
+    }
     setGuardrailOpen(false);
     setSuccess(false);
     setForm((current) => {
@@ -79,7 +92,8 @@ export function NewJobsPage() {
   async function analyzeJob(event) {
     event.preventDefault();
     if (!canAnalyze) {
-      setError("Paste a job description or link to get started.");
+      setError("Paste the full job description to analyze this role.");
+      descriptionRef.current?.focus();
       return;
     }
 
@@ -134,17 +148,69 @@ export function NewJobsPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not import this job URL.");
+      const importedDescription = data.details?.job_description || "";
+      const importedQuality = assessJobDescriptionQuality(importedDescription);
+      if (!importedQuality.ready) {
+        setForm((current) => ({
+          ...current,
+          company_name: current.company_name || getConfidentImportedValue(data.details?.company_name) || "",
+          job_title: current.job_title || getConfidentImportedValue(data.details?.job_title) || "",
+        }));
+        setWeakImportedDescription(importedDescription);
+        setWeakImportAccepted(false);
+        setImportWarning("We could only pull a preview from this URL. Paste the full job description for the best analysis.");
+        return;
+      }
       setForm((current) => ({
         ...current,
-        company_name: current.company_name || data.details?.company_name || "",
-        job_title: current.job_title || data.details?.job_title || "",
-        job_description: data.details?.job_description || current.job_description,
+        company_name: current.company_name || getConfidentImportedValue(data.details?.company_name) || "",
+        job_title: current.job_title || getConfidentImportedValue(data.details?.job_title) || "",
+        job_description: importedDescription || current.job_description,
       }));
+      setWeakImportedDescription("");
+      setWeakImportAccepted(false);
+      setImportWarning("");
       setSuccess(false);
     } catch (fetchError) {
       setError(fetchError.message || "URL import missed this page. Paste the job description manually.");
     } finally {
       setFetchingUrl(false);
+    }
+  }
+
+  function continueWithWeakImport() {
+    if (!weakImportedDescription.trim()) return;
+    setForm((current) => ({ ...current, job_description: weakImportedDescription }));
+    setWeakImportAccepted(true);
+    setImportWarning("");
+    window.setTimeout(() => {
+      if (descriptionRef.current) resizeDescription(descriptionRef.current);
+    }, 20);
+  }
+
+  function focusDescriptionPaste() {
+    descriptionRef.current?.focus();
+    descriptionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  async function pasteFromClipboard() {
+    if (!navigator.clipboard?.readText) {
+      setClipboardState("Clipboard paste is not available in this browser. Copy the full job post text and paste it below.");
+      return;
+    }
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        setClipboardState("Clipboard is empty.");
+        return;
+      }
+      setForm((current) => ({ ...current, job_description: text }));
+      setClipboardState("Pasted from clipboard.");
+      window.setTimeout(() => {
+        if (descriptionRef.current) resizeDescription(descriptionRef.current);
+      }, 20);
+    } catch {
+      setClipboardState("Clipboard paste was blocked. Copy the full job post text and paste it below.");
     }
   }
 
@@ -236,6 +302,16 @@ export function NewJobsPage() {
               {applicationRemaining} of 3 free AI-powered applications remaining. Saving a job is free; usage starts after the first successful AI action for that role.
             </p>
           )}
+          <section className="rounded-xl bg-emerald-50/80 p-4 text-sm leading-6 text-emerald-950 ring-1 ring-emerald-100">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Best Results</p>
+            <h3 className="mt-1 text-lg font-black text-ink">Paste the full job description below.</h3>
+            <p className="mt-2">
+              Job board URLs (LinkedIn, Indeed, Workday, etc.) often provide only a preview and may not contain enough information for a high-quality analysis.
+            </p>
+            <p className="mt-1 font-semibold">
+              You can still try importing a URL, but pasted job descriptions produce the most accurate results.
+            </p>
+          </section>
           <label className="grid gap-2 text-sm font-medium text-ink">
             Job URL
             <div className="relative">
@@ -248,15 +324,34 @@ export function NewJobsPage() {
                 placeholder="https://company.com/careers/role"
               />
             </div>
-            <p className="text-xs font-semibold text-slate-500">Paste a job URL or the full job description. If URL import misses details, you can edit them before analyzing.</p>
+            <p className="text-xs font-semibold leading-5 text-slate-500">
+              URL import works best with public company career pages. LinkedIn, Indeed, and logged-in job boards may not provide the full description. For best results, paste the full job description below.
+            </p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={fetchJobDetails} disabled={fetchingUrl}>
-                {fetchingUrl ? "Fetching..." : "Fetch Job Details"}
+                {fetchingUrl ? "Importing..." : "Try Import From URL"}
               </Button>
-              {["LinkedIn job", "Indeed job", "Company careers page"].map((chip) => (
+              {["Best: company careers page", "LinkedIn preview only", "Manual paste supported"].map((chip) => (
                 <span key={chip} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{chip}</span>
               ))}
             </div>
+            {(importWarning || weakImportedDescription) && (
+              <section className="rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950 ring-1 ring-amber-100">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">Limited Job Information Found</p>
+                <h3 className="mt-1 text-base font-black text-ink">This URL appears to provide only a job preview, not the full job description.</h3>
+                <p className="mt-1">For the most accurate fit analysis and resume tailoring, paste the full job description below.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {weakImportedDescription && (
+                    <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={continueWithWeakImport}>
+                      Continue Anyway
+                    </Button>
+                  )}
+                  <Button type="button" className="min-h-8 px-3 text-xs" onClick={focusDescriptionPaste}>
+                    Paste Full Description
+                  </Button>
+                </div>
+              </section>
+            )}
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -321,6 +416,15 @@ export function NewJobsPage() {
               className="min-h-44 max-h-[520px] resize-none overflow-hidden rounded-lg border border-brand-200 bg-white px-4 py-3 text-sm leading-7 outline-none hover:border-brand-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
             />
             <p className="text-xs font-semibold text-slate-500">For best results, paste the full job description, including responsibilities, requirements, and preferred qualifications.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={pasteFromClipboard}>
+                Paste from clipboard
+              </Button>
+              <span className={`text-xs font-semibold ${descriptionQuality.ready ? "text-emerald-700" : form.job_description.trim() ? "text-amber-700" : "text-slate-500"}`}>
+                {form.job_description.trim() ? descriptionQuality.message : "Tip: Copy the full job post text from the job board and paste it here."}
+              </span>
+            </div>
+            {clipboardState && <p className="text-xs font-semibold text-brand-700">{clipboardState}</p>}
           </label>
 
           <button
@@ -378,6 +482,12 @@ export function NewJobsPage() {
           {onboarding.hasResume && !onboarding.hasJob && (
             <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-900">
               Next: Review your match, then generate your tailored resume.
+            </p>
+          )}
+
+          {weakImportAccepted && !descriptionQuality.ready && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-bold leading-5 text-amber-800 ring-1 ring-amber-100">
+              OccuBoard recommends pasting the full job description before using one of your free analyses.
             </p>
           )}
 
@@ -442,6 +552,27 @@ function sanitizeSuggestion(value = "") {
   const cleaned = value.replace(/\s+/g, " ").trim();
   if (!cleaned || cleaned.length > 80) return "";
   return cleaned;
+}
+
+function getConfidentImportedValue(value = "") {
+  const cleaned = sanitizeSuggestion(value);
+  if (!cleaned) return "";
+  if (/linkedin|indeed|careers|jobs|apply now|job search/i.test(cleaned)) return "";
+  return cleaned;
+}
+
+function assessJobDescriptionQuality(description = "") {
+  const text = description.replace(/\s+/g, " ").trim();
+  if (!text) return { ready: false, message: "Tip: Copy the full job post text from the job board and paste it here." };
+  const sectionPattern = /\b(responsibilities|qualifications|requirements|required skills|preferred qualifications|about the role|what you'?ll do|what you will do|benefits|experience|skills|duties)\b/i;
+  const hasSectionSignals = sectionPattern.test(text);
+  const substantialLength = text.length >= JOB_DESCRIPTION_PREVIEW_THRESHOLD;
+  const ready = substantialLength && hasSectionSignals;
+  if (ready) return { ready: true, message: "Description looks detailed enough for analysis." };
+  return {
+    ready: false,
+    message: "This looks like a short preview, not the full job description.",
+  };
 }
 
 function inferCompanyFromUrl(url = "") {
