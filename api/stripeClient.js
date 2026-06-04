@@ -39,6 +39,28 @@ export async function stripeRequest(path, params = {}) {
   return data;
 }
 
+export async function stripeGet(path) {
+  const secretKey = getStripeSecretKey();
+  if (!secretKey) {
+    const error = new Error("Stripe is not configured yet. Add STRIPE_SECRET_KEY in test mode.");
+    error.status = 503;
+    throw error;
+  }
+  const response = await fetch(`${stripeApiBase}${path}`, {
+    method: "GET",
+    headers: {
+      authorization: `Bearer ${secretKey}`,
+    },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "Stripe request failed.");
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
 function toStripeForm(params = {}) {
   const form = new URLSearchParams();
   appendParams(form, params);
