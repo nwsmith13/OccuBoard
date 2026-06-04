@@ -28,6 +28,7 @@ const emptyIntake = {
 };
 
 const JOB_DESCRIPTION_PREVIEW_THRESHOLD = 800;
+const JOB_BOARD_COMPANY_NAMES = new Set(["linkedin", "indeed", "ziprecruiter", "glassdoor", "monster", "google jobs"]);
 
 export function NewJobsPage() {
   const { user } = useAuth();
@@ -47,6 +48,7 @@ export function NewJobsPage() {
   const [importWarning, setImportWarning] = useState("");
   const [weakImportedDescription, setWeakImportedDescription] = useState("");
   const [weakImportAccepted, setWeakImportAccepted] = useState(false);
+  const [descriptionHighlight, setDescriptionHighlight] = useState(false);
   const [clipboardState, setClipboardState] = useState("");
   const descriptionRef = useRef(null);
   const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions });
@@ -154,7 +156,7 @@ export function NewJobsPage() {
         setForm((current) => ({
           ...current,
           company_name: current.company_name || getConfidentImportedValue(data.details?.company_name) || "",
-          job_title: current.job_title || getConfidentImportedValue(data.details?.job_title) || "",
+          job_title: current.job_title || getConfidentImportedTitle(data.details?.job_title) || "",
         }));
         setWeakImportedDescription(importedDescription);
         setWeakImportAccepted(false);
@@ -164,7 +166,7 @@ export function NewJobsPage() {
       setForm((current) => ({
         ...current,
         company_name: current.company_name || getConfidentImportedValue(data.details?.company_name) || "",
-        job_title: current.job_title || getConfidentImportedValue(data.details?.job_title) || "",
+        job_title: current.job_title || getConfidentImportedTitle(data.details?.job_title) || "",
         job_description: importedDescription || current.job_description,
       }));
       setWeakImportedDescription("");
@@ -189,8 +191,10 @@ export function NewJobsPage() {
   }
 
   function focusDescriptionPaste() {
+    setDescriptionHighlight(true);
     descriptionRef.current?.focus();
     descriptionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => setDescriptionHighlight(false), 1800);
   }
 
   async function pasteFromClipboard() {
@@ -298,9 +302,10 @@ export function NewJobsPage() {
       <Card>
         <form className="grid gap-5" onSubmit={analyzeJob}>
           {!pro && (
-            <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-900 ring-1 ring-brand-100">
-              {applicationRemaining} of 3 free AI-powered applications remaining. Saving a job is free; usage starts after the first successful AI action for that role.
-            </p>
+            <div className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-900 ring-1 ring-brand-100">
+              <p>{applicationRemaining} free AI-powered application{applicationRemaining === 1 ? "" : "s"} remaining.</p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">Each application includes fit analysis, resume tailoring, recruiter messaging, and interview prep.</p>
+            </div>
           )}
           <section className="rounded-xl bg-emerald-50/80 p-4 text-sm leading-6 text-emerald-950 ring-1 ring-emerald-100">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Best Results</p>
@@ -341,14 +346,14 @@ export function NewJobsPage() {
                 <h3 className="mt-1 text-base font-black text-ink">This URL appears to provide only a job preview, not the full job description.</h3>
                 <p className="mt-1">For the most accurate fit analysis and resume tailoring, paste the full job description below.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {weakImportedDescription && (
-                    <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={continueWithWeakImport}>
-                      Continue Anyway
-                    </Button>
-                  )}
                   <Button type="button" className="min-h-8 px-3 text-xs" onClick={focusDescriptionPaste}>
                     Paste Full Description
                   </Button>
+                  {weakImportedDescription && (
+                    <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={continueWithWeakImport}>
+                      Continue With Preview
+                    </Button>
+                  )}
                 </div>
               </section>
             )}
@@ -413,7 +418,7 @@ export function NewJobsPage() {
                 resizeDescription(event.target);
               }}
               placeholder="Paste the full job description here."
-              className="min-h-44 max-h-[520px] resize-none overflow-hidden rounded-lg border border-brand-200 bg-white px-4 py-3 text-sm leading-7 outline-none hover:border-brand-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+              className={`min-h-44 max-h-[520px] resize-none overflow-hidden rounded-lg border bg-white px-4 py-3 text-sm leading-7 outline-none transition ${descriptionHighlight ? "border-amber-300 ring-4 ring-amber-100" : "border-brand-200 hover:border-brand-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-100"}`}
             />
             <p className="text-xs font-semibold text-slate-500">For best results, paste the full job description, including responsibilities, requirements, and preferred qualifications.</p>
             <div className="flex flex-wrap items-center gap-2">
@@ -557,7 +562,23 @@ function sanitizeSuggestion(value = "") {
 function getConfidentImportedValue(value = "") {
   const cleaned = sanitizeSuggestion(value);
   if (!cleaned) return "";
-  if (/linkedin|indeed|careers|jobs|apply now|job search/i.test(cleaned)) return "";
+  if (JOB_BOARD_COMPANY_NAMES.has(cleaned.toLowerCase())) return "";
+  if (/linkedin|indeed|ziprecruiter|glassdoor|monster|google jobs|careers|jobs|apply now|job search/i.test(cleaned)) return "";
+  return cleaned;
+}
+
+function getConfidentImportedTitle(value = "") {
+  const cleaned = sanitizeSuggestion(value)
+    .replace(/\s*\|\s*(LinkedIn|Indeed|ZipRecruiter|Glassdoor|Monster|Google Jobs).*$/i, "")
+    .replace(/\s+-\s*(LinkedIn|Indeed|ZipRecruiter|Glassdoor|Monster|Google Jobs).*$/i, "")
+    .replace(/\bposted\b.*$/i, "")
+    .replace(/\bsee this and similar jobs\b.*$/i, "")
+    .replace(/\bhiring\b/gi, "")
+    .replace(/\bin\s+[A-Z][A-Za-z .,'-]+$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned || cleaned.length < 3 || cleaned.length > 90) return "";
+  if (/linkedin|indeed|ziprecruiter|glassdoor|monster|google jobs|job search|apply now/i.test(cleaned)) return "";
   return cleaned;
 }
 
