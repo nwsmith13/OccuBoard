@@ -64,7 +64,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
 
   async function runAi(action, { regenerate = false } = {}) {
     if (aiState.loading) return;
-    const usageField = getAiUsageField(action, job);
+    const usageField = getAiUsageField(action, job, Boolean(latestScore || latestResume || latestMessage));
     if (usageField && !canUseUsageFeature(billing, usageField)) {
       setLimitAction(action);
       return;
@@ -83,10 +83,12 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
     try {
       const effectiveIntensity = getEffectiveIntensity(action, intensity, manualIntensity, latestScore);
       const mitigationPlan = buildMitigationPlan(latestScore);
+      const aiUsageAlreadyCounted = Boolean(job.ai_usage_counted_at || latestScore || latestResume || latestMessage);
       const placement = action === "resume" ? "Resume" : action === "message" ? "Recruiter message" : "";
       const appliedMitigations = getAppliedMitigations(mitigationPlan, placement);
       const result = await generateAiOutput(action, profile, job, {
         userId: user?.id,
+        aiUsageAlreadyCounted,
         tailoringIntensity: effectiveIntensity,
         manualIntensityOverride: manualIntensity,
         fitRecommendation: latestScore?.recommendation,
@@ -375,8 +377,8 @@ function getEffectiveIntensity(action, intensity, manualIntensity, latestScore) 
   return intensity;
 }
 
-function getAiUsageField(action, job = {}) {
-  if (job.ai_usage_counted_at) return "";
+function getAiUsageField(action, job = {}, alreadyHasAiOutput = false) {
+  if (job.ai_usage_counted_at || alreadyHasAiOutput) return "";
   if (["fit", "resume", "message"].includes(action)) return usageActions.application;
   return "";
 }

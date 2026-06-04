@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   if (validationError) {
     return send(res, 400, { error: validationError });
   }
-  const billingError = await validateBillingAccess(action, userId || options?.userId, job);
+  const billingError = await validateBillingAccess(action, userId || options?.userId, job, options);
   if (billingError) {
     return send(res, 402, { error: billingError, code: "free_limit_reached" });
   }
@@ -66,9 +66,9 @@ export default async function handler(req, res) {
   }
 }
 
-async function validateBillingAccess(action, userId, job = {}) {
+async function validateBillingAccess(action, userId, job = {}, options = {}) {
   if (!["fit", "resume", "message", "coverLetter", "interviewPrep"].includes(action)) return "";
-  if (job?.ai_usage_counted_at || job?.usage_counted) return "";
+  if (job?.ai_usage_counted_at || job?.usage_counted || options?.aiUsageAlreadyCounted) return "";
   if (!hasBillingDatabase()) return "";
   // TODO: Verify the Supabase access token matches userId once API auth middleware is added.
   if (!userId) return "Sign in before using AI generation.";

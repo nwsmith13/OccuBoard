@@ -58,6 +58,7 @@ export async function incrementUsage(user, field) {
   if (hasSupabaseConfig && user?.id) {
     const current = await ensureUsageRow(user);
     const nextValue = Number(current?.[field] || 0) + 1;
+    logBillingUsage("increment:start", { userId: user.id, field, currentUsage: current, nextValue });
     const supabase = await getSupabaseClient();
     const { data, error } = await supabase
       .from("user_usage")
@@ -65,14 +66,49 @@ export async function incrementUsage(user, field) {
       .select("*")
       .single();
     if (error) {
-      if (isMissingBillingTable(error)) return null;
+      if (isMissingBillingTable(error) || isMissingBillingColumn(error)) {
+        globalThis.console.warn("[OccuBoard billing] Supabase usage write unavailable; using local fallback.", error);
+        const fallback = incrementLocalUsage(user, field);
+        logBillingUsage("increment:fallback", { userId: user.id, field, updatedUsage: fallback });
+        return fallback;
+      }
+      globalThis.console.error("[OccuBoard billing] Supabase usage write failed.", { userId: user.id, field, error });
       throw error;
     }
+    logBillingUsage("increment:success", { userId: user.id, field, updatedUsage: data });
     return data;
   }
-  const state = readLocalBilling(user);
-  const usage = { ...state.usage, [field]: Number(state.usage[field] || 0) + 1, updated_at: new Date().toISOString() };
-  writeLocal(localKeys.usage, usage);
+  const usage = incrementLocalUsage(user, field);
+  logBillingUsage("increment:local", { userId: user?.id ?? "local-demo-user", field, updatedUsage: usage });
+  return usage;
+}
+
+export async function setUsageValue(user, field, value) {
+  if (!field) return null;
+  const nextValue = Math.max(0, Number(value || 0));
+  if (hasSupabaseConfig && user?.id) {
+    logBillingUsage("set:start", { userId: user.id, field, nextValue });
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase
+      .from("user_usage")
+      .upsert({ user_id: user.id, [field]: nextValue, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
+      .select("*")
+      .single();
+    if (error) {
+      if (isMissingBillingTable(error) || isMissingBillingColumn(error)) {
+        globalThis.console.warn("[OccuBoard billing] Supabase usage set unavailable; using local fallback.", error);
+        const fallback = setLocalUsageValue(user, field, nextValue);
+        logBillingUsage("set:fallback", { userId: user.id, field, updatedUsage: fallback });
+        return fallback;
+      }
+      globalThis.console.error("[OccuBoard billing] Supabase usage set failed.", { userId: user.id, field, error });
+      throw error;
+    }
+    logBillingUsage("set:success", { userId: user.id, field, updatedUsage: data });
+    return data;
+  }
+  const usage = setLocalUsageValue(user, field, nextValue);
+  logBillingUsage("set:local", { userId: user?.id ?? "local-demo-user", field, updatedUsage: usage });
   return usage;
 }
 
@@ -160,7 +196,28 @@ function writeLocal(key, value) {
   }
 }
 
+function incrementLocalUsage(user, field) {
+  const state = readLocalBilling(user);
+  const usage = { ...state.usage, [field]: Number(state.usage[field] || 0) + 1, updated_at: new Date().toISOString() };
+  writeLocal(localKeys.usage, usage);
+  return usage;
+}
+
+function setLocalUsageValue(user, field, value) {
+  const state = readLocalBilling(user);
+  const usage = { ...state.usage, [field]: value, updated_at: new Date().toISOString() };
+  writeLocal(localKeys.usage, usage);
+  return usage;
+}
+
 function isMissingBillingTable(error) {
   return error?.code === "PGRST205" || error?.message?.includes("schema cache") || error?.message?.includes("does not exist");
 }
 
+function isMissingBillingColumn(error) {
+  return error?.code === "PGRST204" || error?.message?.includes("Could not find") || error?.message?.includes("column");
+}
+
+function logBillingUsage(event, payload) {
+  globalThis.console.info(`[OccuBoard billing] ${event}`, payload);
+}

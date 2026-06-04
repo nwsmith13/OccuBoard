@@ -17,7 +17,9 @@ import {
   updateMessage,
   updateResumeVersion,
 } from "../lib/workspaceApi.js";
-import { createDefaultBillingState, fetchBillingState, incrementUsage } from "../lib/billing.js";
+import { createDefaultBillingState, fetchBillingState, incrementUsage, setUsageValue } from "../lib/billing.js";
+
+const localAiUsageCountedKey = "occuboard.aiUsageCountedJobs";
 
 export const useWorkspaceStore = create((set, get) => ({
   profile: null,
@@ -40,7 +42,7 @@ export const useWorkspaceStore = create((set, get) => ({
     set({ loading: true, error: "" });
     try {
       const data = await fetchWorkspace(user);
-      const billing = await fetchBillingState(user);
+      const billing = await reconcileAiApplicationUsage(user, data, await fetchBillingState(user));
       set({ ...data, billing, loading: false, loadedFor: userKey });
     } catch (error) {
       set({ error: error.message, loading: false });
@@ -138,16 +140,45 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   markJobAiUsageCounted: async (user, job) => {
     const currentJob = get().jobs.find((item) => item.id === job?.id) || job;
-    if (!currentJob?.id || currentJob.ai_usage_counted_at) return currentJob;
+    const currentUsage = get().billing?.usage;
+    globalThis.console.info("[OccuBoard billing] usage check", {
+      jobId: currentJob?.id,
+      aiUsageCountedAt: currentJob?.ai_usage_counted_at,
+      localCounted: hasLocalAiUsageCounted(currentJob?.id),
+      currentUsage,
+    });
+    if (!currentJob?.id || currentJob.ai_usage_counted_at || hasLocalAiUsageCounted(currentJob.id)) {
+      globalThis.console.info("[OccuBoard billing] usage already counted", { jobId: currentJob?.id, currentUsage });
+      return currentJob;
+    }
     const countedAt = new Date().toISOString();
-    const saved = await updateJob(user, currentJob.id, { ai_usage_counted_at: countedAt });
+    globalThis.console.info("[OccuBoard billing] consuming AI-powered application", {
+      jobId: currentJob.id,
+      countedAt,
+      currentUsage,
+    });
+    let saved = { ...currentJob, ai_usage_counted_at: countedAt };
+    try {
+      saved = await updateJob(user, currentJob.id, { ai_usage_counted_at: countedAt });
+    } catch (error) {
+      globalThis.console.warn("[OccuBoard billing] job usage marker write failed; using local marker.", {
+        jobId: currentJob.id,
+        error,
+      });
+    }
     const usage = await incrementUsage(user, "application_count");
+    rememberLocalAiUsageCounted(currentJob.id, countedAt);
     const data = await fetchWorkspace(user);
     set((state) => ({
       ...data,
       jobs: data.jobs.map((item) => (item.id === currentJob.id ? { ...item, ...saved, ai_usage_counted_at: saved?.ai_usage_counted_at || countedAt } : item)),
       billing: usage ? { ...state.billing, usage } : state.billing,
     }));
+    globalThis.console.info("[OccuBoard billing] usage updated", {
+      jobId: currentJob.id,
+      previousUsage: currentUsage,
+      updatedUsage: usage,
+    });
     return saved;
   },
   logJobActivity: async (user, jobId, type, metadata) => {
@@ -157,3 +188,56 @@ export const useWorkspaceStore = create((set, get) => ({
     return saved;
   },
 }));
+
+async function reconcileAiApplicationUsage(user, data, billing) {
+  const countedJobIds = getAiPoweredJobIds(data);
+  if (!countedJobIds.size) return billing;
+  countedJobIds.forEach((jobId) => rememberLocalAiUsageCounted(jobId, new Date().toISOString()));
+  const currentCount = Number(billing?.usage?.application_count || 0);
+  globalThis.console.info("[OccuBoard billing] reconciliation check", {
+    currentUsage: billing?.usage,
+    derivedAiPoweredApplications: countedJobIds.size,
+    jobIds: [...countedJobIds],
+  });
+  if (currentCount >= countedJobIds.size) return billing;
+  const usage = await setUsageValue(user, "application_count", countedJobIds.size);
+  globalThis.console.info("[OccuBoard billing] reconciliation updated usage", {
+    previousUsage: billing?.usage,
+    updatedUsage: usage,
+  });
+  return usage ? { ...billing, usage } : billing;
+}
+
+function getAiPoweredJobIds(data = {}) {
+  const ids = new Set();
+  data.jobScores?.forEach((item) => item.job_id && ids.add(item.job_id));
+  data.resumeVersions?.forEach((item) => item.job_id && ids.add(item.job_id));
+  data.interviewPrep?.forEach((item) => item.job_id && ids.add(item.job_id));
+  data.messages
+    ?.filter((item) => ["Recruiter Message", "Outreach Message", "Cover Letter"].includes(item.type || "Recruiter Message"))
+    .forEach((item) => item.job_id && ids.add(item.job_id));
+  data.jobs?.filter((job) => job.ai_usage_counted_at).forEach((job) => ids.add(job.id));
+  return ids;
+}
+
+function readLocalAiUsageCounted() {
+  try {
+    return JSON.parse(window.localStorage.getItem(localAiUsageCountedKey) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function hasLocalAiUsageCounted(jobId) {
+  if (!jobId) return false;
+  return Boolean(readLocalAiUsageCounted()[jobId]);
+}
+
+function rememberLocalAiUsageCounted(jobId, countedAt) {
+  if (!jobId) return;
+  try {
+    window.localStorage.setItem(localAiUsageCountedKey, JSON.stringify({ ...readLocalAiUsageCounted(), [jobId]: countedAt }));
+  } catch {
+    // Local marker is a fallback only; Supabase remains the source of truth when available.
+  }
+}

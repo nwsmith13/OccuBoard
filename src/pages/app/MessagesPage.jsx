@@ -24,7 +24,10 @@ export function MessagesPage() {
     }
     setState({ loading: message.id, error: "" });
     try {
-      const result = await generateAiOutput("message", profile, job);
+      const result = await generateAiOutput("message", profile, job, {
+        userId: user?.id,
+        aiUsageAlreadyCounted: true,
+      });
       await saveMessage(user, job, result);
       setState({ loading: "", error: "" });
     } catch (error) {

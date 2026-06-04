@@ -1858,6 +1858,8 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
       const mitigationPlan = buildMitigationPlan(score);
       const appliedMitigations = getAppliedMitigations(mitigationPlan, "Cover letter");
       const result = await generateAiOutput("coverLetter", profile, job, {
+        userId: user?.id,
+        aiUsageAlreadyCounted: Boolean(job.ai_usage_counted_at || score || resume || coverLetter || recruiterMessage),
         fitRecommendation: score?.recommendation,
         fitSummary: score?.summary,
         latestResume: resume?.content,
@@ -2933,6 +2935,8 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
       const mitigationPlan = buildMitigationPlan(score);
       const appliedMitigations = getAppliedMitigations(mitigationPlan, "Cover letter");
       const result = await generateAiOutput("coverLetter", profile, job, {
+        userId: user?.id,
+        aiUsageAlreadyCounted: Boolean(job.ai_usage_counted_at || score || resume || coverLetter || recruiterMessage),
         fitRecommendation: score?.recommendation,
         fitSummary: score?.summary,
         latestResume: resume?.content,
@@ -3157,6 +3161,8 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     setError("");
     try {
       const result = await generateAiOutput("interviewPrep", profile, job, {
+        userId: user?.id,
+        aiUsageAlreadyCounted: Boolean(job.ai_usage_counted_at || score || resume || prep),
         fitSummary: score?.summary,
         fitRecommendation: score?.recommendation,
         latestResume: resume?.content,
