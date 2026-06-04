@@ -122,8 +122,6 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       <section className="grid gap-4">
         <BillingLimitModal
           open={Boolean(limitAction)}
-          title={getLimitTitle(limitAction)}
-          body="Upgrade to OccuBoard Pro for unlimited job analyses, tailored resumes, recruiter messages, interview prep, and application tracking."
           upgrading={upgrading}
           onUpgrade={async () => {
             setUpgrading(true);
@@ -226,8 +224,6 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
     <section className={compact ? "grid gap-3" : "rounded-lg border border-brand-100 bg-white p-5 shadow-card"}>
       <BillingLimitModal
         open={Boolean(limitAction)}
-        title={getLimitTitle(limitAction)}
-        body="Upgrade to OccuBoard Pro for unlimited job analyses, tailored resumes, recruiter messages, interview prep, and application tracking."
         upgrading={upgrading}
         onUpgrade={async () => {
           setUpgrading(true);
@@ -381,10 +377,6 @@ function getAiUsageField(action, job = {}, alreadyHasAiOutput = false) {
   if (job.ai_usage_counted_at || alreadyHasAiOutput) return "";
   if (["fit", "resume", "message"].includes(action)) return usageActions.application;
   return "";
-}
-
-function getLimitTitle() {
-  return "You've used your 3 free AI-powered applications";
 }
 
 function useSlowLoading(active) {

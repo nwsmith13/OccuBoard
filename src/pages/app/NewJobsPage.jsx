@@ -243,8 +243,6 @@ export function NewJobsPage() {
     <div className="mx-auto grid max-w-4xl gap-6">
       <BillingLimitModal
         open={limitOpen}
-        title="You've used your 3 free applications"
-        body="Upgrade to OccuBoard Pro for unlimited job analyses, tailored resumes, recruiter messages, interview prep, and application tracking."
         upgrading={upgrading}
         onUpgrade={async () => {
           setUpgrading(true);

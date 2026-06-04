@@ -6,8 +6,9 @@ import { Card } from "../../components/ui/Card.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { getActiveJobs } from "../../lib/archive.js";
-import { FREE_LIMIT, getUsageRemaining, isProSubscription, usageActions } from "../../lib/billing.js";
+import { createCheckoutSession, getUsageRemaining, isProSubscription, usageActions } from "../../lib/billing.js";
 import { getCompletenessTone } from "../../lib/completenessTone.js";
 import { formatDate, isThisWeek } from "../../lib/date.js";
 import { getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
@@ -29,11 +30,13 @@ const helperTextClass = "mt-1 text-[13px] leading-5 text-slate-700";
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const { jobs, profile, resumeUploads, activityLogs, jobActivityLogs, resumeVersions, jobScores, messages, jobContacts, interviewPrep, billing, loading, error, updateJob, deleteJob } = useWorkspaceStore();
   const [activityOpen, setActivityOpen] = useState(true);
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [upgrading, setUpgrading] = useState(false);
   const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
   const completeness = getProfileCompleteness(profile);
   const missingProfileItems = getMissingProfileItems(profile);
@@ -69,6 +72,17 @@ export function DashboardPage() {
       return;
     }
     if (recommendation.actionRoute) navigate(recommendation.actionRoute);
+  }
+
+  async function startProCheckout() {
+    setUpgrading(true);
+    try {
+      const url = await createCheckoutSession(user);
+      window.location.assign(url);
+    } catch (error) {
+      toast.error(error.message || "Could not open checkout.");
+      setUpgrading(false);
+    }
   }
 
   if (loading) return <DashboardSkeleton />;
@@ -188,10 +202,13 @@ export function DashboardPage() {
 
       <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
         {!pro && (
+          <ProUpgradeCard upgrading={upgrading} onUpgrade={startProCheckout} />
+        )}
+        {!pro && (
           <Card className="bg-brand-50/80 p-3.5 shadow-sm ring-1 ring-brand-100">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Free Plan</p>
-            <h2 className="mt-1 text-lg font-bold text-ink">{aiApplicationsRemaining} of {FREE_LIMIT} free AI-powered applications remaining</h2>
-            <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">Each role counts once after its first successful AI action.</p>
+            <h2 className="mt-1 text-lg font-bold text-ink">{aiApplicationsRemaining} free AI-powered application{aiApplicationsRemaining === 1 ? "" : "s"} remaining</h2>
+            <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">Each application includes fit analysis, resume tailoring, recruiter messaging, and interview prep.</p>
           </Card>
         )}
         <button
@@ -267,6 +284,27 @@ export function DashboardPage() {
         />
       )}
     </div>
+  );
+}
+
+function ProUpgradeCard({ upgrading, onUpgrade }) {
+  return (
+    <Card className="bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-4 shadow-card ring-1 ring-brand-100">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">OccuBoard Pro</p>
+      <h2 className="mt-1 text-lg font-black text-ink">🚀 Ready for unlimited applications?</h2>
+      <p className="mt-3 text-sm font-bold text-slate-800">OccuBoard Pro includes:</p>
+      <ul className="mt-2 grid gap-1.5 text-sm font-semibold leading-5 text-slate-700">
+        <li>• Unlimited AI-powered applications</li>
+        <li>• Unlimited resume tailoring</li>
+        <li>• Unlimited recruiter messages</li>
+        <li>• Unlimited interview prep</li>
+        <li>• Full application tracking</li>
+      </ul>
+      <p className="mt-3 text-xs font-semibold text-slate-500">Cancel anytime.</p>
+      <Button className="mt-4 w-full min-h-9 px-3 text-sm" onClick={onUpgrade} disabled={upgrading}>
+        {upgrading ? "Opening checkout..." : "🚀 Start OccuBoard Pro — $7/month"}
+      </Button>
+    </Card>
   );
 }
 

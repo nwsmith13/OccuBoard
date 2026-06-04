@@ -103,11 +103,11 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Billing</p>
-          <h2 className="mt-1 text-xl font-bold">Current Plan</h2>
-          <p className="mt-1 text-sm text-slate-600">{pro ? "OccuBoard Pro" : "Free"}</p>
+          <h2 className="mt-1 text-xl font-bold">{pro ? "OccuBoard Pro Active" : "Free Plan"}</h2>
+          <p className="mt-1 text-sm text-slate-600">{pro ? "Unlimited job search support is active." : `You have used ${Math.min(FREE_LIMIT, Number(usage.application_count || 0))} of ${FREE_LIMIT} free AI-powered applications.`}</p>
         </div>
         <span className={`w-fit rounded-full px-3 py-1 text-xs font-black ring-1 ${pro ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-700 ring-slate-100"}`}>
-          {planLabel}
+          {pro ? "PRO" : planLabel}
         </span>
       </div>
       {billingMessage === "success" && <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">Checkout complete. Your subscription will update after Stripe confirms payment.</p>}
@@ -115,8 +115,13 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
       {pro ? (
         <div className="mt-5 grid gap-4">
           <div className="rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100">
-            <p className="text-sm font-black text-emerald-950">OccuBoard Pro</p>
-            <p className="mt-1 text-sm text-emerald-900">$7/month</p>
+            <p className="text-sm font-black text-emerald-950">Unlimited:</p>
+            <ul className="mt-2 grid gap-1 text-sm font-semibold text-emerald-900">
+              <li>• Applications</li>
+              <li>• Resume generations</li>
+              <li>• Recruiter messages</li>
+              <li>• Interview prep</li>
+            </ul>
             <p className="mt-1 text-xs font-semibold text-emerald-800">{getSubscriptionStatusText({ pro, subscription })}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -127,11 +132,32 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
       ) : (
         <div className="mt-5 grid gap-4">
           <div className="rounded-lg bg-brand-50 p-3 ring-1 ring-brand-100">
-            <p className="text-sm font-black text-brand-950">{Math.max(0, FREE_LIMIT - Number(usage.application_count || 0))} of {FREE_LIMIT} free AI-powered applications remaining</p>
-            <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">A role counts once after its first successful AI action. You can keep completing that application after it has counted.</p>
+            {Number(usage.application_count || 0) >= FREE_LIMIT ? (
+              <>
+                <p className="text-sm font-black text-brand-950">{"You've used all 3 free AI-powered applications."}</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">Upgrade to continue creating tailored resumes, recruiter messages, and interview preparation materials.</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-black text-brand-950">Free Plan</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">You have used {Math.min(FREE_LIMIT, Number(usage.application_count || 0))} of {FREE_LIMIT} free AI-powered applications.</p>
+              </>
+            )}
+            <div className="mt-3 rounded-lg bg-white/70 p-3 text-xs font-semibold leading-5 text-slate-700 ring-1 ring-white/80">
+              <p className="font-black text-slate-800">Each application includes:</p>
+              <ul className="mt-1 grid gap-1">
+                <li>• Fit analysis</li>
+                <li>• Resume tailoring</li>
+                <li>• Recruiter messaging</li>
+                <li>• Interview preparation</li>
+              </ul>
+            </div>
             <UsageBar value={usage.application_count} />
           </div>
-          <Button onClick={onUpgrade} disabled={loading === "checkout"}>{loading === "checkout" ? "Opening checkout..." : "Upgrade to Pro - $7/month"}</Button>
+          <div>
+            <Button onClick={onUpgrade} disabled={loading === "checkout"}>{loading === "checkout" ? "Opening checkout..." : "🚀 Start OccuBoard Pro — $7/month"}</Button>
+            <p className="mt-2 text-xs font-semibold text-slate-500">Cancel anytime.</p>
+          </div>
         </div>
       )}
     </Card>

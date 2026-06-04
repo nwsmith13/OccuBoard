@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { buildOnboardingState, onboardingStorageKey, onboardingTrackerDismissedKey, onboardingUpdatedEvent, readBooleanFlag, shouldShowFullOnboarding, writeBooleanFlag } from "../../lib/onboarding.js";
-import { getPlanLabel, isProSubscription } from "../../lib/billing.js";
+import { isProSubscription } from "../../lib/billing.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { CommandPalette } from "../command/CommandPalette.jsx";
 import { CompletionRibbon, GettingStartedRibbon } from "../onboarding/GettingStartedRibbon.jsx";
@@ -185,7 +185,7 @@ function Header({ title, billing, onMenu, onCommand }) {
       </div>
       <div className="flex items-center gap-2">
         <span className={`hidden rounded-full px-2.5 py-1 text-[11px] font-black ring-1 sm:inline-flex ${pro ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-700 ring-slate-100"}`}>
-          {getPlanLabel(billing?.subscription)}
+          {pro ? "PRO" : "Free"}
         </span>
         <button
           type="button"
