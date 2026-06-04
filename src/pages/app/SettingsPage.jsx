@@ -16,6 +16,7 @@ export function SettingsPage() {
   const { billing, refreshBilling } = useWorkspaceStore();
   const [billingLoading, setBillingLoading] = useState("");
   const profileRef = useRef(null);
+  const handledBillingReturnRef = useRef("");
   const subscription = billing?.subscription || {};
   const usage = billing?.usage || {};
   const pro = isProSubscription(subscription);
@@ -53,6 +54,21 @@ export function SettingsPage() {
     if (searchParams.get("section") !== "profile") return;
     window.setTimeout(() => profileRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }, [searchParams]);
+
+  useEffect(() => {
+    const billingReturn = searchParams.get("billing");
+    if (!billingReturn || handledBillingReturnRef.current === billingReturn) return;
+    handledBillingReturnRef.current = billingReturn;
+    if (billingReturn === "success") {
+      refreshBilling(user)
+        .then(() => toast.success("Subscription successful. Welcome to OccuBoard Pro."))
+        .catch(() => toast.error("Subscription succeeded, but billing refresh did not complete. Try refreshing billing."));
+      return;
+    }
+    if (billingReturn === "cancelled") {
+      toast.info("Checkout cancelled. You can upgrade anytime.");
+    }
+  }, [refreshBilling, searchParams, toast, user]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_0.85fr]">
