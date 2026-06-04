@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { getCompletenessTone } from "../../lib/completenessTone.js";
-import { createEmptyProfile, getProfileCompleteness } from "../../lib/profile.js";
+import { createEmptyProfile, getMissingProfileItems, getProfileCompleteness } from "../../lib/profile.js";
 import { normalizeResumeText } from "../../lib/resumeParser.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { Button } from "../ui/Button.jsx";
@@ -21,6 +21,7 @@ export function ProfileForm({ compact = false }) {
   }, [profile]);
 
   const completeness = getProfileCompleteness(form);
+  const missingItems = getMissingProfileItems(form);
   const tone = getCompletenessTone(completeness);
   const update = (event) => {
     setSaved(false);
@@ -60,6 +61,9 @@ export function ProfileForm({ compact = false }) {
         <div className={`mt-3 h-2 rounded-full ${tone.track}`}>
           <div className={`h-2 rounded-full transition-all duration-300 ${tone.bar}`} style={{ width: `${completeness}%` }} />
         </div>
+        <p className="mt-3 text-xs font-semibold leading-5 text-slate-600">
+          {missingItems.length ? `Missing: ${missingItems.join(", ")}.` : "Your basic profile and resume foundation are complete."}
+        </p>
       </div>
 
       <div className="grid min-w-0 gap-4 md:grid-cols-2">

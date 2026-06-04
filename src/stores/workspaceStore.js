@@ -53,9 +53,8 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   createJob: async (user, job) => {
     const saved = await createJob(user, job);
-    const usage = await incrementUsage(user, "application_count");
     const data = await fetchWorkspace(user);
-    set((state) => ({ ...data, billing: usage ? { ...state.billing, usage } : state.billing }));
+    set((state) => ({ ...data, billing: state.billing }));
     return saved;
   },
   updateJob: async (user, id, patch) => {
@@ -71,15 +70,15 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   saveJobScore: async (user, job, score) => {
     await saveJobScore(user, job, score);
-    const usage = await incrementUsage(user, "job_analyses_used");
     const data = await fetchWorkspace(user);
-    set((state) => ({ ...data, billing: usage ? { ...state.billing, usage } : state.billing }));
+    set((state) => ({ ...data, billing: state.billing }));
+    await get().markJobAiUsageCounted(user, job);
   },
   saveResumeVersion: async (user, job, draft, metadata) => {
     const saved = await saveResumeVersion(user, job, draft, metadata);
-    const usage = await incrementUsage(user, "resume_generations_used");
     const data = await fetchWorkspace(user);
-    set((state) => ({ ...data, billing: usage ? { ...state.billing, usage } : state.billing }));
+    set((state) => ({ ...data, billing: state.billing }));
+    await get().markJobAiUsageCounted(user, job);
     return saved;
   },
   updateResumeVersion: async (user, id, patch) => {
@@ -91,6 +90,9 @@ export const useWorkspaceStore = create((set, get) => ({
     const saved = await saveMessage(user, job, message);
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
+    if (["Recruiter Message", "Outreach Message", "Cover Letter"].includes(saved?.type || message?.type || "Recruiter Message")) {
+      await get().markJobAiUsageCounted(user, job);
+    }
     return saved;
   },
   updateMessage: async (user, message, patch) => {
@@ -120,6 +122,7 @@ export const useWorkspaceStore = create((set, get) => ({
     const saved = await saveInterviewPrep(user, job, prep);
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
+    await get().markJobAiUsageCounted(user, job);
     return saved;
   },
   saveResumeUpload: async (user, file, extractedText) => {
@@ -132,6 +135,20 @@ export const useWorkspaceStore = create((set, get) => ({
     const billing = await fetchBillingState(user);
     set({ billing });
     return billing;
+  },
+  markJobAiUsageCounted: async (user, job) => {
+    const currentJob = get().jobs.find((item) => item.id === job?.id) || job;
+    if (!currentJob?.id || currentJob.ai_usage_counted_at) return currentJob;
+    const countedAt = new Date().toISOString();
+    const saved = await updateJob(user, currentJob.id, { ai_usage_counted_at: countedAt });
+    const usage = await incrementUsage(user, "application_count");
+    const data = await fetchWorkspace(user);
+    set((state) => ({
+      ...data,
+      jobs: data.jobs.map((item) => (item.id === currentJob.id ? { ...item, ...saved, ai_usage_counted_at: saved?.ai_usage_counted_at || countedAt } : item)),
+      billing: usage ? { ...state.billing, usage } : state.billing,
+    }));
+    return saved;
   },
   logJobActivity: async (user, jobId, type, metadata) => {
     const saved = await logJobActivity(user, jobId, type, metadata);

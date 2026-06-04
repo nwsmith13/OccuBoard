@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
@@ -15,6 +15,7 @@ export function SettingsPage() {
   const [searchParams] = useSearchParams();
   const { billing, refreshBilling } = useWorkspaceStore();
   const [billingLoading, setBillingLoading] = useState("");
+  const profileRef = useRef(null);
   const subscription = billing?.subscription || {};
   const usage = billing?.usage || {};
   const pro = isProSubscription(subscription);
@@ -48,15 +49,22 @@ export function SettingsPage() {
     toast.success("Billing refreshed.");
   }
 
+  useEffect(() => {
+    if (searchParams.get("section") !== "profile") return;
+    window.setTimeout(() => profileRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  }, [searchParams]);
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_0.85fr]">
-      <Card>
-        <h2 className="text-xl font-bold">Profile and base resume</h2>
-        <p className="mt-2 text-sm text-slate-600">Keep your core job search identity and resume text ready for each application.</p>
-        <div className="mt-5">
-          <ProfileForm />
-        </div>
-      </Card>
+      <div ref={profileRef} className="scroll-mt-24">
+        <Card>
+          <h2 className="text-xl font-bold">Profile and base resume</h2>
+          <p className="mt-2 text-sm text-slate-600">Keep your core job search identity and resume text ready for each application.</p>
+          <div className="mt-5">
+            <ProfileForm />
+          </div>
+        </Card>
+      </div>
       <div className="grid gap-6">
         <BillingCard
           billing={billing}
@@ -118,10 +126,10 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
         </div>
       ) : (
         <div className="mt-5 grid gap-4">
-          <div className="grid gap-2">
-            <UsageRow label="Job analyses" value={usage.job_analyses_used} />
-            <UsageRow label="Resume generations" value={usage.resume_generations_used} />
-            <UsageRow label="Applications" value={usage.application_count} />
+          <div className="rounded-lg bg-brand-50 p-3 ring-1 ring-brand-100">
+            <p className="text-sm font-black text-brand-950">{Math.max(0, FREE_LIMIT - Number(usage.application_count || 0))} of {FREE_LIMIT} free AI-powered applications remaining</p>
+            <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">A role counts once after its first successful AI action. You can keep completing that application after it has counted.</p>
+            <UsageBar value={usage.application_count} />
           </div>
           <Button onClick={onUpgrade} disabled={loading === "checkout"}>{loading === "checkout" ? "Opening checkout..." : "Upgrade to Pro - $7/month"}</Button>
         </div>
@@ -130,13 +138,13 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
   );
 }
 
-function UsageRow({ label, value = 0 }) {
+function UsageBar({ value = 0 }) {
   const used = Math.min(FREE_LIMIT, Number(value || 0));
   return (
-    <div className="rounded-lg bg-brand-50/70 p-3 ring-1 ring-brand-100">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-bold text-ink">{label}</p>
-        <p className="text-sm font-black text-brand-900">{used} / {FREE_LIMIT}</p>
+    <div className="mt-3">
+      <div className="flex items-center justify-between gap-3 text-xs font-black text-brand-900">
+        <span>AI-powered applications used</span>
+        <span>{used} / {FREE_LIMIT}</span>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
         <div className="h-full rounded-full bg-brand-600" style={{ width: `${Math.round((used / FREE_LIMIT) * 100)}%` }} />

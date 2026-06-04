@@ -307,7 +307,7 @@ function getApplicationStatusTone(status) {
   return "bg-slate-50 text-slate-700 ring-slate-100";
 }
 
-export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onMove, onJobUpdate, pageMode = false }) {
+export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onJobUpdate, pageMode = false }) {
   const { user } = useAuth();
   const toast = useToast();
   const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, updateMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
@@ -364,12 +364,12 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     reviewedThisSession: reviewedRecruiterView,
   });
   const interviewPrepReady = hasInterviewPrepData(prep);
+  const interviewPrepRequired = ["Interview", "Final Interview"].includes(getDisplayStage(job.status)) || Boolean(job.interview_date);
   const packageReady = hasApplicationPackageReady({
     score: latestScore,
     resume: latestResume,
     coverLetter: latestCoverLetter,
     coverLetterResolved,
-    recruiterMessage: latestMessage,
   });
   const packageDownloaded = Boolean(latestResume?.id && exportedResumeIds.has(latestResume.id));
   const exportReady = packageDownloaded || packageReady;
@@ -378,10 +378,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     overview: true,
     fit: Boolean(latestScore),
     resume: Boolean(latestResume),
-    message: Boolean(latestMessage),
+    message: latestMessage ? true : "optional",
     coverLetter: coverLetterResolved,
     coverLetterState: latestCoverLetter ? "ready" : coverLetterSkipped ? "optionalDone" : "optional",
-    interview: interviewPrepReady,
+    interview: interviewPrepRequired ? interviewPrepReady : "optional",
     export: exportReady,
     recruiterView: recruiterViewReady,
   };
@@ -481,6 +481,19 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
       toast.success("Cover letter marked optional.");
     } catch {
       toast.error("Could not update cover letter status.");
+    }
+  }
+
+  async function handleMoveStage(nextStage) {
+    if (!nextStage || nextStage === getDisplayStage(job.status)) return;
+    try {
+      const patch = { status: nextStage };
+      if (nextStage === "Applied" && !job.applied_date) patch.applied_date = todayIso();
+      const updated = await updateJob(user, job.id, patch);
+      if (updated) mergeJobUpdate(updated);
+      toast.success(`Stage moved to ${nextStage}.`);
+    } catch {
+      toast.error("Could not move stage.");
     }
   }
 
@@ -759,7 +772,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
               </div>
 
               <div className="flex flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
-                <Button onClick={onMove}>Move to Applied</Button>
+                <StageMoveControl value={getDisplayStage(job.status)} onChange={handleMoveStage} />
                 {onEdit && <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>}
                 <Button variant="secondary" onClick={handleArchive}>Archive</Button>
                 <Button variant="danger" onClick={onDelete}><Trash2 size={16} /> Delete</Button>
@@ -902,8 +915,8 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   );
 }
 
-function JobHeaderCta({ activeTab, job, score, resume, coverLetter, coverLetterResolved, recruiterMessage, prep, packageDownloaded, onTabChange, onMarkApplied, onSetFollowUp }) {
-  const config = getWorkflowHeaderCta({ job, score, resume, coverLetter, coverLetterResolved, recruiterMessage, prep, packageDownloaded, activeTab });
+function JobHeaderCta({ activeTab, job, score, resume, coverLetter, coverLetterResolved, prep, packageDownloaded, onTabChange, onMarkApplied, onSetFollowUp }) {
+  const config = getWorkflowHeaderCta({ job, score, resume, coverLetter, coverLetterResolved, prep, packageDownloaded, activeTab });
   return (
     <div className="flex justify-end">
       <Button className="min-h-9 px-4 text-sm whitespace-nowrap" variant={config.variant} onClick={() => {
@@ -917,7 +930,7 @@ function JobHeaderCta({ activeTab, job, score, resume, coverLetter, coverLetterR
   );
 }
 
-function getWorkflowHeaderCta({ job, score, resume, coverLetter, coverLetterResolved, recruiterMessage, prep, packageDownloaded, activeTab }) {
+function getWorkflowHeaderCta({ job, score, resume, coverLetter, coverLetterResolved, prep, packageDownloaded, activeTab }) {
   const stage = getDisplayStage(job?.status);
   const isSaved = stage === "Saved";
   if (stage === "Applied") {
@@ -928,8 +941,7 @@ function getWorkflowHeaderCta({ job, score, resume, coverLetter, coverLetterReso
   if (!score) return { label: "Analysis", tab: "fit", variant: "primary" };
   if (!resume) return { label: "Resume", tab: "resume", variant: "primary" };
   if (!(coverLetter || coverLetterResolved)) return { label: "Cover Letter", tab: "coverLetter", variant: "primary" };
-  if (!recruiterMessage) return { label: "Recruiter Message", tab: "message", variant: "primary" };
-  if (!prep) return { label: "Interview Prep", tab: "interview", variant: "primary" };
+  if ((stage === "Interview" || stage === "Final Interview" || job?.interview_date) && !prep) return { label: "Interview Prep", tab: "interview", variant: "primary" };
   if (packageDownloaded && isSaved) return { label: "Mark Applied", tab: "__mark_applied", variant: "primary" };
   if (activeTab !== "export") return { label: "Export Package", tab: "export", variant: "primary" };
   return { label: "Export Package", tab: "export", variant: "primary" };
@@ -985,8 +997,8 @@ function ApplicationPackageOverview({ job, score, resume, coverLetter, coverLett
   const assets = [
     { title: "Resume", status: resume ? "Generated" : "Not Generated", actionLabel: resume ? "Open" : score ? "Generate Resume" : "Start Analysis", onAction: resume || score ? onOpenResume : onOpenAnalysis, ready: Boolean(resume) },
     { title: "Cover Letter", status: coverLetter ? "Generated" : coverLetterSkipped ? "Optional ✓" : "Optional", actionLabel: coverLetter ? "Open" : coverLetterSkipped ? "Generate" : "Review", onAction: onOpenCoverLetter, ready: true },
-    { title: "Recruiter Message", status: recruiterMessage ? "Generated" : "Not Generated", actionLabel: recruiterMessage ? "Open" : "Draft Message", onAction: onOpenMessage, ready: Boolean(recruiterMessage) },
-    { title: "Interview Prep", status: prep ? "Prepared" : "Not Started", actionLabel: prep ? "Open" : "Prepare Interview Prep", onAction: onOpenInterview, ready: Boolean(prep) },
+    { title: "Recruiter Message", status: recruiterMessage ? "Generated" : "Optional", actionLabel: recruiterMessage ? "Open" : "Draft", onAction: onOpenMessage, ready: true },
+    { title: "Interview Prep", status: prep ? "Prepared" : "Optional / Prepare when needed", actionLabel: prep ? "Open" : "Prepare", onAction: onOpenInterview, ready: true },
   ];
   const packageReady = assets.every((asset) => asset.ready);
   return (
@@ -1237,6 +1249,21 @@ function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
         <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onCancel}>Cancel</Button>
       </div>
     </section>
+  );
+}
+
+function StageMoveControl({ value, onChange }) {
+  return (
+    <label className="flex w-full max-w-xs items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm font-bold text-brand-900 ring-1 ring-brand-100 sm:w-auto">
+      Move stage
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-w-0 rounded-md border border-brand-100 bg-white px-2 py-1 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        {stages.map((stage) => <option key={stage}>{stage}</option>)}
+      </select>
+    </label>
   );
 }
 
@@ -2076,8 +2103,8 @@ function ApplicationChecklist({ job, score, resume, coverLetter, coverLetterSkip
     { label: "Analysis", done: Boolean(score), status: score ? "Complete" : "Not started" },
     { label: "Resume", done: Boolean(resume), status: resume ? "Complete" : "Not started" },
     { label: "Cover Letter", done: true, status: coverLetter ? "Generated" : coverLetterSkipped ? "Optional ✓" : "Optional" },
-    { label: "Recruiter Message", done: Boolean(recruiterMessage), status: recruiterMessage ? "Complete" : "Not started" },
-    { label: "Interview Prep", done: Boolean(prep), status: prep ? "Complete" : "Not started" },
+    { label: "Recruiter Message", done: true, status: recruiterMessage ? "Generated" : "Optional" },
+    { label: "Interview Prep", done: true, status: prep ? "Prepared" : "Optional / Prepare when needed" },
   ];
   const complete = rows.filter((row) => row.done).length;
   const percent = Math.round((complete / rows.length) * 100);
@@ -3247,6 +3274,10 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
         interview_type: interviewDetails.interview_type || "Video",
         interviewer_contact_id: interviewDetails.interviewer_contact_id || null,
       };
+      if (payload.interview_date && !["Interview", "Final Interview"].includes(getDisplayStage(job.status))) {
+        const shouldMove = window.confirm("Move this opportunity to Interview stage?\n\nYou entered an interview date. OccuBoard can update the stage so interview prep stays easy to find.");
+        if (shouldMove) payload.status = "Interview";
+      }
       const saved = await updateJob(user, job.id, payload);
       onJobUpdate?.({ ...job, ...payload, ...saved });
       setInterviewMessage("Interview details saved.");
@@ -4790,8 +4821,8 @@ function getStepCompletionLabel(id, score, done, completed = {}) {
   if (id === "overview") return done ? "\u2713" : "\u25CB";
   if (id === "fit" && Number.isFinite(Number(score?.score))) return `${Math.round(Number(score.score))}%`;
   if (id === "resume" && done) return "Generated";
-  if (id === "message" && done) return "Generated";
-  if (id === "interview" && done) return "Prepared";
+  if (id === "message") return done === true ? "Generated" : "Optional";
+  if (id === "interview") return done === true ? "Prepared" : "Optional";
   if (id === "recruiterView" && done) return "Reviewed";
   if (!done) return "\u25CB";
   return "Done";
@@ -4835,8 +4866,8 @@ function hasInterviewPrepData(prep) {
   );
 }
 
-function hasApplicationPackageReady({ score, resume, coverLetter, coverLetterResolved, recruiterMessage } = {}) {
-  return Boolean(score && resume && (coverLetter || coverLetterResolved) && recruiterMessage);
+function hasApplicationPackageReady({ score, resume, coverLetter, coverLetterResolved } = {}) {
+  return Boolean(score && resume && (coverLetter || coverLetterResolved));
 }
 
 function asksForCoverLetter(description = "") {
@@ -4844,7 +4875,7 @@ function asksForCoverLetter(description = "") {
 }
 
 function getWorkflowReadiness(completed = {}) {
-  const keys = ["overview", "fit", "resume", "coverLetter", "message", "recruiterView", "interview", "export"];
+  const keys = ["overview", "fit", "resume", "coverLetter", "export"];
   const complete = keys.filter((key) => Boolean(completed[key])).length;
   return {
     complete,

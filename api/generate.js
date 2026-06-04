@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   if (validationError) {
     return send(res, 400, { error: validationError });
   }
-  const billingError = await validateBillingAccess(action, userId || options?.userId);
+  const billingError = await validateBillingAccess(action, userId || options?.userId, job);
   if (billingError) {
     return send(res, 402, { error: billingError, code: "free_limit_reached" });
   }
@@ -66,8 +66,9 @@ export default async function handler(req, res) {
   }
 }
 
-async function validateBillingAccess(action, userId) {
-  if (!["fit", "resume"].includes(action)) return "";
+async function validateBillingAccess(action, userId, job = {}) {
+  if (!["fit", "resume", "message", "coverLetter", "interviewPrep"].includes(action)) return "";
+  if (job?.ai_usage_counted_at || job?.usage_counted) return "";
   if (!hasBillingDatabase()) return "";
   // TODO: Verify the Supabase access token matches userId once API auth middleware is added.
   if (!userId) return "Sign in before using AI generation.";
@@ -75,11 +76,8 @@ async function validateBillingAccess(action, userId) {
     const subscription = await getSubscriptionByUserId(userId);
     if (subscription?.plan === "pro" || proStatuses.has(subscription?.status)) return "";
     const usage = await getUsageByUserId(userId);
-    const field = action === "fit" ? "job_analyses_used" : "resume_generations_used";
-    if (Number(usage?.[field] || 0) >= freeLimit) {
-      return action === "fit"
-        ? "You've used your 3 free job analyses. Upgrade to OccuBoard Pro for unlimited analyses."
-        : "You've used your 3 free resume generations. Upgrade to OccuBoard Pro for unlimited tailored resumes.";
+    if (Number(usage?.application_count || 0) >= freeLimit) {
+      return "You've used your 3 free AI-powered applications. Upgrade to OccuBoard Pro for unlimited application preparation.";
     }
   } catch {
     return "";

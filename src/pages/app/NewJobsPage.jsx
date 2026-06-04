@@ -10,7 +10,7 @@ import { priorities, remoteTypes } from "../../data/seedData.js";
 import { todayIso } from "../../lib/date.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { buildOnboardingState } from "../../lib/onboarding.js";
-import { canUseUsageFeature, createCheckoutSession, getUsageRemaining, isProSubscription, usageActions } from "../../lib/billing.js";
+import { createCheckoutSession, getUsageRemaining, isProSubscription, usageActions } from "../../lib/billing.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { JobDetail } from "./JobsPage.jsx";
 
@@ -41,6 +41,7 @@ export function NewJobsPage() {
   const [onboardingHelpOpen, setOnboardingHelpOpen] = useState(true);
   const [limitOpen, setLimitOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  const [fetchingUrl, setFetchingUrl] = useState(false);
   const descriptionRef = useRef(null);
   const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions });
   const showOnboardingHelp = onboarding.hasResume && !onboarding.hasJob && onboardingHelpOpen;
@@ -92,10 +93,6 @@ export function NewJobsPage() {
   }
 
   async function saveAndAnalyze() {
-    if (!canUseUsageFeature(billing, usageActions.application)) {
-      setLimitOpen(true);
-      return;
-    }
     setSaving(true);
     setError("");
     setGuardrailOpen(false);
@@ -119,6 +116,35 @@ export function NewJobsPage() {
       setError(saveError?.message || "We couldn't save this job yet. Please try again.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function fetchJobDetails() {
+    if (!form.source_url.trim()) {
+      setError("Paste a job URL first.");
+      return;
+    }
+    setFetchingUrl(true);
+    setError("");
+    try {
+      const response = await fetch("/api/fetch-job-url", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: form.source_url.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not import this job URL.");
+      setForm((current) => ({
+        ...current,
+        company_name: current.company_name || data.details?.company_name || "",
+        job_title: current.job_title || data.details?.job_title || "",
+        job_description: data.details?.job_description || current.job_description,
+      }));
+      setSuccess(false);
+    } catch (fetchError) {
+      setError(fetchError.message || "URL import missed this page. Paste the job description manually.");
+    } finally {
+      setFetchingUrl(false);
     }
   }
 
@@ -206,8 +232,8 @@ export function NewJobsPage() {
       <Card>
         <form className="grid gap-5" onSubmit={analyzeJob}>
           {!pro && (
-            <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-900">
-              {applicationRemaining} free application{applicationRemaining === 1 ? "" : "s"} remaining.
+            <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-900 ring-1 ring-brand-100">
+              {applicationRemaining} of 3 free AI-powered applications remaining. Saving a job is free; usage starts after the first successful AI action for that role.
             </p>
           )}
           <label className="grid gap-2 text-sm font-medium text-ink">
@@ -222,8 +248,11 @@ export function NewJobsPage() {
                 placeholder="https://company.com/careers/role"
               />
             </div>
-            <p className="text-xs font-semibold text-slate-500">Paste a LinkedIn, Indeed, or company careers URL if you have one.</p>
+            <p className="text-xs font-semibold text-slate-500">Paste a job URL or the full job description. If URL import misses details, you can edit them before analyzing.</p>
             <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={fetchJobDetails} disabled={fetchingUrl}>
+                {fetchingUrl ? "Fetching..." : "Fetch Job Details"}
+              </Button>
               {["LinkedIn job", "Indeed job", "Company careers page"].map((chip) => (
                 <span key={chip} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{chip}</span>
               ))}

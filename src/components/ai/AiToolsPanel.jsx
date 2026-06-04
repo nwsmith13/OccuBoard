@@ -64,7 +64,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
 
   async function runAi(action, { regenerate = false } = {}) {
     if (aiState.loading) return;
-    const usageField = getAiUsageField(action);
+    const usageField = getAiUsageField(action, job);
     if (usageField && !canUseUsageFeature(billing, usageField)) {
       setLimitAction(action);
       return;
@@ -212,7 +212,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
                 onSecondaryAction={() => window.setTimeout(() => document.getElementById("tailored-resume-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }), 20)}
               />
             )}
-            <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} hideIndividualExport={showOnboardingHelp && latestResume && !onboarding.hasRecruiterView} />
+            <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} hideIndividualExport={showOnboardingHelp && latestResume && !onboarding.hasRecruiterView} onOpenExport={() => onTabChange?.("export")} onOpenMessage={() => onTabChange?.("message")} onOpenInterview={() => onTabChange?.("interview")} />
           </>
         )}
           {activeAction === "message" && <MessageResult message={latestMessage} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
@@ -327,7 +327,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       {!compact && (
         <>
           {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onRecruiterView={() => onTabChange?.("recruiterView")} />}
-          {activeTab === "resume" && <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} />}
+          {activeTab === "resume" && <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onOpenExport={() => onTabChange?.("export")} onOpenMessage={() => onTabChange?.("message")} onOpenInterview={() => onTabChange?.("interview")} />}
           {activeTab === "message" && <MessageResult message={latestMessage} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
         </>
@@ -375,15 +375,14 @@ function getEffectiveIntensity(action, intensity, manualIntensity, latestScore) 
   return intensity;
 }
 
-function getAiUsageField(action) {
-  if (action === "fit") return usageActions.jobAnalysis;
-  if (action === "resume") return usageActions.resumeGeneration;
+function getAiUsageField(action, job = {}) {
+  if (job.ai_usage_counted_at) return "";
+  if (["fit", "resume", "message"].includes(action)) return usageActions.application;
   return "";
 }
 
-function getLimitTitle(action) {
-  if (action === "resume") return "You've used your 3 free resume generations";
-  return "You've used your 3 free job analyses";
+function getLimitTitle() {
+  return "You've used your 3 free AI-powered applications";
 }
 
 function useSlowLoading(active) {
@@ -604,7 +603,7 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, onRecru
   );
 }
 
-export function ResumeResult({ resume, score, materials = {}, analysisReady = true, onAnalyze, onGenerate, onRegenerate, onExportComplete, loading, showAction = true, hideIndividualExport = false }) {
+export function ResumeResult({ resume, score, materials = {}, analysisReady = true, onAnalyze, onGenerate, onRegenerate, onExportComplete, onOpenExport, onOpenMessage, onOpenInterview, loading, showAction = true, hideIndividualExport = false }) {
   const { profile, jobs } = useWorkspaceStore();
   const job = resume ? jobs.find((item) => item.id === resume.job_id) : null;
   const whyThisFits = extractWhyThisFits(resume?.content);
@@ -621,6 +620,16 @@ export function ResumeResult({ resume, score, materials = {}, analysisReady = tr
           </p>
         </div>
         <CopyButton text={resume.content} />
+      </div>
+      <ResumeFitImprovementSnapshot score={score} generatedText={resume.content} />
+      <div className="mt-4 rounded-lg bg-white/85 p-3 ring-1 ring-brand-100">
+        <p className="text-sm font-bold text-ink">Choose your next step</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {onOpenExport && <Button className="min-h-8 px-3 text-xs" onClick={onOpenExport}>Export Resume / Application Package</Button>}
+          <Link className="inline-flex min-h-8 items-center rounded-lg bg-white px-3 text-xs font-bold text-brand-800 ring-1 ring-brand-100 hover:bg-brand-50" to="/app/new-jobs">Analyze Another Job</Link>
+          {onOpenMessage && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenMessage}>Optional: Generate Recruiter Message</Button>}
+          {onOpenInterview && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenInterview}>Optional: Prepare For Interview</Button>}
+        </div>
       </div>
       {whyThisFits && (
         <div className="mt-4 rounded-lg bg-white/85 p-4 text-sm leading-6 text-slate-700">
@@ -644,6 +653,44 @@ export function ResumeResult({ resume, score, materials = {}, analysisReady = tr
         </div>
       )}
       {onRegenerate && <RegenerateButton label="Regenerate resume" onClick={onRegenerate} disabled={Boolean(loading)} />}
+    </div>
+  );
+}
+
+function ResumeFitImprovementSnapshot({ score, generatedText = "" }) {
+  if (!score?.score) return null;
+  const mitigationPlan = buildMitigationPlan(score);
+  const recoveryScores = buildMaterialRecoveryScores({
+    mitigationPlan,
+    materials: { resume: { content: generatedText } },
+  });
+  const estimate = estimateOptimizedFit({
+    baselineScore: score.score,
+    recoveryScores,
+    keywords: score.keywords,
+    generatedText,
+  });
+  const delta = Math.max(0, Number(estimate.optimized || 0) - Number(estimate.initial || 0));
+  return (
+    <section className="mt-4 rounded-xl bg-white/90 p-3 shadow-sm ring-1 ring-brand-100 sm:p-4">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Fit Improvement</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+        <FitMetricCard label="Initial Fit" value={estimate.initial} tone="neutral" />
+        <div className="text-center text-sm font-black text-brand-700">-&gt;</div>
+        <FitMetricCard label="Optimized Fit" value={estimate.optimized} tone="success" />
+      </div>
+      <p className="mt-3 text-sm font-black text-emerald-800">
+        {estimate.initial}% -&gt; {estimate.optimized}% {delta ? `(+${delta} improvement)` : "(positioning preserved)"}
+      </p>
+    </section>
+  );
+}
+
+function FitMetricCard({ label, value, tone }) {
+  return (
+    <div className={`rounded-lg px-4 py-3 ring-1 ${tone === "success" ? "bg-emerald-50 text-emerald-900 ring-emerald-100" : "bg-slate-50 text-slate-800 ring-slate-100"}`}>
+      <p className="text-xs font-bold uppercase tracking-[0.1em] opacity-75">{label}</p>
+      <p className="mt-1 text-3xl font-black">{value}%</p>
     </div>
   );
 }
@@ -1433,7 +1480,7 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [], l
                       onClick={() => setExpanded((current) => ({ ...current, [key]: !isExpanded }))}
                     >
                       <Lightbulb size={13} aria-hidden="true" />
-                      {isExpanded ? "Hide suggestions" : "How to address this"}
+                      {isExpanded ? "Hide strategy" : "How OccuBoard will use this"}
                       <ChevronDown size={13} className={`transition duration-200 ${isExpanded ? "rotate-180" : ""}`} aria-hidden="true" />
                     </button>
                   )}
@@ -1441,12 +1488,12 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [], l
               </div>
               {hasSuggestions && isExpanded && (
                 <div id={coachingId} className="mt-3 rounded-lg bg-brand-50/80 p-3 ring-1 ring-brand-100 transition duration-200 ease-out">
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">How to address this</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">Use these as positioning ideas for your resume, message, or interview.</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">How OccuBoard will use this</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">These considerations will inform the tailored resume, recruiter message, and interview prep.</p>
                   {quickWin && (
                     <div className="mt-3 rounded-lg bg-white/85 p-2.5 text-[13px] leading-5 text-slate-700 ring-1 ring-brand-100">
                       <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-brand-700">Quick win</p>
-                      <p className="mt-1">{quickWin}</p>
+                      <p className="mt-1">{formatOccuBoardSuggestion(quickWin)}</p>
                     </div>
                   )}
                   {otherIdeas.length > 0 && (
@@ -1456,7 +1503,7 @@ function GapList({ gaps = [], gapAssessments = [], mitigationSuggestions = [], l
                         {otherIdeas.map((suggestion) => (
                           <li key={suggestion} className="flex gap-2">
                             <span className="mt-[0.45rem] h-1 w-1 shrink-0 rounded-full bg-brand-400" />
-                            <span>{suggestion}</span>
+                            <span>{formatOccuBoardSuggestion(suggestion)}</span>
                           </li>
                         ))}
                       </ul>
@@ -1529,6 +1576,19 @@ function getSuggestionItems(primary = {}, fallback = {}) {
   const fallbackItems = normalizeSuggestionItems(fallback?.mitigationSuggestions ?? fallback?.mitigation_suggestions ?? fallback?.suggestions ?? fallback?.mitigation);
   if (fallbackItems.length) return fallbackItems;
   return getFallbackMitigationSuggestions(primary?.gap || primary?.text || primary || fallback?.gap || fallback?.text || "");
+}
+
+function formatOccuBoardSuggestion(suggestion = "") {
+  const text = String(suggestion).trim();
+  if (!text) return "";
+  if (/^occuboard\s+will\b/i.test(text)) return text;
+  const cleaned = text
+    .replace(/^you\s+should\s+/i, "")
+    .replace(/^prepare\s+/i, "prepare ")
+    .replace(/^highlight\s+/i, "highlight ")
+    .replace(/^mention\s+/i, "mention ")
+    .replace(/^position\s+/i, "position ");
+  return `OccuBoard will strengthen this by ${cleaned.charAt(0).toLowerCase()}${cleaned.slice(1)}`;
 }
 
 function normalizeSuggestionItems(value) {

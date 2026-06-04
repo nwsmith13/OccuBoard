@@ -11,6 +11,7 @@ const keys = {
   jobCalendarOverrides: "occuboard.jobCalendarOverrides",
   jobArchiveOverrides: "occuboard.jobArchiveOverrides",
   jobCoverLetterOverrides: "occuboard.jobCoverLetterOverrides",
+  jobAiUsageOverrides: "occuboard.jobAiUsageOverrides",
   activityLogs: "occuboard.activityLogs",
   jobActivityLogs: "occuboard.jobActivityLogs",
   jobContacts: "occuboard.jobContacts",
@@ -141,7 +142,7 @@ export async function fetchWorkspace(user) {
 
     return {
       profile,
-      jobs: applyJobCoverLetterOverrides(applyJobArchiveOverrides(applyJobCalendarOverrides(applyJobFollowUpOverrides(jobsResult.data ?? [])))),
+      jobs: applyJobAiUsageOverrides(applyJobCoverLetterOverrides(applyJobArchiveOverrides(applyJobCalendarOverrides(applyJobFollowUpOverrides(jobsResult.data ?? []))))),
       activityLogs: logsResult.data ?? [],
       jobActivityLogs,
       jobContacts,
@@ -263,11 +264,12 @@ export async function updateJob(user, id, patch) {
       const legacyPayload = getLegacyJobPayload(payload);
       const retry = await supabase.from("jobs").update(legacyPayload).eq("id", id).eq("user_id", user.id).select("*").single();
       if (retry.error) throw retry.error;
-      const enriched = { ...retry.data, ...Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key.startsWith("company_") || key.startsWith("interview_") || key.startsWith("archived_") || key.startsWith("cover_letter_") || key === "interviewer_contact_id" || key === "calendar_event_added_at")) };
+      const enriched = { ...retry.data, ...Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key.startsWith("company_") || key.startsWith("interview_") || key.startsWith("archived_") || key.startsWith("cover_letter_") || key === "ai_usage_counted_at" || key === "interviewer_contact_id" || key === "calendar_event_added_at")) };
       if (hasFollowUpPatch(payload)) rememberJobFollowUpOverride(id, payload);
       if (hasCalendarPatch(payload)) rememberJobCalendarOverride(id, payload);
       if (hasArchivePatch(payload)) rememberJobArchiveOverride(id, payload);
       if (hasCoverLetterPatch(payload)) rememberJobCoverLetterOverride(id, payload);
+      if (hasAiUsagePatch(payload)) rememberJobAiUsageOverride(id, payload);
       await logActivity(user, "Job", `Updated ${getDisplayJobTitle(enriched)} at ${getDisplayCompanyName(enriched)}`);
       await logJobUpdateActivity(user, previous, enriched, payload);
       return enriched;
@@ -276,6 +278,7 @@ export async function updateJob(user, id, patch) {
     if (hasCalendarPatch(payload)) clearJobCalendarOverride(id);
     if (hasArchivePatch(payload)) clearJobArchiveOverride(id);
     if (hasCoverLetterPatch(payload)) clearJobCoverLetterOverride(id);
+    if (hasAiUsagePatch(payload)) clearJobAiUsageOverride(id);
     await logActivity(user, "Job", `Updated ${getDisplayJobTitle(data)} at ${getDisplayCompanyName(data)}`);
     await logJobUpdateActivity(user, previous, data, payload);
     return data;
@@ -711,6 +714,7 @@ function normalizeJob(user, job) {
     remote_type: job.remote_type,
     salary_range: job.salary_range,
     source_url: job.source_url,
+    application_url: job.application_url || null,
     job_description: job.job_description,
     priority: job.priority,
     status: job.status,
@@ -734,6 +738,7 @@ function normalizeJob(user, job) {
     archived_by_user: Boolean(job.archived_by_user),
     cover_letter_status: job.cover_letter_status || null,
     cover_letter_skipped_at: job.cover_letter_skipped_at || null,
+    ai_usage_counted_at: job.ai_usage_counted_at || job.aiUsageCountedAt || null,
     notes: job.notes,
     created_at: createdAt,
     updated_at: createdAt,
@@ -752,6 +757,7 @@ function cleanJobPayload(job) {
     "remote_type",
     "salary_range",
     "source_url",
+    "application_url",
     "job_description",
     "priority",
     "status",
@@ -775,6 +781,7 @@ function cleanJobPayload(job) {
     "archived_by_user",
     "cover_letter_status",
     "cover_letter_skipped_at",
+    "ai_usage_counted_at",
     "notes",
     "created_at",
     "updated_at",
@@ -800,6 +807,7 @@ function cleanJobPayload(job) {
   if ("archived_by_user" in payload) cleaned.archived_by_user = Boolean(payload.archived_by_user);
   if ("cover_letter_status" in payload) cleaned.cover_letter_status = payload.cover_letter_status || null;
   if ("cover_letter_skipped_at" in payload) cleaned.cover_letter_skipped_at = payload.cover_letter_skipped_at || null;
+  if ("ai_usage_counted_at" in payload) cleaned.ai_usage_counted_at = payload.ai_usage_counted_at || null;
   if ("date_saved" in payload) cleaned.date_saved = payload.date_saved || new Date().toISOString().slice(0, 10);
   if ("company_name" in payload) cleaned.company_name = getDisplayCompanyName(payload);
   if ("job_title" in payload) cleaned.job_title = getDisplayJobTitle(payload);
@@ -823,6 +831,10 @@ function hasCoverLetterPatch(payload = {}) {
   return Object.keys(payload).some((key) => key.startsWith("cover_letter_"));
 }
 
+function hasAiUsagePatch(payload = {}) {
+  return "ai_usage_counted_at" in payload;
+}
+
 function getFollowUpPatch(payload = {}) {
   return Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("followup_") || key === "updated_at"));
 }
@@ -837,6 +849,10 @@ function getArchivePatch(payload = {}) {
 
 function getCoverLetterPatch(payload = {}) {
   return Object.fromEntries(Object.entries(payload).filter(([key]) => key.startsWith("cover_letter_") || key === "updated_at"));
+}
+
+function getAiUsagePatch(payload = {}) {
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => key === "ai_usage_counted_at" || key === "updated_at"));
 }
 
 function rememberJobFollowUpOverride(jobId, payload = {}) {
@@ -919,6 +935,26 @@ function clearJobCoverLetterOverride(jobId) {
   writeLocal(keys.jobCoverLetterOverrides, next);
 }
 
+function rememberJobAiUsageOverride(jobId, payload = {}) {
+  const overrides = readLocal(keys.jobAiUsageOverrides, {});
+  writeLocal(keys.jobAiUsageOverrides, {
+    ...overrides,
+    [jobId]: {
+      ...(overrides[jobId] || {}),
+      ...getAiUsagePatch(payload),
+      updated_at: payload.updated_at || now(),
+    },
+  });
+}
+
+function clearJobAiUsageOverride(jobId) {
+  const overrides = readLocal(keys.jobAiUsageOverrides, {});
+  if (!overrides[jobId]) return;
+  const next = { ...overrides };
+  delete next[jobId];
+  writeLocal(keys.jobAiUsageOverrides, next);
+}
+
 function applyJobFollowUpOverrides(jobs = []) {
   const overrides = readLocal(keys.jobFollowUpOverrides, {});
   if (!overrides || !Object.keys(overrides).length) return jobs;
@@ -983,6 +1019,22 @@ function applyJobCoverLetterOverrides(jobs = []) {
   });
 }
 
+function applyJobAiUsageOverrides(jobs = []) {
+  const overrides = readLocal(keys.jobAiUsageOverrides, {});
+  if (!overrides || !Object.keys(overrides).length) return jobs;
+  return jobs.map((job) => {
+    const override = overrides[job.id];
+    if (!override) return job;
+    const jobUpdatedAt = new Date(job.updated_at || job.created_at || 0);
+    const overrideUpdatedAt = new Date(override.updated_at || 0);
+    if (jobUpdatedAt > overrideUpdatedAt && getServerHasAiUsageState(job, override)) {
+      clearJobAiUsageOverride(job.id);
+      return job;
+    }
+    return { ...job, ...override };
+  });
+}
+
 function getServerHasFollowUpState(job = {}, override = {}) {
   return ["followup_date", "followup_status", "followup_completed_at", "followup_snoozed_until", "followup_note"].every((key) => {
     if (!(key in override)) return true;
@@ -1011,6 +1063,11 @@ function getServerHasCoverLetterState(job = {}, override = {}) {
   });
 }
 
+function getServerHasAiUsageState(job = {}, override = {}) {
+  if (!("ai_usage_counted_at" in override)) return true;
+  return normalizeComparable(job.ai_usage_counted_at) === normalizeComparable(override.ai_usage_counted_at);
+}
+
 function normalizeComparable(value) {
   return value || null;
 }
@@ -1033,6 +1090,7 @@ function normalizeFollowUpPayload(job) {
   if ("archivedByUser" in normalized && !("archived_by_user" in normalized)) normalized.archived_by_user = normalized.archivedByUser;
   if ("coverLetterStatus" in normalized && !("cover_letter_status" in normalized)) normalized.cover_letter_status = normalized.coverLetterStatus;
   if ("coverLetterSkippedAt" in normalized && !("cover_letter_skipped_at" in normalized)) normalized.cover_letter_skipped_at = normalized.coverLetterSkippedAt;
+  if ("aiUsageCountedAt" in normalized && !("ai_usage_counted_at" in normalized)) normalized.ai_usage_counted_at = normalized.aiUsageCountedAt;
   return normalized;
 }
 
@@ -1040,6 +1098,7 @@ function getLegacyJobPayload(payload) {
   const legacyPayload = { ...payload };
   delete legacyPayload.company_domain;
   delete legacyPayload.company_logo_url;
+  delete legacyPayload.application_url;
   delete legacyPayload.followup_status;
   delete legacyPayload.followup_completed_at;
   delete legacyPayload.followup_snoozed_until;
@@ -1057,11 +1116,15 @@ function getLegacyJobPayload(payload) {
   delete legacyPayload.archived_by_user;
   delete legacyPayload.cover_letter_status;
   delete legacyPayload.cover_letter_skipped_at;
+  delete legacyPayload.ai_usage_counted_at;
   return legacyPayload;
 }
 
 function normalizeApplicationStage(status) {
   if (status === "Tailoring") return "Saved";
-  if (["Offer", "Rejected", "Closed"].includes(status)) return "Closed";
-  return status || "Saved";
+  if (status === "Recruiter Screen") return "Recruiter Contacted";
+  if (status === "Interviewing") return "Interview";
+  if (status === "Final Round") return "Final Interview";
+  const supported = ["Saved", "Applied", "Recruiter Contacted", "Phone Screen", "Interview", "Final Interview", "Offer", "Rejected", "Closed"];
+  return supported.includes(status) ? status : "Saved";
 }

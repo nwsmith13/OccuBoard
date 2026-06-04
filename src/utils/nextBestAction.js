@@ -102,7 +102,6 @@ export function getNextBestAction(job = {}, options = {}) {
     job.fitAnalysis
   );
   const hasResume = Boolean(options.hasResume ?? aiStatus.resumeDrafted);
-  const hasMessage = Boolean(options.hasMessage ?? aiStatus.messageDrafted);
   const coverLetterSkipped = Boolean(options.coverLetterSkipped ?? aiStatus.coverLetterSkipped ?? isCoverLetterSkipped(job));
   const hasCoverLetter = Boolean(
     options.hasCoverLetter ??
@@ -111,7 +110,6 @@ export function getNextBestAction(job = {}, options = {}) {
     coverLetterSkipped ??
     options.messages?.some((message) => message.job_id === job.id && isCoverLetter(message))
   );
-  const hasInterviewPrep = Boolean(options.hasInterviewPrep);
   const hasFollowUpMessage = Boolean(options.hasFollowUpMessage ?? options.messages?.some((message) => message.job_id === job.id && message.type === "Follow-up Message"));
   const coverLetterRequired = asksForCoverLetter(job.job_description);
 
@@ -147,8 +145,6 @@ export function getNextBestAction(job = {}, options = {}) {
         priority: 3,
       });
     }
-    if (!hasMessage) return buildAction("generate_message", { label: "Draft recruiter message", description: "Create a short outreach note to pair with your tailored resume." });
-    if (!hasInterviewPrep) return buildAction("prepare_interview", { label: "Continue Interview Prep", description: "Prepare likely questions, stories, and talking points before exporting your package.", priority: 3 });
     return buildAction("export_package");
   }
 

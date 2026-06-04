@@ -30,7 +30,7 @@ export function ApplicationsPage() {
   const navigate = useNavigate();
   const { applicationId } = useParams();
   const [searchParams] = useSearchParams();
-  const [smartFilter, setSmartFilter] = useState("Focus");
+  const [smartFilter, setSmartFilter] = useState("All");
   const [archiveMode, setArchiveMode] = useState("active");
   const [success, setSuccess] = useState("");
   const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
@@ -45,7 +45,7 @@ export function ApplicationsPage() {
   const actionQueue = useMemo(() => getActionQueue(enrichedJobs.filter((model) => !model.archived)), [enrichedJobs]);
   const focusJobs = useMemo(() => getFocusViewJobs(actionQueue), [actionQueue]);
   const filterCounts = useMemo(() => getWorkflowFilterCounts(enrichedJobs, archivedJobs.length, focusJobs.length), [archivedJobs.length, enrichedJobs, focusJobs.length]);
-  const displayedJobs = smartFilter === "Focus" ? focusJobs : visibleJobs;
+  const displayedJobs = visibleJobs;
 
   useEffect(() => {
     const openJobId = location.state?.openJobId || searchParams.get("jobId");
@@ -83,7 +83,7 @@ export function ApplicationsPage() {
   async function restoreJob(job) {
     const restored = await updateJob(user, job.id, { archived_at: null, archived_reason: "", archived_by_user: false });
     setArchiveMode("active");
-    setSmartFilter("Focus");
+    setSmartFilter("All");
     setSuccess("Opportunity restored.");
     toast.success("Opportunity restored.");
     window.setTimeout(() => setSuccess(""), 2600);
@@ -139,7 +139,10 @@ export function ApplicationsPage() {
         <ApplicationCardsSkeleton />
       ) : !displayedJobs.length ? (
         <EmptyApplicationState filter={smartFilter} archiveMode={archiveMode} noApplications={!activeJobs.length && archiveMode === "active"}>
-          {archiveMode === "active" && smartFilter === "Focus" && (
+          {archiveMode === "active" && smartFilter !== "All" && (
+            <Button variant="secondary" className="mt-5 mr-2 inline-flex" onClick={() => setSmartFilter("All")}>Back to All</Button>
+          )}
+          {archiveMode === "active" && smartFilter === "All" && (
             <Link to="/app/new-jobs" className="mt-5 inline-flex">
               <Button>Analyze Job</Button>
             </Link>
@@ -238,7 +241,7 @@ function ActionQueueSection({ queue, onOpen }) {
 }
 
 function WorkflowStagePills({ active, counts, onChange }) {
-  const filters = ["Focus", "Ready To Apply", "In Progress", "Interviewing", "Applied", "Archived"];
+  const filters = ["All", "Saved", "Applied", "Interviewing", "In Progress", "Archived"];
   return (
     <div className="mb-4 rounded-2xl bg-white/80 p-3 shadow-sm ring-1 ring-brand-100">
       <p className="mb-2 text-sm font-semibold text-slate-600">
@@ -262,8 +265,8 @@ function WorkflowStagePills({ active, counts, onChange }) {
 
 function getWorkflowFilterHelper(filter) {
   return {
-    Focus: "roles that need your next action first.",
-    "Ready To Apply": "roles with application materials ready for submission.",
+    All: "all active opportunities.",
+    Saved: "saved roles still being prepared.",
     "In Progress": "roles still missing a key preparation step.",
     Interviewing: "roles in interview stages.",
     Applied: "submitted applications still in motion.",
@@ -290,10 +293,10 @@ function getEmptyStateCopy({ filter, archived, noApplications }) {
       copy: "Analyze a job to create your first opportunity.",
     };
   }
-  if (filter === "Focus") {
+  if (filter === "All") {
     return {
-      title: "You are caught up.",
-      copy: "No high-priority applications need action right now. Check In Progress when you want the full pipeline.",
+      title: "No active opportunities yet.",
+      copy: "Analyze a job to create your first opportunity.",
     };
   }
   if (archived) {
@@ -304,7 +307,7 @@ function getEmptyStateCopy({ filter, archived, noApplications }) {
   }
   const copyByFilter = {
     "In Progress": ["Start your command center.", "Analyze your first role and OccuBoard will organize the next steps here."],
-    "Ready To Apply": ["Nothing waiting to apply.", "Generate materials for strong matches and ready roles will appear here."],
+    Saved: ["No saved roles.", "Saved roles you are still preparing will appear here."],
     Interviewing: ["No active interviews yet.", "Interview-stage roles will appear here with prep shortcuts."],
     Applied: ["No applied roles in this view.", "Once you mark roles applied, they will collect here."],
   };
@@ -351,10 +354,12 @@ function ApplicationWorkspacePage({ applicationId, initialTab = "overview", init
 
 function getPipelineStage(status) {
   const normalized = normalizeStage(status);
-  if (normalized === "Closed") return "Rejected";
+  if (normalized === "Closed") return "Closed";
+  if (normalized === "Rejected") return "Rejected";
   if (normalized === "Offer") return "Offer";
   if (normalized === "Final Interview") return "Final Interview";
-  if (normalized === "Recruiter Screen") return "Recruiter Screen";
+  if (normalized === "Recruiter Contacted") return "Recruiter Contacted";
+  if (normalized === "Phone Screen") return "Phone Screen";
   if (normalized === "Interview") return "Interview";
   if (normalized === "Applied") return "Applied";
   return "Saved";
@@ -466,7 +471,7 @@ function getPrimaryActionModel(action, category, stage) {
 function getPrimaryActionLabel(label, category, stage) {
   const lower = String(label || "").toLowerCase();
   if (category === "Ready To Apply") return "Submit Application";
-  if (["Interview", "Final Interview", "Recruiter Screen"].includes(stage) && lower.includes("interview")) return "Prepare For Interview";
+  if (["Interview", "Final Interview", "Phone Screen"].includes(stage) && lower.includes("interview")) return "Prepare For Interview";
   if (lower.includes("follow")) return "Send Follow Up";
   if (lower.includes("cover")) return "Generate Cover Letter";
   if (lower.includes("resume")) return "Generate Resume";
@@ -477,7 +482,7 @@ function getPrimaryActionLabel(label, category, stage) {
 function getOpportunityCardSizing({ category, stage }) {
   if (category === "Archived") return "px-3 py-2 opacity-90";
   if (stage === "Rejected" || category === "Not Active") return "px-3 py-2";
-  if (category === "Ready To Apply" || ["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "px-3 py-2.5";
+  if (category === "Ready To Apply" || ["Interview", "Final Interview", "Phone Screen"].includes(stage)) return "px-3 py-2.5";
   return "px-3 py-2.5";
 }
 
@@ -532,8 +537,8 @@ function getApplicationCardModel(job, { jobScores = [], resumeVersions = [], mes
 function getApplicationCategory({ archived, stage, status, coverLetterResolved, health }) {
   if (archived) return "Archived";
   if (stage === "Rejected") return "Not Active";
-  if (["Interview", "Final Interview", "Recruiter Screen"].includes(stage)) return "Interviewing";
-  if (status.resumeDrafted && status.messageDrafted && coverLetterResolved && stage === "Saved") return "Ready To Apply";
+  if (["Interview", "Final Interview", "Phone Screen"].includes(stage)) return "Interviewing";
+  if (status.resumeDrafted && coverLetterResolved && stage === "Saved") return "Ready To Apply";
   if (health.tone === "danger" || !status.resumeDrafted || !coverLetterResolved) return "Needs Attention";
   return "Active";
 }
@@ -554,9 +559,9 @@ function getApplicationCategoryTone(category) {
 }
 
 function matchesSmartFilter(model, filter) {
-  if (filter === "Focus") return !model.archived;
+  if (filter === "All") return !model.archived;
   if (filter === "Archived") return model.archived;
-  if (filter === "Ready To Apply") return model.category === "Ready To Apply";
+  if (filter === "Saved") return !model.archived && model.stage === "Saved";
   if (filter === "In Progress") return !model.archived && !["Ready To Apply", "Interviewing", "Not Active"].includes(model.category) && model.stage !== "Applied";
   if (filter === "Interviewing") return model.category === "Interviewing";
   if (filter === "Applied") return model.stage === "Applied";
@@ -584,10 +589,10 @@ function getFocusViewJobs(queue) {
     .slice(0, 12);
 }
 
-function getWorkflowFilterCounts(models, archivedCount, focusCount) {
+function getWorkflowFilterCounts(models, archivedCount) {
   return {
-    Focus: focusCount,
-    "Ready To Apply": models.filter((model) => model.category === "Ready To Apply").length,
+    All: models.filter((model) => !model.archived).length,
+    Saved: models.filter((model) => !model.archived && model.stage === "Saved").length,
     "In Progress": models.filter((model) => !model.archived && !["Ready To Apply", "Interviewing", "Not Active"].includes(model.category) && model.stage !== "Applied").length,
     Interviewing: models.filter((model) => model.category === "Interviewing").length,
     Applied: models.filter((model) => model.stage === "Applied").length,
@@ -600,14 +605,14 @@ function getApplicationMetrics(activeJobs, { jobScores = [], jobContacts = [], r
   const interviewsScheduled = activeJobs.filter((job) => ["Interview", "Final Interview"].includes(getPipelineStage(job.status)) || job.interview_date).length;
   const interviewsThisMonth = activeJobs.filter((job) => (["Interview", "Final Interview"].includes(getPipelineStage(job.status)) && isThisMonth(job.updated_at || job.created_at)) || isThisMonth(job.interview_date)).length;
   const appliedOrBeyond = activeJobs.filter((job) => isAppliedPipelineStage(getPipelineStage(job.status)));
-  const responded = appliedOrBeyond.filter((job) => jobContacts.some((contact) => contact.job_id === job.id && contact.last_contacted_at) || ["Recruiter Screen", "Interview", "Final Interview", "Offer"].includes(getPipelineStage(job.status))).length;
+  const responded = appliedOrBeyond.filter((job) => jobContacts.some((contact) => contact.job_id === job.id && contact.last_contacted_at) || ["Recruiter Contacted", "Phone Screen", "Interview", "Final Interview", "Offer"].includes(getPipelineStage(job.status))).length;
   const scored = activeJobs.map((job) => getLatestFitScore(jobScores, job.id)?.score).filter((value) => Number.isFinite(Number(value)));
   const topJob = getTopOpportunity(activeJobs, jobScores);
   const followUpsNeeded = activeJobs.filter((job) => getApplicationHealth(job, getApplicationTimeline(job, {})).tone === "danger").length;
   const readyToApply = activeJobs.filter((job) => {
     const status = getJobAiStatus(job.id, jobScores, resumeVersions, messages, job);
     const hasCoverLetter = messages.some((message) => message.job_id === job.id && isCoverLetter(message));
-    return getPipelineStage(job.status) === "Saved" && status.resumeDrafted && status.messageDrafted && (hasCoverLetter || isCoverLetterSkipped(job) || !asksForCoverLetter(job.job_description));
+    return getPipelineStage(job.status) === "Saved" && status.resumeDrafted && (hasCoverLetter || isCoverLetterSkipped(job) || !asksForCoverLetter(job.job_description));
   }).length;
   const bestMove = getBestNextMove({ readyToApply, interviewsThisMonth, followUpsNeeded, activeApplications });
   return {
@@ -626,7 +631,7 @@ function getApplicationMetrics(activeJobs, { jobScores = [], jobContacts = [], r
 }
 
 function isAppliedPipelineStage(stage) {
-  return ["Applied", "Recruiter Screen", "Interview", "Final Interview", "Offer", "Rejected"].includes(stage);
+  return ["Applied", "Recruiter Contacted", "Phone Screen", "Interview", "Final Interview", "Offer", "Rejected", "Closed"].includes(stage);
 }
 
 function getTopOpportunity(activeJobs, jobScores) {

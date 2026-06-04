@@ -7,6 +7,7 @@ import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { FitScoreBadge, getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { getActiveJobs } from "../../lib/archive.js";
+import { FREE_LIMIT, getUsageRemaining, isProSubscription, usageActions } from "../../lib/billing.js";
 import { getCompletenessTone } from "../../lib/completenessTone.js";
 import { formatDate, isThisWeek } from "../../lib/date.js";
 import { getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
@@ -14,7 +15,7 @@ import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.
 import { getJobAiStatus, isCoverLetterSkipped } from "../../lib/jobAiStatus.js";
 import { getJobMomentumValue } from "../../lib/jobMomentum.js";
 import { buildOnboardingState } from "../../lib/onboarding.js";
-import { getProfileCompleteness } from "../../lib/profile.js";
+import { getMissingProfileItems, getProfileCompleteness } from "../../lib/profile.js";
 import { filterRecommendationsForDashboard, generateRecommendations, getRecommendationIcon, getRecommendationMeta, getRecommendationTone } from "../../lib/recommendationEngine.js";
 import { buildSearchPatternInsights } from "../../lib/searchPatternInsights.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -29,12 +30,13 @@ const helperTextClass = "mt-1 text-[13px] leading-5 text-slate-700";
 export function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { jobs, profile, resumeUploads, activityLogs, jobActivityLogs, resumeVersions, jobScores, messages, jobContacts, interviewPrep, loading, error, updateJob, deleteJob } = useWorkspaceStore();
+  const { jobs, profile, resumeUploads, activityLogs, jobActivityLogs, resumeVersions, jobScores, messages, jobContacts, interviewPrep, billing, loading, error, updateJob, deleteJob } = useWorkspaceStore();
   const [activityOpen, setActivityOpen] = useState(true);
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
   const completeness = getProfileCompleteness(profile);
+  const missingProfileItems = getMissingProfileItems(profile);
   const completenessTone = getCompletenessTone(completeness);
   const recommendations = useMemo(() => generateRecommendations({
     jobs: activeJobs,
@@ -48,10 +50,12 @@ export function DashboardPage() {
   const focusItems = getFocusItems({ jobs: activeJobs, jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep });
   const followUpsDue = activeJobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
   const bestMatchRoles = getBestMatchRoles(jobScores, activeJobs, profile, resumeVersions, messages, jobActivityLogs, interviewPrep);
-  const momentum = getMomentumSummary({ jobs: activeJobs, resumeVersions, jobScores, messages });
+  const momentum = getMomentumSummary({ jobs: activeJobs, resumeVersions, jobScores });
   const insights = buildDashboardInsights({ jobs: activeJobs, jobScores, resumeVersions, messages, jobActivityLogs, interviewPrep });
   const visibleActivity = showAllActivity ? activityLogs : activityLogs.slice(0, 4);
   const onboarding = useMemo(() => buildOnboardingState({ profile, resumeUploads, jobs: activeJobs, jobScores, resumeVersions, interviewPrep }), [activeJobs, interviewPrep, jobScores, profile, resumeUploads, resumeVersions]);
+  const pro = isProSubscription(billing?.subscription);
+  const aiApplicationsRemaining = getUsageRemaining(billing, usageActions.application);
 
   async function moveToApplied(job) {
     const saved = await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || new Date().toISOString().slice(0, 10) });
@@ -183,7 +187,19 @@ export function DashboardPage() {
       </main>
 
       <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
-        <Card className="bg-white/75 p-3.5 shadow-sm">
+        {!pro && (
+          <Card className="bg-brand-50/80 p-3.5 shadow-sm ring-1 ring-brand-100">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Free Plan</p>
+            <h2 className="mt-1 text-lg font-bold text-ink">{aiApplicationsRemaining} of {FREE_LIMIT} free AI-powered applications remaining</h2>
+            <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">Each role counts once after its first successful AI action.</p>
+          </Card>
+        )}
+        <button
+          type="button"
+          className="rounded-xl text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+          onClick={() => navigate("/app/settings?section=profile")}
+        >
+        <Card className="bg-white/75 p-3.5 shadow-sm transition hover:bg-white hover:shadow-card">
           <h2 className="text-lg font-bold">Profile Completeness</h2>
           <p className={helperTextClass}>A stronger profile makes guidance sharper.</p>
           <div className={`mt-3 rounded-lg p-2.5 ${completenessTone.panel}`}>
@@ -195,7 +211,12 @@ export function DashboardPage() {
               <div className={`h-2 rounded-full transition-all duration-300 ${completenessTone.bar}`} style={{ width: `${completeness}%` }} />
             </div>
           </div>
+          <p className="mt-3 text-xs font-semibold leading-5 text-slate-600">
+            {missingProfileItems.length ? `Missing: ${missingProfileItems.join(", ")}.` : "Basic profile details are complete."}
+          </p>
+          <p className="mt-1 text-xs font-bold text-brand-700">Open profile settings -&gt;</p>
         </Card>
+        </button>
 
         <Card className="bg-white/70 p-0 shadow-sm">
           <button type="button" className="flex w-full items-center justify-between px-3.5 py-2.5 text-left" onClick={() => setActivityOpen((value) => !value)}>
@@ -694,11 +715,10 @@ function getFocusInitialTab(item) {
   return "overview";
 }
 
-function getReadyToSendCount(jobs, resumeVersions, messages) {
+function getReadyToSendCount(jobs, resumeVersions) {
   return jobs.filter((job) => {
     const hasResume = resumeVersions.some((version) => version.job_id === job.id);
-    const hasMessage = messages.some((message) => message.job_id === job.id);
-    return hasResume && hasMessage && normalizeDashboardStage(job.status) !== "Closed";
+    return hasResume && normalizeDashboardStage(job.status) !== "Closed";
   }).length;
 }
 
@@ -706,12 +726,12 @@ function normalizeDashboardStage(status) {
   return normalizeStage(status);
 }
 
-function getMomentumSummary({ jobs, resumeVersions, jobScores, messages }) {
+function getMomentumSummary({ jobs, resumeVersions, jobScores }) {
   const weekResumeCount = resumeVersions.filter((version) => isThisWeek(version.created_at?.slice(0, 10) || version.updated_at?.slice(0, 10))).length;
   const analyzedJobs = new Set(jobScores.map((score) => score.job_id)).size;
   const tailoredResumes = resumeVersions.filter((version) => version.title?.startsWith("Tailored Resume")).length;
   const strongFits = jobScores.filter((score) => Number(score.score) >= 75).length;
-  const readyToSend = getReadyToSendCount(jobs, resumeVersions, messages);
+  const readyToSend = getReadyToSendCount(jobs, resumeVersions);
 
   const headline = jobs.length ? "You are building momentum." : "Your job search workspace is ready.";
   return {

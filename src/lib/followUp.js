@@ -102,7 +102,9 @@ export function getStageNextStep(job = {}, aiStatus = {}) {
 
 export function normalizeStage(status) {
   if (status === "Tailoring") return "Saved";
-  if (["Offer", "Rejected", "Closed"].includes(status)) return "Closed";
+  if (status === "Recruiter Screen") return "Recruiter Contacted";
+  if (status === "Interviewing") return "Interview";
+  if (status === "Final Round") return "Final Interview";
   return status || "Saved";
 }
 
