@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     // TODO: Verify the caller's Supabase access token server-side once API auth middleware is introduced.
     const existing = await getSubscriptionByUserId(userId);
     if (existing && (existing.plan === "pro" || proStatuses.has(existing.status))) {
-      return sendJson(res, 409, { error: "You already have OccuBoard Pro." });
+      return sendJson(res, 409, { error: "You already have OccuBoard Pro.", code: "already_pro" });
     }
     let customerId = existing?.stripe_customer_id;
     if (!customerId) {
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
         current_period_end: activeStripeSubscription.current_period_end ? new Date(Number(activeStripeSubscription.current_period_end) * 1000).toISOString() : null,
         cancel_at_period_end: Boolean(activeStripeSubscription.cancel_at_period_end),
       });
-      return sendJson(res, 409, { error: "You already have OccuBoard Pro." });
+      return sendJson(res, 409, { error: "You already have OccuBoard Pro.", code: "already_pro" });
     }
 
     const appUrl = getAppUrl(req);

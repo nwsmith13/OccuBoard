@@ -29,6 +29,11 @@ export function SettingsPage() {
       const url = await createCheckoutSession(user);
       window.location.assign(url);
     } catch (error) {
+      if (error.code === "already_pro" || error.message === "You already have OccuBoard Pro.") {
+        await refreshBilling(user);
+        toast.success("You're already on OccuBoard Pro.");
+        return;
+      }
       toast.error(error.message || "Could not open checkout.");
     } finally {
       setBillingLoading("");
@@ -183,7 +188,7 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Billing</p>
           <h2 className="mt-1 text-xl font-bold">{pro ? "OccuBoard Pro Active" : "Free Plan"}</h2>
-          <p className="mt-1 text-sm text-slate-600">{pro ? "Unlimited job search support is active." : `You have used ${Math.min(FREE_LIMIT, Number(usage.application_count || 0))} of ${FREE_LIMIT} free AI-powered applications.`}</p>
+          <p className="mt-1 text-sm text-slate-600">{pro ? "Create as many AI-powered applications as you need." : `You have used ${Math.min(FREE_LIMIT, Number(usage.application_count || 0))} of ${FREE_LIMIT} free AI-powered applications.`}</p>
         </div>
         <span className={`w-fit rounded-full px-3 py-1 text-xs font-black ring-1 ${pro ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-700 ring-slate-100"}`}>
           {pro ? "PRO" : planLabel}
@@ -194,14 +199,13 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
         <div className="mt-5 grid gap-4">
           <div className="rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100">
             <h3 className="text-lg font-black text-emerald-950">🎉 You&apos;re unlimited!</h3>
-            <p className="mt-1 text-sm font-semibold leading-6 text-emerald-900">Your plan includes unlimited AI-powered applications, resume tailoring, recruiter messages, interview prep, and application tracking.</p>
+            <p className="mt-1 text-sm font-semibold leading-6 text-emerald-900">Create as many AI-powered applications as you need.</p>
             <p className="mt-3 text-sm font-black text-emerald-950">Benefits:</p>
             <ul className="mt-2 grid gap-1 text-sm font-semibold text-emerald-900">
               <li>• Unlimited applications</li>
               <li>• Unlimited resume tailoring</li>
               <li>• Unlimited recruiter messages</li>
               <li>• Unlimited interview prep</li>
-              <li>• Full application tracking</li>
             </ul>
             <p className="mt-1 text-xs font-semibold text-emerald-800">{getSubscriptionStatusText({ pro, subscription })}</p>
           </div>

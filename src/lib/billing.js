@@ -35,13 +35,29 @@ export function createDefaultBillingState(user) {
 }
 
 export async function fetchBillingState(user) {
+  const fallback = createDefaultBillingState(user);
+  if (user?.id) {
+    try {
+      const serverBilling = await fetchServerBillingState(user);
+      if (serverBilling) {
+        const billing = {
+          subscription: { ...fallback.subscription, ...(serverBilling.subscription || {}) },
+          usage: { ...fallback.usage, ...(serverBilling.usage || {}) },
+        };
+        writeLocal(localKeys.subscription, billing.subscription);
+        writeLocal(localKeys.usage, billing.usage);
+        return billing;
+      }
+    } catch (error) {
+      globalThis.console.warn("[OccuBoard billing] Server billing state unavailable; falling back to client billing.", error);
+    }
+  }
   if (hasSupabaseConfig && user?.id) {
     const supabase = await getSupabaseClient();
     const [subscriptionResult, usageResult] = await Promise.all([
       supabase.from("user_subscriptions").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("user_usage").select("*").eq("user_id", user.id).maybeSingle(),
     ]);
-    const fallback = createDefaultBillingState(user);
     if (subscriptionResult.error && !isMissingBillingTable(subscriptionResult.error)) throw subscriptionResult.error;
     if (usageResult.error && !isMissingBillingTable(usageResult.error)) throw usageResult.error;
     const usage = usageResult.data || (await ensureUsageRow(user));
@@ -113,7 +129,8 @@ export async function setUsageValue(user, field, value) {
 }
 
 export function isProSubscription(subscription = {}) {
-  return subscription?.plan === "pro" || ["active", "trialing", "past_due"].includes(subscription?.status);
+  const status = String(subscription?.status || "").toLowerCase();
+  return subscription?.plan === "pro" || ["active", "trialing"].includes(status) || (Boolean(subscription?.stripe_subscription_id) && ["active", "trialing"].includes(status));
 }
 
 export function canUseUsageFeature(billing, field) {
@@ -137,7 +154,11 @@ export async function createCheckoutSession(user) {
     body: JSON.stringify({ userId: user?.id, userEmail: user?.email }),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Could not start checkout.");
+  if (!response.ok) {
+    const error = new Error(data.error || "Could not start checkout.");
+    error.code = data.code || (data.error === "You already have OccuBoard Pro." ? "already_pro" : "");
+    throw error;
+  }
   return data.url;
 }
 
@@ -220,6 +241,18 @@ function setLocalUsageValue(user, field, value) {
   const usage = { ...state.usage, [field]: value, updated_at: new Date().toISOString() };
   writeLocal(localKeys.usage, usage);
   return usage;
+}
+
+async function fetchServerBillingState(user) {
+  const response = await fetch("/api/billing-state", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: user?.id }),
+  });
+  if (response.status === 404) return null;
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Could not load billing state.");
+  return data;
 }
 
 function isMissingBillingTable(error) {

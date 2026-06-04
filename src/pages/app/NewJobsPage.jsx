@@ -6,6 +6,7 @@ import { BillingLimitModal } from "../../components/billing/BillingLimitModal.js
 import { Card } from "../../components/ui/Card.jsx";
 import { Field } from "../../components/ui/Field.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
 import { priorities, remoteTypes } from "../../data/seedData.js";
 import { todayIso } from "../../lib/date.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
@@ -32,8 +33,9 @@ const JOB_BOARD_COMPANY_NAMES = new Set(["linkedin", "indeed", "ziprecruiter", "
 
 export function NewJobsPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
-  const { profile, resumeUploads, jobs, jobScores, resumeVersions, billing, createJob, updateJob, deleteJob } = useWorkspaceStore();
+  const { profile, resumeUploads, jobs, jobScores, resumeVersions, billing, createJob, updateJob, deleteJob, refreshBilling } = useWorkspaceStore();
   const [form, setForm] = useState(emptyIntake);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -249,7 +251,14 @@ export function NewJobsPage() {
           try {
             const url = await createCheckoutSession(user);
             window.location.assign(url);
-          } catch {
+          } catch (checkoutError) {
+            if (checkoutError.code === "already_pro" || checkoutError.message === "You already have OccuBoard Pro.") {
+              await refreshBilling(user);
+              toast.success("You're already on OccuBoard Pro.");
+              setLimitOpen(false);
+              setError("");
+              return;
+            }
             setError("Could not open checkout. Please try again from Settings.");
             setUpgrading(false);
           }

@@ -36,6 +36,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
     updateMessage,
     logJobActivity,
     billing,
+    refreshBilling,
   } = useWorkspaceStore();
   const [aiState, setAiState] = useState({ loading: "", error: "", latest: null, confirm: "" });
   const [limitAction, setLimitAction] = useState("");
@@ -129,6 +130,13 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
               const url = await createCheckoutSession(user);
               window.location.assign(url);
             } catch (error) {
+              if (error.code === "already_pro" || error.message === "You already have OccuBoard Pro.") {
+                await refreshBilling(user);
+                toast.success("You're already on OccuBoard Pro.");
+                setLimitAction("");
+                setUpgrading(false);
+                return;
+              }
               toast.error(error.message || "Could not open checkout.");
               setUpgrading(false);
             }
@@ -231,6 +239,13 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
             const url = await createCheckoutSession(user);
             window.location.assign(url);
           } catch (error) {
+            if (error.code === "already_pro" || error.message === "You already have OccuBoard Pro.") {
+              await refreshBilling(user);
+              toast.success("You're already on OccuBoard Pro.");
+              setLimitAction("");
+              setUpgrading(false);
+              return;
+            }
             toast.error(error.message || "Could not open checkout.");
             setUpgrading(false);
           }

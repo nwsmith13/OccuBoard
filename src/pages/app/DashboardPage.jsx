@@ -33,7 +33,7 @@ export function DashboardPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { jobs, profile, resumeUploads, activityLogs, jobActivityLogs, resumeVersions, jobScores, messages, jobContacts, interviewPrep, billing, loading, error, updateJob, deleteJob } = useWorkspaceStore();
+  const { jobs, profile, resumeUploads, activityLogs, jobActivityLogs, resumeVersions, jobScores, messages, jobContacts, interviewPrep, billing, loading, error, updateJob, deleteJob, refreshBilling } = useWorkspaceStore();
   const [activityOpen, setActivityOpen] = useState(true);
   const [showAllActivity, setShowAllActivity] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -82,6 +82,13 @@ export function DashboardPage() {
       const url = await createCheckoutSession(user);
       window.location.assign(url);
     } catch (error) {
+      if (error.code === "already_pro" || error.message === "You already have OccuBoard Pro.") {
+        await refreshBilling(user);
+        toast.success("You're already on OccuBoard Pro.");
+        setUpgrading(false);
+        setUpgradeModalOpen(false);
+        return;
+      }
       toast.error(error.message || "Could not open checkout.");
       setUpgrading(false);
     }
