@@ -209,6 +209,9 @@ export function DashboardPage() {
       </main>
 
       <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
+        {pro && (
+          <DashboardProStatusCard />
+        )}
         {!pro && (
           <ProUpgradeCard upgrading={upgrading} onUpgrade={startProCheckout} />
         )}
@@ -360,6 +363,19 @@ function DashboardUsageCard({ remaining, upgrading, onUpgrade, onOpenUpgrade }) 
         )}
       </Card>
     </div>
+  );
+}
+
+function DashboardProStatusCard() {
+  return (
+    <Card className="bg-gradient-to-br from-emerald-50 via-white to-brand-50 p-4 shadow-card ring-1 ring-emerald-100">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">OccuBoard Pro</p>
+      <h2 className="mt-1 text-lg font-black text-ink">🎉 You&apos;re unlimited!</h2>
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">Create as many AI-powered applications as you need.</p>
+      <Link to="/app/new-jobs" className="mt-4 block">
+        <Button className="w-full min-h-9 px-3 text-sm">Analyze New Job</Button>
+      </Link>
+    </Card>
   );
 }
 

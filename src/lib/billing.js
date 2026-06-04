@@ -152,6 +152,18 @@ export async function createBillingPortalSession(user) {
   return data.url;
 }
 
+export async function verifyCheckoutSession(user, sessionId) {
+  if (!sessionId) return null;
+  const response = await fetch("/api/verify-checkout-session", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: user?.id, sessionId }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Could not verify checkout.");
+  return data;
+}
+
 async function ensureUsageRow(user) {
   const fallback = createDefaultBillingState(user).usage;
   const supabase = await getSupabaseClient();
