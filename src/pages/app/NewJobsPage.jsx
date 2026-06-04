@@ -172,7 +172,7 @@ export function NewJobsPage() {
       setImportWarning("");
       setSuccess(false);
     } catch (fetchError) {
-      setError(fetchError.message || "URL import missed this page. Paste the job description manually.");
+      setError(fetchError.message || "URL import (BETA) missed this page. Paste the job description manually.");
     } finally {
       setFetchingUrl(false);
     }
@@ -325,7 +325,7 @@ export function NewJobsPage() {
               />
             </div>
             <p className="text-xs font-semibold leading-5 text-slate-500">
-              URL import works best with public company career pages. LinkedIn, Indeed, and logged-in job boards may not provide the full description. For best results, paste the full job description below.
+              URL import (BETA) works best with public company career pages. LinkedIn, Indeed, and logged-in job boards may not provide the full description. For best results, paste the full job description below.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="secondary" className="min-h-8 px-3 text-xs" onClick={fetchJobDetails} disabled={fetchingUrl}>
