@@ -1,27 +1,12 @@
-import occuboardLogo from "../../../assets/occuboard-logo.svg";
-import occuboardMark from "../../../assets/occuboard-mark.svg";
+const occuboardLogo = "/assets/occuboard-logo.svg";
 
 export function Logo({ compact = false, sidebar = false }) {
-  if (sidebar && !compact) {
-    return (
-      <div className="flex min-w-0 items-center gap-2">
-        <img
-          src={occuboardMark}
-          alt=""
-          aria-hidden="true"
-          className="h-16 w-16 shrink-0 object-contain"
-        />
-        <span className="truncate text-2xl font-bold tracking-normal text-brand-800">OccuBoard</span>
-      </div>
-    );
-  }
-
   return (
-    <div className={compact ? "flex items-center justify-center" : "leading-tight"}>
+    <div className={compact ? "flex items-center justify-center overflow-hidden" : "leading-tight"}>
       <img
-        src={compact ? occuboardMark : occuboardLogo}
-        alt={compact ? "OccuBoard" : "OccuBoard logo"}
-        className={compact ? "h-14 w-14 object-contain" : "h-16 w-auto max-w-full object-contain"}
+        src={occuboardLogo}
+        alt="OccuBoard logo"
+        className={compact ? "h-10 w-14 object-contain" : `${sidebar ? "h-16" : "h-16"} w-auto max-w-full object-contain`}
       />
     </div>
   );

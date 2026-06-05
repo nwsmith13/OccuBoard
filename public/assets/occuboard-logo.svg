@@ -1,0 +1,45 @@
+<svg viewBox="85 42 430 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="occuGradient" x1="20" y1="150" x2="170" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7C3AED"/>
+      <stop offset="0.48" stop-color="#06B6D4"/>
+      <stop offset="1" stop-color="#34D399"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon resized to align cloud with wordmark height; handle intentionally extends below -->
+  <g transform="translate(92 54.9) scale(0.52)">
+    <path d="M40 108C20.1 108 4 91.9 4 72C4 53.2 18.4 37.7 36.8 36.1C43.2 17.2 61.1 4 82 4C106.7 4 127.3 22.2 130.8 46C147.5 47.5 160 60.9 160 77.5C160 94.3 146.3 108 129.5 108H40Z" fill="url(#occuGradient)" opacity="0.96"/>
+    <path d="M40 108C20.1 108 4 91.9 4 72C4 53.2 18.4 37.7 36.8 36.1C43.2 17.2 61.1 4 82 4C106.7 4 127.3 22.2 130.8 46C147.5 47.5 160 60.9 160 77.5C160 94.3 146.3 108 129.5 108H40Z" stroke="#0F172A" stroke-opacity="0.16" stroke-width="4"/>
+
+    <rect x="38" y="70" width="15" height="25" rx="3" fill="#FFFFFF"/>
+    <rect x="61" y="53" width="15" height="42" rx="3" fill="#FFFFFF"/>
+    <rect x="84" y="34" width="15" height="61" rx="3" fill="#FFFFFF"/>
+
+    <rect x="39.5" y="71.5" width="12" height="22" rx="2" fill="#34D399" opacity="0.78"/>
+    <rect x="62.5" y="54.5" width="12" height="39" rx="2" fill="#22C55E" opacity="0.62"/>
+    <rect x="85.5" y="35.5" width="12" height="58" rx="2" fill="#0EA5E9" opacity="0.66"/>
+
+    <circle cx="113" cy="75" r="24" fill="#F8FAFC" stroke="#0F5EA8" stroke-width="7"/>
+    <circle cx="113" cy="75" r="12" fill="#06B6D4" opacity="0.5"/>
+    <path d="M131 93L153 115" stroke="#0F5EA8" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <!-- Wordmark unchanged from v5 -->
+  <g transform="translate(188 70)">
+    <text x="0" y="28"
+      font-family="Sora, Space Grotesk, Inter, Arial, sans-serif"
+      font-size="54"
+      font-style="normal"
+      font-weight="500"
+      letter-spacing="-3.4"
+      fill="#7FD7E7">Occu</text>
+
+    <text x="116" y="28"
+      font-family="Sora, Space Grotesk, Inter, Arial, sans-serif"
+      font-size="54"
+      font-weight="600"
+      letter-spacing="-3.4"
+      fill="#0F5EA8">Board</text>
+  </g>
+</svg>

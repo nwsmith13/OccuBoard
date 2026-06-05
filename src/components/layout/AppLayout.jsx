@@ -192,6 +192,9 @@ function Header({ title, billing, onMenu, onCommand }) {
         <button type="button" className="rounded-lg p-2 text-slate-700 hover:bg-stone-100 lg:hidden" onClick={onMenu} aria-label="Open navigation">
           <Menu size={21} />
         </button>
+        <Link to="/app/dashboard" className="hidden shrink-0 sm:block" aria-label="OccuBoard dashboard">
+          <Logo compact />
+        </Link>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Workspace</p>
           <h1 className="text-lg font-bold text-ink">{title}</h1>
