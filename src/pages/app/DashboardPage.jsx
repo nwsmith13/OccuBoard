@@ -319,10 +319,10 @@ function ProUpgradeCard({ upgrading, onUpgrade }) {
         <li>• Unlimited interview prep</li>
         <li>• Full application tracking</li>
       </ul>
-      <p className="mt-3 text-xs font-semibold text-slate-500">Cancel anytime.</p>
       <Button className="mt-4 w-full min-h-9 px-3 text-sm" onClick={onUpgrade} disabled={upgrading}>
         {upgrading ? "Opening checkout..." : "🚀 Start OccuBoard Pro — $7/month"}
       </Button>
+      <p className="mt-3 text-xs font-semibold text-slate-500">Secure billing powered by Stripe. Cancel anytime.</p>
     </Card>
   );
 }
@@ -361,6 +361,7 @@ function DashboardUsageCard({ remaining, upgrading, onUpgrade, onOpenUpgrade }) 
             >
               {upgrading ? "Opening checkout..." : "🚀 Start OccuBoard Pro — $7/month"}
             </Button>
+            <p className="mt-3 text-xs font-semibold text-slate-500">Secure billing powered by Stripe. Cancel anytime.</p>
           </>
         ) : (
           <>
@@ -377,11 +378,12 @@ function DashboardProStatusCard() {
   return (
     <Card className="bg-gradient-to-br from-emerald-50 via-white to-brand-50 p-4 shadow-card ring-1 ring-emerald-100">
       <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">OccuBoard Pro</p>
-      <h2 className="mt-1 text-lg font-black text-ink">🎉 You&apos;re unlimited!</h2>
+      <h2 className="mt-1 text-lg font-black text-ink">🚀 You&apos;re unlimited!</h2>
       <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">Create as many AI-powered applications as you need.</p>
       <Link to="/app/new-jobs" className="mt-4 block">
         <Button className="w-full min-h-9 px-3 text-sm">Analyze New Job</Button>
       </Link>
+      <p className="mt-3 text-xs font-semibold text-slate-500">Secure billing powered by Stripe. Cancel anytime.</p>
     </Card>
   );
 }

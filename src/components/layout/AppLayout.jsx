@@ -128,6 +128,7 @@ export function AppLayout() {
               </>
             )}
             <Outlet />
+            <AppLegalFooter />
           </div>
         </main>
       </div>
@@ -154,10 +155,23 @@ export function AppLayout() {
             </>
           )}
           <Outlet />
+          <AppLegalFooter />
         </main>
       </div>
       <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>
+  );
+}
+
+function AppLegalFooter() {
+  return (
+    <footer className="mt-8 border-t border-slate-200/70 pt-4 text-xs font-semibold text-slate-500">
+      <nav className="flex flex-wrap justify-center gap-2" aria-label="Legal links">
+        <Link className="hover:text-brand-800" to="/privacy">Privacy Policy</Link>
+        <span aria-hidden="true">•</span>
+        <Link className="hover:text-brand-800" to="/terms">Terms of Service</Link>
+      </nav>
+    </footer>
   );
 }
 

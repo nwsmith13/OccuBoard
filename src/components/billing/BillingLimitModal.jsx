@@ -29,7 +29,7 @@ export function BillingLimitModal({ open, title, upgrading = false, onUpgrade, o
             {upgrading ? "Opening checkout..." : "🚀 Start OccuBoard Pro — $7/month"}
           </Button>
         </div>
-        <p className="mt-3 text-center text-xs font-semibold text-slate-500">Cancel anytime.</p>
+        <p className="mt-3 text-center text-xs font-semibold text-slate-500">Secure billing powered by Stripe. Cancel anytime.</p>
       </section>
     </div>
   );

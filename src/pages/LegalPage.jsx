@@ -34,6 +34,13 @@ const privacySections = [
     ],
   },
   {
+    title: "Information Sharing",
+    body: [
+      "OccuBoard does not sell your personal information.",
+      "We only share information with trusted service providers necessary to operate the platform, including OpenAI, Stripe, Supabase, and Vercel.",
+    ],
+  },
+  {
     title: "Data Storage and Security",
     body: [
       "We use reasonable technical and organizational measures to protect your information. No internet-based service can be guaranteed to be perfectly secure.",
@@ -80,6 +87,14 @@ const termsSections = [
     body: [
       "OccuBoard does not guarantee job interviews, job offers, hiring outcomes, recruiter responses, salary increases, or employment results.",
       "The service provides organization, drafting, analysis, and preparation tools. Hiring decisions are made by employers and other third parties outside OccuBoard's control.",
+    ],
+  },
+  {
+    title: "No Professional Advice",
+    body: [
+      "OccuBoard provides software tools and AI-assisted content for informational purposes only.",
+      "OccuBoard is not a recruiting agency, employment service, career counselor, legal advisor, or hiring authority.",
+      "Users remain responsible for reviewing, editing, and approving all generated materials before submission.",
     ],
   },
   {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { createBillingPortalSession, createCheckoutSession, FREE_LIMIT, getPlanLabel, isProSubscription, verifyCheckoutSession } from "../../lib/billing.js";
@@ -149,6 +149,14 @@ export function SettingsPage() {
             <p className="mt-2 text-sm text-slate-600">Manage authentication, export, and account deletion settings when backend flows are connected.</p>
             <Button variant="secondary" className="mt-5">Manage account</Button>
           </Card>
+          <Card>
+            <h2 className="text-xl font-bold">Legal</h2>
+            <p className="mt-2 text-sm text-slate-600">Review OccuBoard&apos;s privacy and service terms.</p>
+            <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
+              <Link className="text-brand-700 hover:text-brand-900" to="/privacy">Privacy Policy</Link>
+              <Link className="text-brand-700 hover:text-brand-900" to="/terms">Terms of Service</Link>
+            </div>
+          </Card>
         </div>
       </div>
     </div>
@@ -213,7 +221,7 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
             <Button onClick={onManage} disabled={loading === "portal"}>{loading === "portal" ? "Opening..." : "Manage Subscription"}</Button>
             <Button variant="secondary" onClick={onRefresh}>Refresh Billing</Button>
           </div>
-          <p className="text-xs font-semibold text-slate-500">Cancel anytime from the billing portal.</p>
+          <p className="text-xs font-semibold text-slate-500">Secure billing powered by Stripe. Cancel anytime.</p>
         </div>
       ) : (
         <div className="mt-5 grid gap-4">
@@ -242,7 +250,7 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
           </div>
           <div>
             <Button onClick={onUpgrade} disabled={loading === "checkout"}>{loading === "checkout" ? "Opening checkout..." : "🚀 Start OccuBoard Pro — $7/month"}</Button>
-            <p className="mt-2 text-xs font-semibold text-slate-500">Cancel anytime.</p>
+            <p className="mt-2 text-xs font-semibold text-slate-500">Secure billing powered by Stripe. Cancel anytime.</p>
           </div>
         </div>
       )}
