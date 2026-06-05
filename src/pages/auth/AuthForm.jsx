@@ -50,6 +50,10 @@ export function AuthForm({ mode, title, submitLabel, footer, onSuccess }) {
           <Button type="submit" disabled={submitting}>{submitting ? "Working..." : submitLabel}</Button>
         </form>
         <p className="mt-5 text-center text-sm text-slate-600">{footer}</p>
+        <nav className="mt-4 flex justify-center gap-4 border-t border-slate-100 pt-4 text-xs font-semibold text-slate-500" aria-label="Legal links">
+          <Link className="hover:text-brand-800" to="/privacy">Privacy Policy</Link>
+          <Link className="hover:text-brand-800" to="/terms">Terms of Service</Link>
+        </nav>
       </div>
     </div>
   );

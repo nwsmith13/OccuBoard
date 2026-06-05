@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Logo } from "../components/layout/Logo.jsx";
 import { Button } from "../components/ui/Button.jsx";
 import { Card } from "../components/ui/Card.jsx";
+import { PublicFooter } from "./LegalPage.jsx";
 
 const features = [
   ["Job Tracking", Briefcase, "Save roles, companies, links, deadlines, and notes in one organized workspace."],
@@ -102,6 +103,7 @@ export function LandingPage() {
           <Link to="/signup"><Button variant="secondary">Get Started</Button></Link>
         </div>
       </footer>
+      <PublicFooter />
     </div>
   );
 }
