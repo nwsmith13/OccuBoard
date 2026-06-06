@@ -4,6 +4,7 @@ export const onboardingStorageKey = "occuboard-onboarding-dismissed";
 export const onboardingTrackerDismissedKey = "occuboard-onboarding-tracker-dismissed";
 export const onboardingPackageExportsKey = "occuboard-onboarding-package-exports";
 export const onboardingRecruiterViewKey = "occuboard-onboarding-recruiter-view-reviewed";
+export const emailConfirmationStorageKey = "occuboard-email-confirmed";
 export const onboardingUpdatedEvent = "occuboard:onboarding-updated";
 
 export function buildOnboardingState({ profile, resumeUploads = [], jobs = [], jobScores = [], resumeVersions = [], interviewPrep = [] } = {}) {
@@ -69,6 +70,30 @@ export function writeBooleanFlag(key, value = true) {
     dispatchOnboardingUpdated();
   } catch {
     // Local storage is convenience only.
+  }
+}
+
+export function rememberEmailConfirmation() {
+  try {
+    window.sessionStorage.setItem(emailConfirmationStorageKey, "true");
+  } catch {
+    // Session storage is a presentation hint only.
+  }
+}
+
+export function readEmailConfirmation() {
+  try {
+    return window.sessionStorage.getItem(emailConfirmationStorageKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function clearEmailConfirmation() {
+  try {
+    window.sessionStorage.removeItem(emailConfirmationStorageKey);
+  } catch {
+    // Session storage is a presentation hint only.
   }
 }
 

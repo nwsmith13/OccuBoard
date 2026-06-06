@@ -1,8 +1,9 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useSearchParams } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout.jsx";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute.jsx";
 import { useAuth } from "./contexts/AuthContext.jsx";
+import { rememberEmailConfirmation } from "./lib/onboarding.js";
 
 const ApplicationsPage = lazyPage(() => import("./pages/app/ApplicationsPage.jsx"), "ApplicationsPage");
 const DashboardPage = lazyPage(() => import("./pages/app/DashboardPage.jsx"), "DashboardPage");
@@ -26,7 +27,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={user ? <Navigate to="/app" replace /> : withPageFallback(<LandingPage />)} />
-      <Route path="/login" element={user ? <Navigate to="/app" replace /> : withPageFallback(<LoginPage />)} />
+      <Route path="/login" element={user ? <AuthenticatedLoginRedirect /> : withPageFallback(<LoginPage />)} />
       <Route path="/signup" element={user ? <Navigate to="/app" replace /> : withPageFallback(<SignUpPage />)} />
       <Route path="/forgot-password" element={user ? <Navigate to="/app" replace /> : withPageFallback(<ForgotPasswordPage />)} />
       <Route path="/reset-password" element={withPageFallback(<ResetPasswordPage />)} />
@@ -61,6 +62,12 @@ export default function App() {
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
+}
+
+function AuthenticatedLoginRedirect() {
+  const [searchParams] = useSearchParams();
+  if (searchParams.get("confirmed") === "1") rememberEmailConfirmation();
+  return <Navigate to="/app" replace />;
 }
 
 function lazyPage(loader, exportName) {

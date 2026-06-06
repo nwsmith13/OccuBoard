@@ -2,19 +2,31 @@ import { ArrowRight, CheckCircle2, FileText, Search, Sparkles, UploadCloud } fro
 import { Link } from "react-router-dom";
 import { Button } from "../ui/Button.jsx";
 
-export function OnboardingFlow({ state, onDismiss }) {
+const occuboardLogo = "/assets/occuboard-logo.svg";
+const occuboardIcon = "/assets/favicon.svg";
+
+export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmationAcknowledged, onDismiss }) {
   const step = getCurrentStep(state);
   const StepIcon = step.icon;
+  const showConfirmationSuccess = emailConfirmed && step.stepNumber === 1;
+
+  function handlePrimaryAction() {
+    if (showConfirmationSuccess) onEmailConfirmationAcknowledged?.();
+    if (step.dismissOnClick) onDismiss?.();
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-emerald-50 px-4 py-8 text-ink sm:px-6">
       <section className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col justify-center">
         <div className="rounded-3xl bg-white/95 p-5 shadow-soft ring-1 ring-brand-100 sm:p-8 lg:p-10">
+          <img src={occuboardLogo} alt="OccuBoard" className="mx-auto mb-6 h-12 w-auto max-w-[220px] object-contain sm:h-14 sm:max-w-[260px]" />
+          {showConfirmationSuccess && <EmailConfirmedBanner />}
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-600">Step {step.stepNumber} of {state.total}</p>
               <div className="mt-5 flex items-center gap-3">
                 <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-800 ring-1 ring-brand-100">
-                  <StepIcon size={24} />
+                  {step.iconAsset ? <img src={step.iconAsset} alt="" className="h-8 w-8 object-contain" /> : <StepIcon size={24} />}
                 </span>
                 <h1 className="text-3xl font-black tracking-tight text-ink sm:text-4xl">{step.title}</h1>
               </div>
@@ -27,7 +39,7 @@ export function OnboardingFlow({ state, onDismiss }) {
           {step.preview && <div className="mt-7">{step.preview}</div>}
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link to={step.href} onClick={step.dismissOnClick ? onDismiss : undefined} className="inline-flex">
+            <Link to={step.href} onClick={handlePrimaryAction} className={`inline-flex rounded-lg ${step.stepNumber === 1 ? "onboarding-primary-action" : ""}`}>
               <Button className="min-h-11 px-5">
                 {step.cta} <ArrowRight size={16} />
               </Button>
@@ -64,10 +76,11 @@ function getCurrentStep(state) {
   if (!state.hasResume) {
     return {
       stepNumber: 1,
-      icon: Sparkles,
+      icon: null,
+      iconAsset: occuboardIcon,
       title: "Welcome to OccuBoard",
-      subtitle: "Let's get your first application ready.",
-      body: "OccuBoard helps you tailor resumes, organize applications, and stay focused on the opportunities most likely to convert into interviews.",
+      subtitle: "Your workspace is ready. Let's build your first application.",
+      body: "Start by uploading your resume and we'll guide you through the rest.",
       cta: "Get Started",
       href: "/app/resume-studio#resume-import",
       allowSkip: true,
@@ -160,6 +173,29 @@ function getCurrentStep(state) {
     allowSkip: false,
     dismissOnClick: true,
   };
+}
+
+function EmailConfirmedBanner() {
+  const milestones = ["Email Confirmed", "Upload Resume", "Add Job", "Analyze Fit", "Generate Resume"];
+  return (
+    <section className="mb-7 rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-200 sm:p-5" aria-label="Email confirmation success">
+      <div className="flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200" aria-hidden="true">{"\u2713"}</span>
+        <div>
+          <h2 className="text-lg font-black text-emerald-950">Email Confirmed</h2>
+          <p className="mt-1 text-sm font-semibold leading-6 text-emerald-900">Your email has been verified and your OccuBoard workspace is ready.</p>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5" aria-label="First application journey">
+        {milestones.map((label, index) => (
+          <div key={label} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold ring-1 ${index === 0 ? "bg-white text-emerald-800 ring-emerald-200" : "bg-white/55 text-slate-600 ring-white/80"}`}>
+            <span aria-hidden="true">{index === 0 ? "\u2713" : "\u25CB"}</span>
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function ProgressOrb({ complete, total }) {

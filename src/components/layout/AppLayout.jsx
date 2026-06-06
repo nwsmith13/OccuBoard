@@ -2,7 +2,7 @@ import { BarChart3, Command, FileStack, FileText, LayoutDashboard, LogOut, Menu,
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
-import { buildOnboardingState, onboardingStorageKey, onboardingTrackerDismissedKey, onboardingUpdatedEvent, readBooleanFlag, shouldShowFullOnboarding, writeBooleanFlag } from "../../lib/onboarding.js";
+import { buildOnboardingState, clearEmailConfirmation, onboardingStorageKey, onboardingTrackerDismissedKey, onboardingUpdatedEvent, readBooleanFlag, readEmailConfirmation, shouldShowFullOnboarding, writeBooleanFlag } from "../../lib/onboarding.js";
 import { isProSubscription } from "../../lib/billing.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { CommandPalette } from "../command/CommandPalette.jsx";
@@ -32,6 +32,7 @@ export function AppLayout() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => readBooleanFlag(onboardingStorageKey));
   const [trackerDismissed, setTrackerDismissed] = useState(() => readBooleanFlag(onboardingTrackerDismissedKey));
+  const [emailConfirmed, setEmailConfirmed] = useState(() => readEmailConfirmation());
   const [onboardingRefresh, setOnboardingRefresh] = useState(0);
   const { signOut, user, isConfigured } = useAuth();
   const { loadWorkspace, profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep, billing, loading, loadedFor } = useWorkspaceStore();
@@ -84,6 +85,11 @@ export function AppLayout() {
     setOnboardingDismissed(true);
   }
 
+  function acknowledgeEmailConfirmation() {
+    clearEmailConfirmation();
+    setEmailConfirmed(false);
+  }
+
   function toggleSidebar() {
     setCollapsed((value) => {
       const next = !value;
@@ -95,7 +101,7 @@ export function AppLayout() {
 
   const workspaceReady = !loading && loadedFor === (user?.id ?? "local-demo-user");
   if (workspaceReady && shouldShowFullOnboarding(onboardingState, { pathname: location.pathname, dismissed: onboardingDismissed })) {
-    return <OnboardingFlow state={onboardingState} onDismiss={dismissOnboarding} />;
+    return <OnboardingFlow state={onboardingState} emailConfirmed={emailConfirmed} onEmailConfirmationAcknowledged={acknowledgeEmailConfirmation} onDismiss={dismissOnboarding} />;
   }
   const showOnboardingRibbon = workspaceReady && !onboardingState.completed && shouldShowOnboardingRibbon(location.pathname);
 

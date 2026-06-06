@@ -78,6 +78,28 @@ button {
   animation: toastIn 180ms ease-out;
 }
 
+.onboarding-primary-action {
+  animation: onboardingActionGlow 2.6s ease-in-out infinite;
+  box-shadow: 0 0 0 4px rgba(127, 215, 231, 0.22), 0 10px 24px rgba(15, 94, 168, 0.16);
+}
+
+@keyframes onboardingActionGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(127, 215, 231, 0.18), 0 8px 20px rgba(15, 94, 168, 0.12);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(127, 215, 231, 0.3), 0 12px 28px rgba(15, 94, 168, 0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-primary-action {
+    animation: none;
+  }
+}
+
 @keyframes toastIn {
   from {
     opacity: 0;
