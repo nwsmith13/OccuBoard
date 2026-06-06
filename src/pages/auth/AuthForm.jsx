@@ -26,7 +26,7 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
       const response =
         mode === "signup" ? await signUp(form.email, form.password, form.name) : await signIn(form.email, form.password);
       if (response?.error) {
-        setError(response.error.message);
+        setError(getAuthErrorMessage(response.error.message, mode));
         return;
       }
       if (mode === "signup" && !response?.data?.session) {
@@ -56,7 +56,7 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
           </span>
           <h1 className="mt-5 text-3xl font-bold">Check your email to confirm your account.</h1>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            We sent a confirmation link to <strong className="text-ink">{confirmationEmail}</strong>.
+            We sent a confirmation link to <strong className="text-ink">{confirmationEmail}</strong>. Confirm your email before logging in.
           </p>
           <Link to="/login" className="mt-6 inline-flex">
             <Button>Back to login</Button>
@@ -97,4 +97,12 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
       </div>
     </div>
   );
+}
+
+function getAuthErrorMessage(message = "", mode = "login") {
+  if (/already registered|already exists/i.test(message)) return "An account already exists for this email. Try logging in instead.";
+  if (/invalid login credentials/i.test(message)) return "The email or password is incorrect.";
+  if (/email not confirmed/i.test(message)) return "Confirm your email before logging in.";
+  if (/rate limit|too many requests/i.test(message)) return "Please wait a moment before trying again.";
+  return mode === "signup" ? "We couldn't create your account. Please try again." : "We couldn't sign you in. Please try again.";
 }

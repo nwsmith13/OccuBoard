@@ -1,6 +1,9 @@
 import { getAppUrl, getProPriceId, sendJson, stripeGet, stripeRequest } from "./stripeClient.js";
 import { getSubscriptionByUserId, proStatuses, upsertSubscription } from "./billingStore.js";
 
+const proProductName = "OccuBoard Pro";
+const proProductDescription = "Unlimited AI-powered job search tools, resume tailoring, recruiter messaging, interview prep, and application tracking.";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return sendJson(res, 405, { error: "Method not allowed" });
   try {
@@ -43,8 +46,23 @@ export default async function handler(req, res) {
       success_url: `${appUrl}/app/settings?billing=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/app/settings?billing=cancelled`,
       line_items: [{ price: getProPriceId(), quantity: 1 }],
-      metadata: { user_id: userId },
-      subscription_data: { metadata: { user_id: userId } },
+      metadata: {
+        user_id: userId,
+        product_name: proProductName,
+        product_description: proProductDescription,
+      },
+      subscription_data: {
+        metadata: {
+          user_id: userId,
+          product_name: proProductName,
+          product_description: proProductDescription,
+        },
+      },
+      custom_text: {
+        submit: {
+          message: proProductDescription,
+        },
+      },
       allow_promotion_codes: true,
     });
     return sendJson(res, 200, { url: session.url });

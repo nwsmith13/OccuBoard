@@ -52,11 +52,6 @@ export function SettingsPage() {
     }
   }
 
-  async function refresh() {
-    await refreshBilling(user);
-    toast.success("Billing refreshed.");
-  }
-
   useEffect(() => {
     if (searchParams.get("section") !== "profile") return;
     window.setTimeout(() => profileRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -129,7 +124,6 @@ export function SettingsPage() {
             loading={billingLoading}
             onUpgrade={startCheckout}
             onManage={openPortal}
-            onRefresh={refresh}
             planLabel={getPlanLabel(subscription)}
             pro={pro}
             subscription={subscription}
@@ -163,13 +157,13 @@ function CheckoutSuccessCard({ syncState, pro, loading, onStartJobs, onManage })
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">OccuBoard Pro</p>
-          <h2 className="mt-1 text-2xl font-black text-ink">🎉 You&apos;re unlimited!</h2>
+          <h2 className="mt-1 text-2xl font-black text-ink">🎉 Welcome to OccuBoard Pro</h2>
           <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-700">
             {confirming
               ? "Confirming your Pro subscription..."
               : pending
                 ? "Your payment was successful. We're still syncing your subscription. Refresh in a moment if Pro doesn't appear."
-                : "OccuBoard Pro is active. You now have unlimited AI-powered applications, resume tailoring, recruiter messages, interview prep, and application tracking."}
+                : "Your subscription is active. You can now create unlimited AI-powered applications, tailored resumes, recruiter messages, interview prep, and application tracking."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -181,7 +175,7 @@ function CheckoutSuccessCard({ syncState, pro, loading, onStartJobs, onManage })
   );
 }
 
-function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, planLabel, pro, subscription, usage }) {
+function BillingCard({ billingMessage, loading, onUpgrade, onManage, planLabel, pro, subscription, usage }) {
   const used = Math.min(FREE_LIMIT, Number(usage.application_count || 0));
   const remaining = Math.max(0, FREE_LIMIT - used);
   return (
@@ -208,13 +202,11 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
               <li>• Unlimited resume tailoring</li>
               <li>• Unlimited recruiter messages</li>
               <li>• Unlimited interview prep</li>
+              <li>• Priority future features and improvements</li>
             </ul>
             <p className="mt-1 text-xs font-semibold text-emerald-800">{getSubscriptionStatusText({ pro, subscription })}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={onManage} disabled={loading === "portal"}>{loading === "portal" ? "Opening..." : "Manage Subscription"}</Button>
-            <Button variant="secondary" onClick={onRefresh}>Refresh Billing</Button>
-          </div>
+          <Button className="w-fit" onClick={onManage} disabled={loading === "portal"}>{loading === "portal" ? "Opening..." : "Manage Subscription"}</Button>
           <p className="text-xs font-semibold text-slate-500">Secure billing powered by Stripe. Cancel anytime.</p>
         </div>
       ) : (

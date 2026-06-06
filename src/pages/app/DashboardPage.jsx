@@ -311,6 +311,7 @@ function ProUpgradeCard({ upgrading, onUpgrade }) {
     <Card className="border-brand-200 bg-gradient-to-br from-brand-100 via-white to-emerald-50 p-4 shadow-soft ring-2 ring-brand-200">
       <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">OccuBoard Pro</p>
       <h2 className="mt-1 text-lg font-black text-ink">🚀 Continue your job search without limits</h2>
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">Create unlimited tailored resumes, recruiter messages, interview prep materials, and tracked applications.</p>
       <p className="mt-3 text-sm font-bold text-slate-800">OccuBoard Pro includes:</p>
       <ul className="mt-2 grid gap-1.5 text-sm font-semibold leading-5 text-slate-700">
         <li>• Unlimited AI-powered applications</li>
@@ -318,6 +319,7 @@ function ProUpgradeCard({ upgrading, onUpgrade }) {
         <li>• Unlimited recruiter messages</li>
         <li>• Unlimited interview prep</li>
         <li>• Full application tracking</li>
+        <li>• Priority future features and improvements</li>
       </ul>
       <Button className="mt-4 w-full min-h-9 px-3 text-sm" onClick={onUpgrade} disabled={upgrading}>
         {upgrading ? "Opening checkout..." : "🚀 Start OccuBoard Pro — $7/month"}
@@ -378,7 +380,7 @@ function DashboardProStatusCard() {
   return (
     <Card className="bg-gradient-to-br from-emerald-50 via-white to-brand-50 p-4 shadow-card ring-1 ring-emerald-100">
       <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">OccuBoard Pro</p>
-      <h2 className="mt-1 text-lg font-black text-ink">🚀 You&apos;re unlimited!</h2>
+      <h2 className="mt-1 text-lg font-black text-ink">🎉 You&apos;re unlimited!</h2>
       <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">Create as many AI-powered applications as you need.</p>
       <Link to="/app/new-jobs" className="mt-4 block">
         <Button className="w-full min-h-9 px-3 text-sm">Analyze New Job</Button>
