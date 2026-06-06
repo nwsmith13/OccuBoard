@@ -14,6 +14,8 @@ const ResumeStudioPage = lazyPage(() => import("./pages/app/ResumeStudioPage.jsx
 const SettingsPage = lazyPage(() => import("./pages/app/SettingsPage.jsx"), "SettingsPage");
 const LoginPage = lazyPage(() => import("./pages/auth/LoginPage.jsx"), "LoginPage");
 const SignUpPage = lazyPage(() => import("./pages/auth/SignUpPage.jsx"), "SignUpPage");
+const ForgotPasswordPage = lazyPage(() => import("./pages/auth/ForgotPasswordPage.jsx"), "ForgotPasswordPage");
+const ResetPasswordPage = lazyPage(() => import("./pages/auth/ResetPasswordPage.jsx"), "ResetPasswordPage");
 const LandingPage = lazyPage(() => import("./pages/LandingPage.jsx"), "LandingPage");
 const PrivacyPage = lazyPage(() => import("./pages/LegalPage.jsx"), "PrivacyPage");
 const TermsPage = lazyPage(() => import("./pages/LegalPage.jsx"), "TermsPage");
@@ -26,6 +28,8 @@ export default function App() {
       <Route path="/" element={user ? <Navigate to="/app" replace /> : withPageFallback(<LandingPage />)} />
       <Route path="/login" element={user ? <Navigate to="/app" replace /> : withPageFallback(<LoginPage />)} />
       <Route path="/signup" element={user ? <Navigate to="/app" replace /> : withPageFallback(<SignUpPage />)} />
+      <Route path="/forgot-password" element={user ? <Navigate to="/app" replace /> : withPageFallback(<ForgotPasswordPage />)} />
+      <Route path="/reset-password" element={withPageFallback(<ResetPasswordPage />)} />
       <Route path="/privacy" element={withPageFallback(<PrivacyPage />)} />
       <Route path="/terms" element={withPageFallback(<TermsPage />)} />
       <Route

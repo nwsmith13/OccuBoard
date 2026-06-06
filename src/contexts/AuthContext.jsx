@@ -59,6 +59,16 @@ export function AuthProvider({ children }) {
           },
         });
       },
+      requestPasswordReset: async (email) => {
+        const supabase = await getSupabaseClient();
+        return supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: getPasswordResetRedirect(),
+        });
+      },
+      updatePassword: async (password) => {
+        const supabase = await getSupabaseClient();
+        return supabase.auth.updateUser({ password });
+      },
       signOut: async () => {
         const supabase = await getSupabaseClient();
         return supabase.auth.signOut();
@@ -71,10 +81,18 @@ export function AuthProvider({ children }) {
 }
 
 function getEmailConfirmationRedirect() {
+  return `${getAuthRedirectOrigin()}/login?confirmed=1`;
+}
+
+function getPasswordResetRedirect() {
+  return `${getAuthRedirectOrigin()}/reset-password`;
+}
+
+function getAuthRedirectOrigin() {
   const configuredUrl = import.meta.env.VITE_APP_URL?.trim();
   const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
   const origin = configuredUrl || (isLocal ? "http://localhost:5173" : "https://www.occuboard.io");
-  return `${origin.replace(/\/+$/, "")}/login?confirmed=1`;
+  return origin.replace(/\/+$/, "");
 }
 
 export function useAuth() {

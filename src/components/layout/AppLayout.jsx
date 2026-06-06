@@ -19,9 +19,15 @@ const navItems = [
   { label: "Applications", path: "/app/applications", icon: BarChart3 },
   { label: "Settings", path: "/app/settings", icon: Settings },
 ];
+const sidebarPreferenceKey = "occuboard-sidebar-collapsed";
 
 export function AppLayout() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    const saved = window.localStorage.getItem(sidebarPreferenceKey);
+    if (saved !== null) return saved === "true";
+    return window.matchMedia("(min-width: 1024px) and (max-width: 1279px)").matches;
+  });
+  const [hasManualSidebarPreference, setHasManualSidebarPreference] = useState(() => window.localStorage.getItem(sidebarPreferenceKey) !== null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => readBooleanFlag(onboardingStorageKey));
@@ -36,6 +42,15 @@ export function AppLayout() {
   useEffect(() => {
     loadWorkspace(user);
   }, [loadWorkspace, user]);
+
+  useEffect(() => {
+    if (hasManualSidebarPreference) return undefined;
+    const narrowDesktop = window.matchMedia("(min-width: 1024px) and (max-width: 1279px)");
+    const syncSidebar = () => setCollapsed(narrowDesktop.matches);
+    syncSidebar();
+    narrowDesktop.addEventListener("change", syncSidebar);
+    return () => narrowDesktop.removeEventListener("change", syncSidebar);
+  }, [hasManualSidebarPreference]);
 
   useEffect(() => {
     if (location.hash) {
@@ -69,6 +84,15 @@ export function AppLayout() {
     setOnboardingDismissed(true);
   }
 
+  function toggleSidebar() {
+    setCollapsed((value) => {
+      const next = !value;
+      window.localStorage.setItem(sidebarPreferenceKey, String(next));
+      return next;
+    });
+    setHasManualSidebarPreference(true);
+  }
+
   const workspaceReady = !loading && loadedFor === (user?.id ?? "local-demo-user");
   if (workspaceReady && shouldShowFullOnboarding(onboardingState, { pathname: location.pathname, dismissed: onboardingDismissed })) {
     return <OnboardingFlow state={onboardingState} onDismiss={dismissOnboarding} />;
@@ -84,7 +108,7 @@ export function AppLayout() {
         <button
           type="button"
           className={`${collapsed ? "" : "absolute right-3 top-3"} rounded-lg p-2 text-slate-600 hover:bg-stone-100`}
-          onClick={() => setCollapsed((value) => !value)}
+          onClick={toggleSidebar}
           aria-label="Toggle sidebar"
         >
           <Menu size={20} />

@@ -313,6 +313,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, updateMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
   const [job, setModalJob] = useState(initialJob);
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
+  const contentPanelRef = useRef(null);
   const fitSectionRef = useRef(null);
   const contactsSectionRef = useRef(null);
   const followUpSectionRef = useRef(null);
@@ -574,10 +575,11 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   }, [hasUnsavedChanges]);
 
   useEffect(() => {
+    contentPanelRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
     if (activeTab === "fit") {
-      window.setTimeout(() => fitSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+      window.setTimeout(() => fitSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     }
-  }, [activeTab]);
+  }, [activeTab, job.id]);
 
   useEffect(() => {
     if (activeTab === "recruiterView") {
@@ -666,7 +668,18 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
 
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <WorkspaceRail activeTab={activeTab} completed={completedSteps} score={latestScore} job={job} onSelect={requestTabChange} />
-          <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+          <main ref={contentPanelRef} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+          {markAppliedOpen && (
+            <div className="mx-auto mb-4 max-w-6xl">
+              <MarkAppliedPanel
+                form={markAppliedForm}
+                saving={markAppliedSaving}
+                onChange={(field, value) => setMarkAppliedForm((current) => ({ ...current, [field]: value }))}
+                onCancel={() => setMarkAppliedOpen(false)}
+                onSave={saveMarkApplied}
+              />
+            </div>
+          )}
           {activeTab === "overview" && (
             <div className="mx-auto grid max-w-6xl gap-5">
               <NextBestActionCard
@@ -676,16 +689,6 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 onMarkApplied={() => setMarkAppliedOpen(true)}
                 onSkipCoverLetter={nextBestAction.actionType === "generate_cover_letter" ? handleSkipCoverLetter : undefined}
               />
-
-              {markAppliedOpen && (
-                <MarkAppliedPanel
-                  form={markAppliedForm}
-                  saving={markAppliedSaving}
-                  onChange={(field, value) => setMarkAppliedForm((current) => ({ ...current, [field]: value }))}
-                  onCancel={() => setMarkAppliedOpen(false)}
-                  onSave={saveMarkApplied}
-                />
-              )}
 
               <ApplicationPackageOverview
                 job={job}
@@ -800,15 +803,6 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
           )}
           {activeTab === "export" && (
             <div className="mx-auto grid max-w-6xl gap-4">
-              {markAppliedOpen && (
-                <MarkAppliedPanel
-                  form={markAppliedForm}
-                  saving={markAppliedSaving}
-                  onChange={(field, value) => setMarkAppliedForm((current) => ({ ...current, [field]: value }))}
-                  onCancel={() => setMarkAppliedOpen(false)}
-                  onSave={saveMarkApplied}
-                />
-              )}
               <ApplicationMaterialsWorkspace
                 job={job}
                 profile={profile}
@@ -849,6 +843,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 recruiterMessage={latestMessage}
                 reviewed={reviewedRecruiterView}
                 onContinue={() => requestTabChange("interview")}
+                onMarkApplied={getDisplayStage(job.status) === "Saved" ? () => setMarkAppliedOpen(true) : undefined}
               />
             </div>
           )}
@@ -2436,7 +2431,7 @@ function MaterialCard({ title, status, description, children }) {
   );
 }
 
-function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiterMessage, reviewed = false, onContinue }) {
+function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiterMessage, reviewed = false, onContinue, onMarkApplied }) {
   const [section, setSection] = useState("overview");
   const { resumeUploads, jobs, jobScores, resumeVersions, interviewPrep } = useWorkspaceStore();
   const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep });
@@ -2482,6 +2477,7 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">{readiness.tier}</span>
             <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{readiness.readiness} Recruiter Confidence</span>
             {mitigationPlan.items.length > 0 && <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200">{strongRecoveryCount}/{mitigationPlan.items.length} Considerations Addressed</span>}
+            {onMarkApplied && <Button className="min-h-8 px-3 text-xs" onClick={onMarkApplied}>Mark Applied</Button>}
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="Recruiter View sections">

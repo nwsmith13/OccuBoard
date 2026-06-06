@@ -5,7 +5,7 @@ import { Button } from "../../components/ui/Button.jsx";
 import { Field } from "../../components/ui/Field.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 
-export function AuthForm({ mode, title, submitLabel, footer, onSuccess }) {
+export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSuccess }) {
   const { signIn, signUp, isConfigured } = useAuth();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
@@ -22,18 +22,28 @@ export function AuthForm({ mode, title, submitLabel, footer, onSuccess }) {
       return;
     }
     setSubmitting(true);
-    const response =
-      mode === "signup" ? await signUp(form.email, form.password, form.name) : await signIn(form.email, form.password);
-    setSubmitting(false);
-    if (response.error) {
-      setError(response.error.message);
-      return;
+    try {
+      const response =
+        mode === "signup" ? await signUp(form.email, form.password, form.name) : await signIn(form.email, form.password);
+      if (response?.error) {
+        setError(response.error.message);
+        return;
+      }
+      if (mode === "signup" && !response?.data?.session) {
+        setConfirmationEmail(form.email.trim());
+        return;
+      }
+      onSuccess(response);
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : "";
+      if (mode === "signup" && /unexpected end of json|failed to execute ['"]json['"]/i.test(message)) {
+        setConfirmationEmail(form.email.trim());
+        return;
+      }
+      setError(mode === "signup" ? "We couldn't finish creating your account. Please try again." : "We couldn't sign you in. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
-    if (mode === "signup" && !response.data?.session) {
-      setConfirmationEmail(form.email.trim());
-      return;
-    }
-    onSuccess(response);
   }
 
   if (confirmationEmail) {
@@ -71,6 +81,7 @@ export function AuthForm({ mode, title, submitLabel, footer, onSuccess }) {
             Supabase env vars are not set, so auth forms open the local demo workspace.
           </div>
         )}
+        {notice && <p className="mt-5 rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-100">{notice}</p>}
         <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
           {mode === "signup" && <Field id="name" label="Name" name="name" value={form.name} onChange={update} required />}
           <Field id="email" label="Email" name="email" type="email" value={form.email} onChange={update} required />

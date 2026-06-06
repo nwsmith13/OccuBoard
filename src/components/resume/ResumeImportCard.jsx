@@ -186,6 +186,7 @@ export function ResumeReviewModal({ file, upload, initialText, createdAt, hasBas
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           <p className="rounded-lg bg-brand-50 p-3 text-sm text-slate-700">
             Review and edit the extracted text before saving. This cleaned text becomes your base resume.
+            <span className="mt-1 block font-semibold text-brand-800">Don&apos;t worry about formatting here. OccuBoard cleans and formats your resume during generation and export.</span>
           </p>
           {hasBaseResume && (
             <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-800">
