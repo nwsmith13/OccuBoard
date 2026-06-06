@@ -13,7 +13,6 @@ import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.
 import { buildOnboardingState } from "../../lib/onboarding.js";
 import { createCheckoutSession, getUsageRemaining, isProSubscription, usageActions } from "../../lib/billing.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
-import { JobDetail } from "./JobsPage.jsx";
 
 const emptyIntake = {
   source_url: "",
@@ -35,13 +34,12 @@ export function NewJobsPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { profile, resumeUploads, jobs, jobScores, resumeVersions, billing, createJob, updateJob, deleteJob, refreshBilling } = useWorkspaceStore();
+  const { profile, resumeUploads, jobs, jobScores, resumeVersions, billing, createJob, refreshBilling } = useWorkspaceStore();
   const [form, setForm] = useState(emptyIntake);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [guardrailOpen, setGuardrailOpen] = useState(false);
-  const [savedJob, setSavedJob] = useState(null);
   const [success, setSuccess] = useState(false);
   const [onboardingHelpOpen, setOnboardingHelpOpen] = useState(true);
   const [limitOpen, setLimitOpen] = useState(false);
@@ -125,11 +123,8 @@ export function NewJobsPage() {
         status: "Saved",
         date_saved: todayIso(),
       });
-      if (onboarding.hasResume && !onboarding.hasAnalysis) {
-        navigate(`/app/applications/${saved.id}`, { state: { initialTab: "fit" } });
-        return;
-      }
-      setSavedJob({ ...saved, initialTab: "fit" });
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      navigate(`/app/applications/${saved.id}`, { state: { initialTab: "fit" } });
     } catch (saveError) {
       setError(saveError?.message || "We couldn't save this job yet. Please try again.");
     } finally {
@@ -224,21 +219,6 @@ export function NewJobsPage() {
     setForm((current) => ({ ...current, [name]: value }));
     setGuardrailOpen(false);
     setError("");
-  }
-
-  async function moveToApplied(job) {
-    const saved = await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || todayIso() });
-    setSavedJob(saved ? { ...saved, initialTab: "overview" } : null);
-  }
-
-  function closeModal() {
-    setSavedJob(null);
-    setForm(emptyIntake);
-    setAdvancedOpen(false);
-    setSuccess(true);
-    if (descriptionRef.current) {
-      descriptionRef.current.style.height = "";
-    }
   }
 
   return (
@@ -511,20 +491,6 @@ export function NewJobsPage() {
         </form>
       </Card>
 
-      {savedJob && (
-        <JobDetail
-          job={savedJob}
-          initialTab="fit"
-          onClose={closeModal}
-          onEdit={() => setAdvancedOpen(true)}
-          onDelete={async () => {
-            await deleteJob(user, savedJob.id);
-            closeModal();
-          }}
-          onMove={() => moveToApplied(savedJob)}
-          onJobUpdate={(updated) => setSavedJob(updated)}
-        />
-      )}
     </div>
   );
 }

@@ -220,7 +220,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
                 onSecondaryAction={() => window.setTimeout(() => document.getElementById("tailored-resume-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }), 20)}
               />
             )}
-            <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} hideIndividualExport={showOnboardingHelp && latestResume && !onboarding.hasRecruiterView} onOpenExport={() => onTabChange?.("export")} onOpenMessage={() => onTabChange?.("message")} onOpenInterview={() => onTabChange?.("interview")} />
+            <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} hideIndividualExport={showOnboardingHelp && latestResume && !onboarding.hasRecruiterView} onOpenRecruiterView={() => onTabChange?.("recruiterView")} onOpenExport={() => onTabChange?.("export")} onOpenMessage={() => onTabChange?.("message")} onOpenInterview={() => onTabChange?.("interview")} />
           </>
         )}
           {activeAction === "message" && <MessageResult message={latestMessage} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
@@ -272,7 +272,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         ) : (
           <div className="contents">
             <AiAction action="fit" label="Analysis" fullLabel="Analyze Fit" existing={latestScore} activeTab={activeTab} loading={aiState.loading} onRun={runAi} onView={() => onTabChange?.("fit")} />
-            <AiAction action="resume" label="Resume" fullLabel="Tailor Resume" existing={latestResume} activeTab={activeTab} loading={aiState.loading} onRun={runAi} onView={() => onTabChange?.("resume")} />
+            <AiAction action="resume" label="Resume" fullLabel="Generate Resume" existing={latestResume} activeTab={activeTab} loading={aiState.loading} onRun={runAi} onView={() => onTabChange?.("resume")} />
             <AiAction action="message" label="Recruiter Message" fullLabel="Generate Recruiter Message" existing={latestMessage} activeTab={activeTab} loading={aiState.loading} onRun={runAi} onView={() => onTabChange?.("message")} />
           </div>
         )}
@@ -340,7 +340,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       {!compact && (
         <>
           {activeTab === "fit" && <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} onRecruiterView={() => onTabChange?.("recruiterView")} />}
-          {activeTab === "resume" && <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onOpenExport={() => onTabChange?.("export")} onOpenMessage={() => onTabChange?.("message")} onOpenInterview={() => onTabChange?.("interview")} />}
+          {activeTab === "resume" && <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onOpenRecruiterView={() => onTabChange?.("recruiterView")} onOpenExport={() => onTabChange?.("export")} onOpenMessage={() => onTabChange?.("message")} onOpenInterview={() => onTabChange?.("interview")} />}
           {activeTab === "message" && <MessageResult message={latestMessage} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
           <GenerationHistory scores={jobScoreHistory} resumes={resumeHistory} messages={messageHistory} />
         </>
@@ -351,7 +351,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
 
 function AiOnboardingHelpCard({ eyebrow, title, body, bullets = [], actionLabel, onAction, secondaryActionLabel = "", onSecondaryAction, disabled = false }) {
   return (
-    <section className="rounded-xl bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-sm ring-1 ring-brand-100">
+    <section className="rounded-xl border-l-4 border-l-brand-500 bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-soft ring-1 ring-brand-100">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">{eyebrow}</p>
@@ -375,6 +375,7 @@ function AiOnboardingHelpCard({ eyebrow, title, body, bullets = [], actionLabel,
             </Button>
           )}
           <Button className="w-fit" onClick={onAction} disabled={disabled}>
+            <Sparkles size={15} aria-hidden="true" />
             {actionLabel}
           </Button>
         </div>
@@ -511,15 +512,15 @@ function getPrimaryAction(activeAction, existing, all) {
   if (activeAction === "fit" && existing) return { label: "Continue to Resume", nextTab: "resume", variant: "primary" };
   if (activeAction === "fit") return { label: "Analyze Fit", variant: "primary" };
   if (activeAction === "resume" && existing) return { label: "Ready to Export", nextTab: "resume", variant: "secondary" };
-  if (activeAction === "resume") return { label: all.latestScore ? "Tailor Resume" : "Analyze Fit First", nextTab: all.latestScore ? "" : "fit", variant: all.latestScore ? "primary" : "secondary" };
+  if (activeAction === "resume") return { label: all.latestScore ? "Generate Resume" : "Analyze Fit First", nextTab: all.latestScore ? "" : "fit", variant: all.latestScore ? "primary" : "secondary" };
   if (activeAction === "message" && existing) return { label: "View Message", nextTab: "message", variant: "secondary" };
   if (activeAction === "message" && !all.latestScore) return { label: "Analyze Fit First", nextTab: "fit", variant: "secondary" };
-  if (activeAction === "message" && !all.latestResume) return { label: "Tailor Resume First", nextTab: "resume", variant: "secondary" };
+  if (activeAction === "message" && !all.latestResume) return { label: "Generate Resume First", nextTab: "resume", variant: "secondary" };
   return { label: "Generate Recruiter Message", variant: "primary" };
 }
 
 function getLocalError(action, profile, job) {
-  if (!canRunAi(profile)) return "Complete your profile target roles and base resume before running AI tools.";
+  if (!canRunAi(profile)) return "Add your base resume before running AI tools.";
   if (!job?.job_description?.trim()) return "Paste the job description before running AI tools.";
   if (!["fit", "resume", "message"].includes(action)) return "That AI action is not available.";
   return "";
@@ -612,12 +613,12 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, onRecru
   );
 }
 
-export function ResumeResult({ resume, score, materials = {}, analysisReady = true, onAnalyze, onGenerate, onRegenerate, onExportComplete, onOpenExport, onOpenMessage, onOpenInterview, loading, showAction = true, hideIndividualExport = false }) {
+export function ResumeResult({ resume, score, materials = {}, analysisReady = true, onAnalyze, onGenerate, onRegenerate, onExportComplete, onOpenRecruiterView, onOpenExport, onOpenMessage, onOpenInterview, loading, showAction = true, hideIndividualExport = false }) {
   const { profile, jobs } = useWorkspaceStore();
   const job = resume ? jobs.find((item) => item.id === resume.job_id) : null;
   const whyThisFits = extractWhyThisFits(resume?.content);
   if (!resume && !analysisReady) return <EmptyAiState title="No tailored resume yet" description="Generate the fit analysis first so your resume can be tailored from the strongest evidence." action={showAction && onAnalyze ? "Analyze Fit" : ""} onAction={onAnalyze} loading={loading} />;
-  if (!resume) return <EmptyAiState title="No tailored resume yet" description="Create an application-ready resume version using your base resume and this job." action={showAction && onGenerate ? "Tailor Resume" : ""} onAction={onGenerate} loading={loading} />;
+  if (!resume) return <EmptyAiState title="No tailored resume yet" description="Create an application-ready resume version using your base resume and this job." action={showAction && onGenerate ? "Generate Resume" : ""} onAction={onGenerate} loading={loading} />;
   return (
     <div id="tailored-resume-preview" className="w-full scroll-mt-6 rounded-lg bg-brand-50 p-5 shadow-card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -634,7 +635,8 @@ export function ResumeResult({ resume, score, materials = {}, analysisReady = tr
       <div className="mt-4 rounded-lg bg-white/85 p-3 ring-1 ring-brand-100">
         <p className="text-sm font-bold text-ink">Choose your next step</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {onOpenExport && <Button className="min-h-8 px-3 text-xs" onClick={onOpenExport}>Export Resume / Application Package</Button>}
+          {onOpenRecruiterView && <Button className="min-h-8 px-3 text-xs" onClick={onOpenRecruiterView}>Continue to Recruiter View</Button>}
+          {onOpenExport && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenExport}>Export Package</Button>}
           <Link className="inline-flex min-h-8 items-center rounded-lg bg-white px-3 text-xs font-bold text-brand-800 ring-1 ring-brand-100 hover:bg-brand-50" to="/app/new-jobs">Analyze Another Job</Link>
           {onOpenMessage && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenMessage}>Optional: Generate Recruiter Message</Button>}
           {onOpenInterview && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenInterview}>Optional: Prepare For Interview</Button>}
@@ -795,7 +797,7 @@ export function MessageResult({ message, score, materials = {}, analysisReady = 
       return <EmptyAiState title="No recruiter message yet" description="Start with fit analysis before drafting outreach so the message is grounded in the strongest role evidence." action={showAction && onAnalyze ? "Analyze Fit" : ""} onAction={onAnalyze} loading={loading} />;
     }
     if (!resumeReady) {
-      return <EmptyAiState title="No recruiter message yet" description="Tailor the resume first, then draft a short outreach note that matches your application materials." action={showAction && onResume ? "Tailor Resume" : ""} onAction={onResume} loading={loading} />;
+      return <EmptyAiState title="No recruiter message yet" description="Generate the resume first, then draft a short outreach note that matches your application materials." action={showAction && onResume ? "Generate Resume" : ""} onAction={onResume} loading={loading} />;
     }
     return (
       <div className="grid gap-3">

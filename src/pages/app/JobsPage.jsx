@@ -574,10 +574,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   }, [hasUnsavedChanges]);
 
   useEffect(() => {
-    if (activeTab === "fit" && latestScore) {
+    if (activeTab === "fit") {
       window.setTimeout(() => fitSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
     }
-  }, [activeTab, latestScore]);
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === "recruiterView") {
@@ -1613,7 +1613,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
     if (generatingMessage) return;
     setMessageError("");
     if (!canRunAi(profile)) {
-      setMessageError("Complete your profile target roles and base resume before generating a follow-up message.");
+      setMessageError("Add your base resume before generating a follow-up message.");
       return;
     }
     if (!job?.job_description?.trim()) {
@@ -1848,7 +1848,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   async function generateCoverLetter() {
     if (coverLoading) return;
     if (!canRunAi(profile)) {
-      setError("Complete your profile and base resume before generating a cover letter.");
+      setError("Add your base resume before generating a cover letter.");
       return;
     }
     setCoverLoading(true);
@@ -2059,7 +2059,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
               {resume ? (
                 <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
               ) : (
-                <Button className="w-fit min-h-8 px-3 text-xs" onClick={onGoToResume}>Tailor resume</Button>
+                <Button className="w-fit min-h-8 px-3 text-xs" onClick={onGoToResume}>Generate Resume</Button>
               )}
             </MaterialCard>
 
@@ -2925,7 +2925,7 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
   async function generateCoverLetter({ regenerate = false } = {}) {
     if (loading) return;
     if (!canRunAi(profile)) {
-      setError("Complete your profile and base resume before generating a cover letter.");
+      setError("Add your base resume before generating a cover letter.");
       return;
     }
     setLoading(true);
@@ -3154,7 +3154,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   async function generatePrep() {
     if (loading) return;
     if (!canRunAi(profile)) {
-      setError("Complete your profile and base resume before generating interview prep.");
+      setError("Add your base resume before generating interview prep.");
       return;
     }
     setLoading(true);

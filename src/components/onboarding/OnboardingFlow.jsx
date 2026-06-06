@@ -1,11 +1,9 @@
 import { ArrowRight, CheckCircle2, FileText, Search, Sparkles, UploadCloud } from "lucide-react";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../ui/Button.jsx";
 
 export function OnboardingFlow({ state, onDismiss }) {
-  const [introComplete, setIntroComplete] = useState(false);
-  const step = getCurrentStep(state, introComplete);
+  const step = getCurrentStep(state);
   const StepIcon = step.icon;
   return (
     <main className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-emerald-50 px-4 py-8 text-ink sm:px-6">
@@ -29,17 +27,11 @@ export function OnboardingFlow({ state, onDismiss }) {
           {step.preview && <div className="mt-7">{step.preview}</div>}
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            {step.onClick ? (
-              <Button className="min-h-11 px-5" onClick={() => step.onClick({ setIntroComplete })}>
+            <Link to={step.href} onClick={step.dismissOnClick ? onDismiss : undefined} className="inline-flex">
+              <Button className="min-h-11 px-5">
                 {step.cta} <ArrowRight size={16} />
               </Button>
-            ) : (
-              <Link to={step.href} onClick={step.dismissOnClick ? onDismiss : undefined} className="inline-flex">
-                <Button className="min-h-11 px-5">
-                  {step.cta} <ArrowRight size={16} />
-                </Button>
-              </Link>
-            )}
+            </Link>
             {step.secondaryHref && (
               <Link to={step.secondaryHref} onClick={onDismiss} className="inline-flex">
                 <Button variant="secondary" className="min-h-11 px-5">{step.secondaryCta}</Button>
@@ -68,8 +60,8 @@ export function OnboardingFlow({ state, onDismiss }) {
   );
 }
 
-function getCurrentStep(state, introComplete = false) {
-  if (!state.hasResume && !introComplete) {
+function getCurrentStep(state) {
+  if (!state.hasResume) {
     return {
       stepNumber: 1,
       icon: Sparkles,
@@ -77,18 +69,6 @@ function getCurrentStep(state, introComplete = false) {
       subtitle: "Let's get your first application ready.",
       body: "OccuBoard helps you tailor resumes, organize applications, and stay focused on the opportunities most likely to convert into interviews.",
       cta: "Get Started",
-      onClick: ({ setIntroComplete }) => setIntroComplete(true),
-      allowSkip: true,
-    };
-  }
-  if (!state.hasResume) {
-    return {
-      stepNumber: 2,
-      icon: UploadCloud,
-      title: "Upload Your Resume",
-      subtitle: "Your resume becomes the foundation for every tailored version.",
-      body: "Upload your current resume. We'll use it as the foundation for every tailored application.",
-      cta: "Upload Resume",
       href: "/app/resume-studio#resume-import",
       allowSkip: true,
     };

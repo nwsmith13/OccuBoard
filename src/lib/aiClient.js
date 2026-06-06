@@ -20,5 +20,5 @@ export async function generateAiOutput(action, profile, job, options = {}) {
 }
 
 export function canRunAi(profile) {
-  return Boolean(profile?.base_resume_text?.trim() && profile?.target_roles?.trim());
+  return Boolean(profile?.base_resume_text?.trim());
 }

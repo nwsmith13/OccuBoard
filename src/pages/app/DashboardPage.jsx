@@ -308,7 +308,7 @@ export function DashboardPage() {
 
 function ProUpgradeCard({ upgrading, onUpgrade }) {
   return (
-    <Card className="bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-4 shadow-card ring-1 ring-brand-100">
+    <Card className="border-brand-200 bg-gradient-to-br from-brand-100 via-white to-emerald-50 p-4 shadow-soft ring-2 ring-brand-200">
       <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">OccuBoard Pro</p>
       <h2 className="mt-1 text-lg font-black text-ink">🚀 Continue your job search without limits</h2>
       <p className="mt-3 text-sm font-bold text-slate-800">OccuBoard Pro includes:</p>
@@ -365,7 +365,7 @@ function DashboardUsageCard({ remaining, upgrading, onUpgrade, onOpenUpgrade }) 
           </>
         ) : (
           <>
-            <h2 className="mt-1 text-lg font-bold text-ink">{remaining} free AI-powered application{remaining === 1 ? "" : "s"} remaining</h2>
+            <h2 className="mt-1 text-lg font-bold text-ink">{remaining} of 3 free AI-powered application{remaining === 1 ? "" : "s"} remaining</h2>
             <p className="mt-2 text-xs font-semibold leading-5 text-slate-600">Each application includes fit analysis, resume tailoring, recruiter messaging, and interview prep.</p>
           </>
         )}

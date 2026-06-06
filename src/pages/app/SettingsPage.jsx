@@ -137,14 +137,6 @@ export function SettingsPage() {
           />
           <ResumeImportCard compact />
           <Card>
-            <h2 className="text-xl font-bold">Theme</h2>
-            <p className="mt-2 text-sm text-slate-600">Theme controls will live here as the product grows.</p>
-            <div className="mt-5 flex gap-3">
-              <span className="h-10 w-10 rounded-full border-4 border-brand-200 bg-brand-700" />
-              <span className="h-10 w-10 rounded-full border border-slate-200 bg-white" />
-            </div>
-          </Card>
-          <Card>
             <h2 className="text-xl font-bold">Account management</h2>
             <p className="mt-2 text-sm text-slate-600">Manage authentication, export, and account deletion settings when backend flows are connected.</p>
             <Button variant="secondary" className="mt-5">Manage account</Button>
@@ -190,15 +182,17 @@ function CheckoutSuccessCard({ syncState, pro, loading, onStartJobs, onManage })
 }
 
 function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, planLabel, pro, subscription, usage }) {
+  const used = Math.min(FREE_LIMIT, Number(usage.application_count || 0));
+  const remaining = Math.max(0, FREE_LIMIT - used);
   return (
     <Card>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Billing</p>
           <h2 className="mt-1 text-xl font-bold">{pro ? "OccuBoard Pro Active" : "Free Plan"}</h2>
-          <p className="mt-1 text-sm text-slate-600">{pro ? "Create as many AI-powered applications as you need." : `You have used ${Math.min(FREE_LIMIT, Number(usage.application_count || 0))} of ${FREE_LIMIT} free AI-powered applications.`}</p>
+          <p className="mt-1 text-sm text-slate-600">{pro ? "Create as many AI-powered applications as you need." : `${remaining} of ${FREE_LIMIT} free AI-powered applications remaining.`}</p>
         </div>
-        <span className={`w-fit rounded-full px-3 py-1 text-xs font-black ring-1 ${pro ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-700 ring-slate-100"}`}>
+        <span className={`w-fit shrink-0 self-start rounded-full px-3 py-1 text-xs font-black ring-1 ${pro ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-700 ring-slate-100"}`}>
           {pro ? "PRO" : planLabel}
         </span>
       </div>
@@ -234,7 +228,7 @@ function BillingCard({ billingMessage, loading, onUpgrade, onManage, onRefresh, 
             ) : (
               <>
                 <p className="text-sm font-black text-brand-950">Free Plan</p>
-                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">You have used {Math.min(FREE_LIMIT, Number(usage.application_count || 0))} of {FREE_LIMIT} free AI-powered applications.</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">{remaining} of {FREE_LIMIT} free AI-powered applications remaining.</p>
               </>
             )}
             <div className="mt-3 rounded-lg bg-white/70 p-3 text-xs font-semibold leading-5 text-slate-700 ring-1 ring-white/80">

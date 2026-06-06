@@ -10,6 +10,7 @@ export function AuthForm({ mode, title, submitLabel, footer, onSuccess }) {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState("");
 
   const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
 
@@ -28,7 +29,35 @@ export function AuthForm({ mode, title, submitLabel, footer, onSuccess }) {
       setError(response.error.message);
       return;
     }
-    onSuccess();
+    if (mode === "signup" && !response.data?.session) {
+      setConfirmationEmail(form.email.trim());
+      return;
+    }
+    onSuccess(response);
+  }
+
+  if (confirmationEmail) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-brand-50 px-4 py-8">
+        <div className="w-full max-w-md rounded-lg border border-brand-100 bg-white p-6 text-center shadow-soft">
+          <Link to="/" className="mb-8 block"><Logo /></Link>
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-2xl ring-1 ring-emerald-100" aria-hidden="true">
+            ✓
+          </span>
+          <h1 className="mt-5 text-3xl font-bold">Check your email to confirm your account.</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            We sent a confirmation link to <strong className="text-ink">{confirmationEmail}</strong>.
+          </p>
+          <Link to="/login" className="mt-6 inline-flex">
+            <Button>Back to login</Button>
+          </Link>
+          <nav className="mt-6 flex justify-center gap-4 border-t border-slate-100 pt-4 text-xs font-semibold text-slate-500" aria-label="Legal links">
+            <Link className="hover:text-brand-800" to="/privacy">Privacy Policy</Link>
+            <Link className="hover:text-brand-800" to="/terms">Terms of Service</Link>
+          </nav>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -1,4 +1,4 @@
-import { CheckCircle2, FileText, UploadCloud, X } from "lucide-react";
+import { ArrowDown, CheckCircle2, FileText, UploadCloud, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -69,17 +69,23 @@ export function ResumeImportCard({ compact = false }) {
   }
 
   return (
-    <Card className={compact ? "bg-brand-50/40" : ""}>
+    <Card className={`${compact ? "bg-brand-50/40" : ""} ${firstTimeBeforeUpload ? "border-brand-300 bg-gradient-to-br from-brand-50 via-white to-emerald-50 shadow-soft ring-2 ring-brand-200" : ""}`}>
       {handoff && <ResumeOnboardingHandoff onContinue={() => navigate("/app/new-jobs", { state: { onboardingStep: "analyze-job" } })} />}
+      {firstTimeBeforeUpload && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-brand-700 px-3 py-2 text-sm font-bold text-white shadow-sm">
+          <ArrowDown size={16} aria-hidden="true" />
+          Start here: upload your resume.
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold">{hasBaseResume ? "Import Resume" : "Upload Your First Resume"}</h2>
+          <h2 className="text-xl font-bold">{hasBaseResume ? "Manage Base Resume" : "Upload Your First Resume"}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            {hasBaseResume ? "Upload a PDF, DOCX, or TXT resume so OccuBoard can tailor applications using your real experience." : "Your resume becomes the foundation for every tailored application."}
+            {hasBaseResume ? "Your base resume is saved. Upload a newer version here whenever you want to replace it." : "Your resume becomes the foundation for every tailored application."}
           </p>
         </div>
-        <Button variant="secondary" onClick={() => inputRef.current?.click()} disabled={state.loading}>
-          <UploadCloud size={16} /> Upload Resume
+        <Button variant={firstTimeBeforeUpload ? "primary" : "secondary"} onClick={() => inputRef.current?.click()} disabled={state.loading}>
+          <UploadCloud size={16} /> {hasBaseResume ? "Upload New Version" : "Upload Resume"}
         </Button>
       </div>
 

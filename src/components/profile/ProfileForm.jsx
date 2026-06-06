@@ -76,7 +76,7 @@ export function ProfileForm({ compact = false }) {
       </div>
       <Field
         id="target_roles"
-        label="Target roles"
+        label="Target roles (optional)"
         as="textarea"
         name="target_roles"
         rows="3"
@@ -84,11 +84,12 @@ export function ProfileForm({ compact = false }) {
         onChange={update}
         placeholder="Product manager, Operations lead, Customer success..."
       />
+      <p className="-mt-2 text-xs font-semibold leading-5 text-slate-500">Optional context for recommendations and role framing. It does not block fit analysis or resume generation.</p>
       <div>
         <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-medium text-ink">Base resume text</p>
-            <p className="mt-1 text-xs text-slate-500">Formatting cleanup runs automatically when you save. Use this if you paste or edit text manually.</p>
+            <p className="mt-1 text-xs text-slate-500">Don&apos;t worry about formatting here. OccuBoard cleans and formats your resume during generation and export.</p>
           </div>
         </div>
         <Field

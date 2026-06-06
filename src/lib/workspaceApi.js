@@ -20,6 +20,7 @@ const keys = {
   jobScores: "occuboard.jobScores",
   messages: "occuboard.messages",
   resumeUploads: "occuboard.resumeUploads",
+  profileOptionalOverrides: "occuboard.profileOptionalOverrides",
 };
 
 function readLocal(key, fallback) {
@@ -139,6 +140,7 @@ export async function fetchWorkspace(user) {
       profile = createEmptyProfile(user);
       profile = await insertProfileWithFallback(user, profile);
     }
+    profile = applyProfileOptionalOverrides(profile);
 
     return {
       profile,
@@ -183,12 +185,14 @@ export async function saveProfile(user, profile) {
     const { data, error } = await supabase.from("profiles").upsert(payload).select("*").single();
     if (error) {
       if (!isMissingColumnError(error)) throw error;
+      rememberProfileOptionalOverrides(profile);
       const legacyPayload = getLegacyProfilePayload(payload);
       const retry = await supabase.from("profiles").upsert(legacyPayload).select("*").single();
       if (retry.error) throw retry.error;
       await logActivity(user, "Profile", "Updated profile and base resume details");
-      return { ...retry.data, updated_at: payload.updated_at };
+      return applyProfileOptionalOverrides({ ...retry.data, updated_at: payload.updated_at });
     }
+    rememberProfileOptionalOverrides(data);
     await logActivity(user, "Profile", "Updated profile and base resume details");
     return data;
   }
@@ -221,6 +225,26 @@ function getLegacyProfilePayload(profile) {
     target_roles: profile.target_roles ?? "",
     base_resume_text: profile.base_resume_text ?? "",
     created_at: profile.created_at,
+  };
+}
+
+function rememberProfileOptionalOverrides(profile = {}) {
+  writeLocal(keys.profileOptionalOverrides, {
+    location: profile.location ?? "",
+    phone: profile.phone ?? "",
+    linkedin_url: profile.linkedin_url ?? "",
+    portfolio_url: profile.portfolio_url ?? "",
+  });
+}
+
+function applyProfileOptionalOverrides(profile = {}) {
+  const overrides = readLocal(keys.profileOptionalOverrides, {});
+  return {
+    ...profile,
+    location: profile.location || overrides.location || "",
+    phone: profile.phone || overrides.phone || "",
+    linkedin_url: profile.linkedin_url || overrides.linkedin_url || "",
+    portfolio_url: profile.portfolio_url || overrides.portfolio_url || "",
   };
 }
 

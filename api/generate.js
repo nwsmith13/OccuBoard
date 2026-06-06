@@ -87,7 +87,6 @@ async function validateBillingAccess(action, userId, job = {}, options = {}) {
 
 function validateRequest(action, profile, job) {
   if (!supportedActions.includes(action)) return "Unsupported AI action.";
-  if (!profile?.target_roles?.trim()) return "Add target roles to your profile before using AI tools.";
   if (!profile?.base_resume_text?.trim()) return "Add your base resume text before using AI tools.";
   if (!job?.job_title?.trim() || !job?.company_name?.trim()) return "Save the job title and company before using AI tools.";
   if (!job?.job_description?.trim()) return "Paste the job description before running AI tools.";

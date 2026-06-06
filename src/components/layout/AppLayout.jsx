@@ -38,6 +38,16 @@ export function AppLayout() {
   }, [loadWorkspace, user]);
 
   useEffect(() => {
+    if (location.hash) {
+      window.setTimeout(() => {
+        document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+      return;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.hash, location.pathname]);
+
+  useEffect(() => {
     const refreshOnboarding = () => setOnboardingRefresh((value) => value + 1);
     window.addEventListener(onboardingUpdatedEvent, refreshOnboarding);
     return () => window.removeEventListener(onboardingUpdatedEvent, refreshOnboarding);

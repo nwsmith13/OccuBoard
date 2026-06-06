@@ -53,7 +53,10 @@ export function AuthProvider({ children }) {
         return supabase.auth.signUp({
           email,
           password,
-          options: { data: { full_name: fullName } },
+          options: {
+            data: { full_name: fullName },
+            emailRedirectTo: getEmailConfirmationRedirect(),
+          },
         });
       },
       signOut: async () => {
@@ -65,6 +68,13 @@ export function AuthProvider({ children }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+function getEmailConfirmationRedirect() {
+  const configuredUrl = import.meta.env.VITE_APP_URL?.trim();
+  const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  const origin = configuredUrl || (isLocal ? "http://localhost:5173" : "https://www.occuboard.io");
+  return `${origin.replace(/\/+$/, "")}/login?confirmed=1`;
 }
 
 export function useAuth() {

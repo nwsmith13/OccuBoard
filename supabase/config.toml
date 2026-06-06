@@ -1,0 +1,10 @@
+[auth]
+site_url = "https://www.occuboard.io"
+additional_redirect_urls = [
+  "https://www.occuboard.io/*",
+  "http://localhost:5173/*",
+]
+
+[auth.email.template.confirmation]
+subject = "Confirm your OccuBoard account"
+content_path = "./supabase/templates/confirmation.html"

@@ -1,16 +1,12 @@
 const profileFields = [
   "full_name",
   "email",
-  "location",
-  "target_roles",
   "base_resume_text",
 ];
 
 const profileFieldLabels = {
   full_name: "Full name",
   email: "Email",
-  location: "Location",
-  target_roles: "Target roles",
   base_resume_text: "Base resume",
 };
 
