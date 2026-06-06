@@ -131,11 +131,6 @@ export function SettingsPage() {
           />
           <ResumeImportCard compact />
           <Card>
-            <h2 className="text-xl font-bold">Account management</h2>
-            <p className="mt-2 text-sm text-slate-600">Manage authentication, export, and account deletion settings when backend flows are connected.</p>
-            <Button variant="secondary" className="mt-5">Manage account</Button>
-          </Card>
-          <Card>
             <h2 className="text-xl font-bold">Legal</h2>
             <p className="mt-2 text-sm text-slate-600">Review OccuBoard&apos;s privacy and service terms.</p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
