@@ -5,6 +5,7 @@ import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { normalizeResumeText } from "../../lib/resumeParser.js";
+import { createEmptyProfile } from "../../lib/profile.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 
 export function ResumeStudioPage() {
@@ -14,7 +15,8 @@ export function ResumeStudioPage() {
   const latestUpload = resumeUploads[0];
 
   async function applyUploadText(text) {
-    await saveProfile(user, { ...profile, base_resume_text: normalizeResumeText(text) });
+    const currentProfile = profile?.id === user?.id ? profile : createEmptyProfile(user);
+    await saveProfile(user, { ...currentProfile, base_resume_text: normalizeResumeText(text) });
     setReviewUpload(null);
   }
 

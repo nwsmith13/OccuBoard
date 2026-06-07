@@ -337,7 +337,7 @@ Rules:
 - If Education exists in the base resume, include an Education section near the bottom.
 - Preserve actual degree, school, and education wording exactly when present.
 - If Education is missing from the base resume, omit Education instead of fabricating it.
-- For Matthew's resume, preserve: Bachelor of Science - Information Systems / Business Technology; Northwest Missouri State University.
+- Preserve the candidate's actual degree, school, and education wording exactly when present in the base resume.
 - Conservative: minimal rewriting, preserve original structure heavily, emphasize only clear truthful alignment.
 - Balanced: moderate optimization, reorder bullets and improve ATS alignment while preserving career identity.
 - Aggressive: stronger reframing of transferable skills, still truthful and no fabricated claims.
@@ -365,7 +365,7 @@ Rules:
 - Write from the user/candidate to a recruiter, hiring manager, or company contact.
 - Use first person as the user/candidate.
 - Never write from the recruiter, hiring manager, company, or employer.
-- Never start with "Hi [candidate name]" or "Hi Matthew".
+- Never address the message to the candidate; address the recruiter, hiring manager, or company contact instead.
 - Never say "I'm recruiting for", "I'm reaching out from [Company]", "our role", "our team", or "we are hiring".
 - Mention the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}.
 - Make it clear the user is following up on an application or prior outreach.
@@ -456,7 +456,7 @@ Rules:
 - Write from the user/candidate to a recruiter, hiring manager, or company contact.
 - Use first person as the user/candidate.
 - Never write from the recruiter, hiring manager, or company.
-- Never start with "Hi [candidate name]" or "Hi Matthew".
+- Never address the message to the candidate; address the recruiter, hiring manager, or company contact instead.
 - Never say "I'm recruiting for" or imply the sender is recruiting.
 - Never say "I'm reaching out from [Company]".
 - Never say "our role", "our team", or "we are hiring".

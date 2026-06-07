@@ -10,15 +10,17 @@ import { Field } from "../ui/Field.jsx";
 export function ProfileForm({ compact = false }) {
   const { user } = useAuth();
   const { profile, saveProfile } = useWorkspaceStore();
-  const [form, setForm] = useState(profile ?? createEmptyProfile(user));
+  const [form, setForm] = useState(() => getCurrentUserProfile(profile, user));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [cleaned, setCleaned] = useState(false);
   const [autoClean, setAutoClean] = useState(true);
 
   useEffect(() => {
-    if (profile) setForm(profile);
-  }, [profile]);
+    setForm(getCurrentUserProfile(profile, user));
+    setSaved(false);
+    setCleaned(false);
+  }, [profile, user]);
 
   const completeness = getProfileCompleteness(form);
   const missingItems = getMissingProfileItems(form);
@@ -123,4 +125,9 @@ export function ProfileForm({ compact = false }) {
       </div>
     </form>
   );
+}
+
+function getCurrentUserProfile(profile, user) {
+  if (profile?.id && profile.id === user?.id) return profile;
+  return createEmptyProfile(user);
 }

@@ -5,7 +5,7 @@ import { createEmptyProfile } from "./profile.js";
 import { getSupabaseClient, hasSupabaseConfig } from "./supabase.js";
 
 const keys = {
-  profile: "occuboard.profile",
+  profile: "occuboard:demo:profile",
   jobs: "occuboard.jobs",
   jobFollowUpOverrides: "occuboard.jobFollowUpOverrides",
   jobCalendarOverrides: "occuboard.jobCalendarOverrides",
@@ -20,8 +20,17 @@ const keys = {
   jobScores: "occuboard.jobScores",
   messages: "occuboard.messages",
   resumeUploads: "occuboard.resumeUploads",
-  profileOptionalOverrides: "occuboard.profileOptionalOverrides",
+  profileOptionalOverrides: "occuboard:profileOptionalOverrides",
 };
+
+const legacyGlobalProfileKeys = [
+  "occuboard.profile",
+  "occuboard:profile",
+  "profile",
+  "profileData",
+  "occuboard.profileOptionalOverrides",
+  "occuboard:profileOptionalOverrides",
+];
 
 function readLocal(key, fallback) {
   try {
@@ -98,8 +107,10 @@ export async function logJobActivity(user, jobId, type, metadata = {}) {
 
 export async function fetchWorkspace(user) {
   if (hasSupabaseConfig && user?.id) {
+    clearLegacyGlobalProfileStorage();
     const supabase = await getSupabaseClient();
     const [profileResult, jobsResult, logsResult, resumesResult] = await Promise.all([
+      // The profiles table uses the auth user UUID as its primary key.
       supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
       supabase.from("jobs").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
       supabase.from("activity_logs").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(12),
@@ -135,12 +146,12 @@ export async function fetchWorkspace(user) {
     if (jobContactsResult.error && !isMissingTableError(jobContactsResult.error)) throw jobContactsResult.error;
     if (interviewPrepResult.error && !isMissingTableError(interviewPrepResult.error)) throw interviewPrepResult.error;
 
-    let profile = profileResult.data;
+    let profile = profileResult.data?.id === user.id ? profileResult.data : null;
     if (!profile) {
       profile = createEmptyProfile(user);
       profile = await insertProfileWithFallback(user, profile);
     }
-    profile = applyProfileOptionalOverrides(profile);
+    profile = applyProfileOptionalOverrides(user, profile);
 
     return {
       profile,
@@ -180,19 +191,26 @@ function isMissingColumnError(error) {
 
 export async function saveProfile(user, profile) {
   if (hasSupabaseConfig && user?.id) {
+    clearLegacyGlobalProfileStorage();
     const supabase = await getSupabaseClient();
-    const payload = { ...profile, id: user.id, email: profile.email || user.email, updated_at: now() };
+    const payload = {
+      ...createEmptyProfile(user),
+      ...profile,
+      id: user.id,
+      email: profile.email || user.email,
+      updated_at: now(),
+    };
     const { data, error } = await supabase.from("profiles").upsert(payload).select("*").single();
     if (error) {
       if (!isMissingColumnError(error)) throw error;
-      rememberProfileOptionalOverrides(profile);
+      rememberProfileOptionalOverrides(user, payload);
       const legacyPayload = getLegacyProfilePayload(payload);
       const retry = await supabase.from("profiles").upsert(legacyPayload).select("*").single();
       if (retry.error) throw retry.error;
       await logActivity(user, "Profile", "Updated profile and base resume details");
-      return applyProfileOptionalOverrides({ ...retry.data, updated_at: payload.updated_at });
+      return applyProfileOptionalOverrides(user, { ...retry.data, updated_at: payload.updated_at });
     }
-    rememberProfileOptionalOverrides(data);
+    clearProfileOptionalOverrides(user);
     await logActivity(user, "Profile", "Updated profile and base resume details");
     return data;
   }
@@ -228,8 +246,9 @@ function getLegacyProfilePayload(profile) {
   };
 }
 
-function rememberProfileOptionalOverrides(profile = {}) {
-  writeLocal(keys.profileOptionalOverrides, {
+function rememberProfileOptionalOverrides(user, profile = {}) {
+  if (!user?.id) return;
+  writeLocal(getUserScopedKey(keys.profileOptionalOverrides, user.id), {
     location: profile.location ?? "",
     phone: profile.phone ?? "",
     linkedin_url: profile.linkedin_url ?? "",
@@ -237,8 +256,9 @@ function rememberProfileOptionalOverrides(profile = {}) {
   });
 }
 
-function applyProfileOptionalOverrides(profile = {}) {
-  const overrides = readLocal(keys.profileOptionalOverrides, {});
+function applyProfileOptionalOverrides(user, profile = {}) {
+  if (!user?.id || profile.id !== user.id) return createEmptyProfile(user);
+  const overrides = readLocal(getUserScopedKey(keys.profileOptionalOverrides, user.id), {});
   return {
     ...profile,
     location: profile.location || overrides.location || "",
@@ -246,6 +266,27 @@ function applyProfileOptionalOverrides(profile = {}) {
     linkedin_url: profile.linkedin_url || overrides.linkedin_url || "",
     portfolio_url: profile.portfolio_url || overrides.portfolio_url || "",
   };
+}
+
+function clearProfileOptionalOverrides(user) {
+  if (!user?.id) return;
+  try {
+    window.localStorage.removeItem(getUserScopedKey(keys.profileOptionalOverrides, user.id));
+  } catch {
+    // Supabase contains the optional fields, so the fallback can be discarded.
+  }
+}
+
+function getUserScopedKey(baseKey, userId) {
+  return `${baseKey}:${userId}`;
+}
+
+function clearLegacyGlobalProfileStorage() {
+  try {
+    legacyGlobalProfileKeys.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // Stale browser data cleanup is best-effort.
+  }
 }
 
 export async function createJob(user, job) {

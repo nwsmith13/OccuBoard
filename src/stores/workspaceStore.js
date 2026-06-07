@@ -20,38 +20,59 @@ import {
 import { createDefaultBillingState, fetchBillingState, incrementUsage, setUsageValue } from "../lib/billing.js";
 
 const localAiUsageCountedKey = "occuboard.aiUsageCountedJobs";
+let workspaceLoadSequence = 0;
+
+function createEmptyWorkspaceState(user) {
+  return {
+    profile: null,
+    jobs: [],
+    activityLogs: [],
+    jobActivityLogs: [],
+    jobContacts: [],
+    interviewPrep: [],
+    resumeVersions: [],
+    resumeUploads: [],
+    jobScores: [],
+    messages: [],
+    billing: createDefaultBillingState(user),
+  };
+}
 
 export const useWorkspaceStore = create((set, get) => ({
-  profile: null,
-  jobs: [],
-  activityLogs: [],
-  jobActivityLogs: [],
-  jobContacts: [],
-  interviewPrep: [],
-  resumeVersions: [],
-  resumeUploads: [],
-  jobScores: [],
-  messages: [],
-  billing: createDefaultBillingState(null),
+  ...createEmptyWorkspaceState(null),
   loading: false,
+  loadingFor: null,
   error: "",
   loadedFor: null,
   loadWorkspace: async (user) => {
     const userKey = user?.id ?? "local-demo-user";
-    if (get().loading || get().loadedFor === userKey) return;
-    set({ loading: true, error: "" });
+    if (get().loadedFor === userKey && !get().loading) return;
+    if (get().loading && get().loadingFor === userKey) return;
+    const requestId = ++workspaceLoadSequence;
+    set({
+      ...createEmptyWorkspaceState(user),
+      loading: true,
+      loadingFor: userKey,
+      error: "",
+      loadedFor: null,
+    });
     try {
       const data = await fetchWorkspace(user);
       const billing = await reconcileAiApplicationUsage(user, data, await fetchBillingState(user));
-      set({ ...data, billing, loading: false, loadedFor: userKey });
+      if (requestId !== workspaceLoadSequence) return;
+      set({ ...data, billing, loading: false, loadingFor: null, loadedFor: userKey });
     } catch (error) {
-      set({ error: error.message, loading: false });
+      if (requestId !== workspaceLoadSequence) return;
+      set({ error: error.message, loading: false, loadingFor: null });
     }
   },
   saveProfile: async (user, profile) => {
+    const userKey = user?.id ?? "local-demo-user";
     const saved = await saveProfile(user, profile);
     const data = await fetchWorkspace(user);
+    if (!isCurrentWorkspaceUser(get(), userKey)) return saved;
     set((state) => ({ ...data, profile: saved, billing: state.billing }));
+    return saved;
   },
   createJob: async (user, job) => {
     const saved = await createJob(user, job);
@@ -188,6 +209,10 @@ export const useWorkspaceStore = create((set, get) => ({
     return saved;
   },
 }));
+
+function isCurrentWorkspaceUser(state, userKey) {
+  return state.loadedFor === userKey || state.loadingFor === userKey;
+}
 
 async function reconcileAiApplicationUsage(user, data, billing) {
   const countedJobIds = getAiPoweredJobIds(data);

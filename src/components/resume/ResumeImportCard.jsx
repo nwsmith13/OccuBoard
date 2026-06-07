@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { buildOnboardingState } from "../../lib/onboarding.js";
+import { createEmptyProfile } from "../../lib/profile.js";
 import { extractResumeText, getResumeFileKind, normalizeResumeText, validateResumeFile } from "../../lib/resumeParser.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { Button } from "../ui/Button.jsx";
@@ -45,7 +46,8 @@ export function ResumeImportCard({ compact = false }) {
     try {
       const cleanedText = normalizeResumeText(text);
       const upload = file ? await saveResumeUpload(user, file, cleanedText) : null;
-      await saveProfile(user, { ...profile, base_resume_text: cleanedText });
+      const currentProfile = profile?.id === user?.id ? profile : createEmptyProfile(user);
+      await saveProfile(user, { ...currentProfile, base_resume_text: cleanedText });
       setState({
         loading: false,
         error: "",
