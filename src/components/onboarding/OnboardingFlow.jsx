@@ -1,4 +1,5 @@
 import { ArrowRight, CheckCircle2, FileText, Search, Sparkles, UploadCloud } from "lucide-react";
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../ui/Button.jsx";
 
@@ -6,9 +7,15 @@ const occuboardLogo = "/assets/occuboard-logo.svg";
 const occuboardIcon = "/assets/favicon.svg";
 
 export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmationAcknowledged, onDismiss }) {
+  const onboardingCardRef = useRef(null);
   const step = getCurrentStep(state);
   const StepIcon = step.icon;
   const showConfirmationSuccess = emailConfirmed && step.stepNumber === 1;
+
+  function focusOnboardingCard() {
+    onboardingCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => onboardingCardRef.current?.focus({ preventScroll: true }), 350);
+  }
 
   function handlePrimaryAction() {
     if (showConfirmationSuccess) onEmailConfirmationAcknowledged?.();
@@ -18,8 +25,8 @@ export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmat
   return (
     <main className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-emerald-50 px-4 py-8 text-ink sm:px-6">
       <section className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col justify-center">
-        {showConfirmationSuccess && <EmailConfirmedBanner />}
-        <div className="rounded-3xl bg-white/95 p-5 shadow-soft ring-1 ring-brand-100 sm:p-8 lg:p-10">
+        {showConfirmationSuccess && <EmailConfirmedBanner onContinue={focusOnboardingCard} />}
+        <div ref={onboardingCardRef} tabIndex={-1} className="rounded-3xl bg-white/95 p-5 shadow-soft ring-1 ring-brand-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 sm:p-8 lg:p-10">
           <img src={occuboardLogo} alt="OccuBoard" className="mx-auto mb-6 h-12 w-auto max-w-[220px] object-contain sm:h-14 sm:max-w-[260px]" />
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl">
@@ -175,24 +182,20 @@ function getCurrentStep(state) {
   };
 }
 
-function EmailConfirmedBanner() {
-  const milestones = ["Email Confirmed", "Upload Resume", "Add Job", "Analyze Fit", "Generate Resume"];
+function EmailConfirmedBanner({ onContinue }) {
   return (
     <section className="mb-4 rounded-2xl bg-emerald-50 p-4 shadow-sm ring-1 ring-emerald-200 sm:p-5" aria-label="Email confirmation success">
-      <div className="flex items-start gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200" aria-hidden="true">{"\u2713"}</span>
-        <div>
-          <h2 className="text-lg font-black text-emerald-950">Email confirmed</h2>
-          <p className="mt-1 text-sm font-semibold leading-6 text-emerald-900">Your workspace is active and ready to use.</p>
-        </div>
-      </div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5" aria-label="First application journey">
-        {milestones.map((label, index) => (
-          <div key={label} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold ring-1 ${index === 0 ? "bg-white text-emerald-800 ring-emerald-200" : "bg-white/55 text-slate-600 ring-white/80"}`}>
-            <span aria-hidden="true">{index === 0 ? "\u2713" : "\u25CB"}</span>
-            <span>{label}</span>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200" aria-hidden="true">{"\u2713"}</span>
+          <div>
+            <h2 className="text-lg font-black text-emerald-950">Email confirmed</h2>
+            <p className="mt-1 text-sm font-semibold leading-6 text-emerald-900">Your email has been verified and your workspace is ready.</p>
           </div>
-        ))}
+        </div>
+        <Button type="button" variant="secondary" onClick={onContinue} className="min-h-10 shrink-0 border-emerald-200 bg-white px-4 text-emerald-800 hover:bg-emerald-100">
+          Continue Setup
+        </Button>
       </div>
     </section>
   );
