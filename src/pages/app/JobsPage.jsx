@@ -1,4 +1,4 @@
-import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, Circle, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
+import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, Circle, Clipboard, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AiToolsPanel, ApplicationReadinessCard, CopyButton, CoverageMatrix, RecruiterConfidenceIndicator, RecoveryBar, RewriteInsightCard, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
@@ -1813,7 +1813,10 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
           </div>
           <p className="mt-2 whitespace-pre-wrap">{latestFollowUpMessage.content}</p>
           <div className="mt-3 flex flex-wrap gap-2 border-t border-brand-100 pt-3">
-            <Button className="min-h-8 px-3 text-xs" onClick={copyFollowUpMessage}>{copied ? "Copied" : "Copy message"}</Button>
+            <Button className="min-h-8 min-w-[72px] shrink-0 whitespace-nowrap px-3 text-xs" onClick={copyFollowUpMessage}>
+              <Clipboard size={14} className="shrink-0" aria-hidden="true" />
+              {copied ? "Copied" : "Copy message"}
+            </Button>
             <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={markCompleted} disabled={Boolean(saving || completedAt)}>Mark followed up</Button>
             <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => setNextFollowUp(7)}>Set next follow-up</Button>
           </div>
@@ -2099,7 +2102,10 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
             <MaterialCard title="Cover Letter" status={coverLetter ? "Generated" : coverLetterSkipped ? "Optional ✓" : "Optional"} description={coverLetter ? "Copy or export the tailored cover letter." : coverLetterSkipped ? "You chose not to include a cover letter for this application." : "Cover letter optional. Generate one only when it strengthens the application."}>
               {coverLetter ? (
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={copyCoverLetter}>{coverCopied ? "Copied" : "Copy"}</Button>
+                  <Button variant="secondary" className="min-h-8 min-w-[72px] shrink-0 whitespace-nowrap px-3 text-xs" onClick={copyCoverLetter}>
+                    <Clipboard size={14} className="shrink-0" aria-hidden="true" />
+                    {coverCopied ? "Copied" : "Copy"}
+                  </Button>
                   <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportCoverLetter("pdf")} disabled={Boolean(coverExporting)}>
                     {coverExporting === "pdf" && <Loader2 size={14} className="animate-spin" />}
                     PDF
@@ -3211,7 +3217,10 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
             {savedState === "saving" && <Loader2 size={14} className="animate-spin" />}
             Save edits
           </Button>
-          <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={copyCoverLetter} disabled={!draft.trim()}>{copied ? "Copied" : "Copy"}</Button>
+          <Button variant="secondary" className="min-h-8 min-w-[72px] shrink-0 whitespace-nowrap px-3 text-xs" onClick={copyCoverLetter} disabled={!draft.trim()}>
+            <Clipboard size={14} className="shrink-0" aria-hidden="true" />
+            {copied ? "Copied" : "Copy"}
+          </Button>
           <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportCoverLetter("pdf")} disabled={!draft.trim() || Boolean(exporting)}>
             {exporting === "pdf" && <Loader2 size={14} className="animate-spin" />}
             Export PDF
@@ -4050,7 +4059,10 @@ function InterviewPrepPractice({ question, questionIndex, totalQuestions, practi
         )}
         <textarea className="min-h-32 w-full rounded-lg border border-brand-100 bg-white p-3 text-sm leading-6 text-slate-700 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={thankYouDraft} onChange={(event) => setThankYouDraft(event.target.value)} />
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button className="min-h-8 px-3 text-xs" onClick={copyThankYou}>{thankYouCopied ? "Copied" : "Copy thank-you message"}</Button>
+          <Button className="min-h-8 min-w-[72px] shrink-0 whitespace-nowrap px-3 text-xs" onClick={copyThankYou}>
+            <Clipboard size={14} className="shrink-0" aria-hidden="true" />
+            {thankYouCopied ? "Copied" : "Copy thank-you message"}
+          </Button>
           <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={saveThankYouEdits}>Save edits</Button>
           <Button variant={interviewCompleted ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={markInterviewComplete} disabled={interviewCompleted}>{interviewCompleted ? "Interview completed" : "Log interview completed"}</Button>
           {thankYouDraft !== lastSavedThankYou && <span className="self-center text-xs font-semibold text-amber-700">Unsaved changes</span>}

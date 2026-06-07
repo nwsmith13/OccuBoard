@@ -829,7 +829,10 @@ export function MessageResult({ message, score, materials = {}, analysisReady = 
           <p className="text-xs text-slate-500">Saved {formatDate(message.created_at?.slice(0, 10))}</p>
           {associatedContact && <p className="mt-1 text-xs font-semibold text-brand-700">For: {associatedContact.name}</p>}
         </div>
-        <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={copyMessage}>Copy</Button>
+        <Button variant="secondary" className="min-h-8 min-w-[72px] shrink-0 whitespace-nowrap px-3 text-xs" onClick={copyMessage}>
+          <Clipboard size={14} aria-hidden="true" />
+          Copy
+        </Button>
       </div>
       <MessageReadiness readiness={readiness} />
       <ContactSelector contacts={contacts} selectedContactId={selectedContactId} onContactChange={onContactChange} />
@@ -1833,8 +1836,9 @@ export function CopyButton({ text, label = "Copy", variant = "default", successM
     }
   }
   return (
-    <button type="button" onClick={copy} className={`inline-flex min-h-8 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-brand-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${variant === "ghost" ? "bg-transparent" : ""}`}>
-      <Clipboard size={14} /> {copied ? "Copied" : label}
+    <button type="button" onClick={copy} className={`inline-flex min-h-8 min-w-[72px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold text-brand-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${variant === "ghost" ? "bg-transparent" : ""}`}>
+      <Clipboard size={14} className="shrink-0" aria-hidden="true" />
+      <span className="whitespace-nowrap">{copied ? "Copied" : label}</span>
     </button>
   );
 }
