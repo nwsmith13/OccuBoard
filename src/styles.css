@@ -83,6 +83,10 @@ button {
   box-shadow: 0 0 0 4px rgba(127, 215, 231, 0.22), 0 10px 24px rgba(15, 94, 168, 0.16);
 }
 
+.onboarding-card-highlight {
+  animation: onboardingCardHighlight 1.8s ease-out 1;
+}
+
 @keyframes onboardingActionGlow {
   0%,
   100% {
@@ -94,8 +98,23 @@ button {
   }
 }
 
+@keyframes onboardingCardHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(127, 215, 231, 0), 0 10px 30px rgba(15, 94, 168, 0.08);
+  }
+
+  30% {
+    box-shadow: 0 0 0 7px rgba(127, 215, 231, 0.32), 0 16px 38px rgba(15, 94, 168, 0.17);
+  }
+
+  100% {
+    box-shadow: 0 0 0 1px rgba(127, 215, 231, 0), 0 10px 30px rgba(15, 94, 168, 0.08);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .onboarding-primary-action {
+  .onboarding-primary-action,
+  .onboarding-card-highlight {
     animation: none;
   }
 }
