@@ -66,11 +66,11 @@ export function getReadinessTier(readiness = 0) {
 
 export function getInterviewLikelihood({ readiness = 0, fitScore = 0, recoveryAverage = 0 } = {}) {
   const value = readiness * 0.55 + fitScore * 0.35 + recoveryAverage * 5;
-  if (value >= 86) return "Strong potential";
-  if (value >= 76) return "Above average";
-  if (value >= 64) return "Competitive";
-  if (value >= 50) return "Possible";
-  return "Below average";
+  if (value >= 86) return "Strong interview outlook";
+  if (value >= 76) return "Above-average outlook";
+  if (value >= 64) return "Competitive outlook";
+  if (value >= 50) return "Possible interview path";
+  return "Limited interview outlook";
 }
 
 function getRecruiterSkimReadability(score) {

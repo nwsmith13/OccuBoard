@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { clearProductTourRestart } from "../../lib/onboarding.js";
 import { Button } from "../ui/Button.jsx";
+import { getFitScoreTone } from "../ui/FitScoreBadge.jsx";
 
 const occuboardLogo = "/assets/occuboard-logo.svg";
 const occuboardIcon = "/assets/favicon.svg";
@@ -96,7 +97,7 @@ export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmat
           {step.preview && <div className="mt-7">{step.preview}</div>}
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link to={step.href} onClick={handlePrimaryAction} className={`inline-flex rounded-lg ${step.stepNumber === 1 ? "onboarding-primary-action" : ""}`}>
+            <Link to={step.href} state={step.actionState} onClick={handlePrimaryAction} className={`inline-flex rounded-lg ${step.stepNumber === 1 ? "onboarding-primary-action" : ""}`}>
               <Button className="min-h-11 px-5">
                 {step.cta} <ArrowRight size={16} />
               </Button>
@@ -240,11 +241,12 @@ function getCurrentStep(state) {
   return {
     stepNumber: 8,
     icon: CheckCircle2,
-    title: "Your First Application Command Center Is Ready",
-    subtitle: "You have completed the guided path.",
-    body: "You created a tailored resume, reviewed recruiter perspective, prepared interview support, and exported an application package.",
-    cta: "Go To Applications",
-    href: "/app/applications",
+    title: "Application Package Complete",
+    subtitle: "Your first application is ready to move forward.",
+    body: "Your resume is tailored, recruiter perspective is reviewed, interview prep is generated, and application materials are ready.",
+    cta: "Mark Applied",
+    href: state.latestJobId ? `/app/applications/${state.latestJobId}` : "/app/applications",
+    actionState: { openJobTab: "overview", focus: "mark-applied" },
     secondaryCta: "Analyze Another Job",
     secondaryHref: "/app/new-jobs",
     allowSkip: false,
@@ -286,7 +288,7 @@ function MatchPreview({ score }) {
   const gaps = Array.isArray(score?.gaps) ? score.gaps.slice(0, 2) : [];
   return (
     <div className="grid gap-3 rounded-2xl bg-brand-50/60 p-4 ring-1 ring-brand-100 sm:grid-cols-3">
-      <PreviewItem title={Number.isFinite(match) ? `${Math.round(match)}% Match` : "Match %"} copy="A clear fit signal" />
+      <PreviewItem title={Number.isFinite(match) ? `${Math.round(match)}% Match` : "Match %"} copy={Number.isFinite(match) ? getFitScoreTone(match).label : "A clear fit signal"} />
       <PreviewItem title="Top strengths" copy={strengths.length ? strengths.join("; ") : "What to lead with"} />
       <PreviewItem title="Key considerations" copy={gaps.length ? gaps.join("; ") : "What to position carefully"} />
     </div>

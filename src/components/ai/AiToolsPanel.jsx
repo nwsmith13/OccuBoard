@@ -18,6 +18,7 @@ import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { ResumeExportPanel } from "../resume/ResumeExportPanel.jsx";
 import { GuidedNextStep } from "../onboarding/GuidedNextStep.jsx";
 import { Button } from "../ui/Button.jsx";
+import { getFitScoreTone } from "../ui/FitScoreBadge.jsx";
 
 export function AiToolsPanel({ job, compact = false, contentOnly = false, activeTab = "fit", onTabChange, onExportComplete }) {
   const { user } = useAuth();
@@ -957,20 +958,21 @@ export function ApplicationReadinessCard({ score, profile, resume, coverLetter, 
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
         >
-          {expanded ? "Hide score details" : "Why this score?"}
+          {expanded ? "Hide calculation" : "How is this calculated?"}
           <ChevronDown size={13} className={`transition duration-200 ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
       )}
 
       {showDetails && expanded && (
         <div className="mt-3 rounded-lg bg-slate-50/90 p-3 text-sm ring-1 ring-slate-200">
-          <p className="font-bold text-ink">Confidence Breakdown</p>
+          <p className="font-bold text-ink">How Recruiter Confidence is calculated</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Recruiter Confidence combines the signals below to estimate how clearly this application may move through an initial recruiter review.</p>
           <ul className="mt-2 grid gap-1.5 text-slate-700">
-            <li>Strong SaaS implementation alignment</li>
-            <li>ERP / systems integration relevance</li>
-            <li>Materials optimized across channels</li>
-            <li>Good recruiter skim readability</li>
-            <li>Limited direct service-desk ownership</li>
+            <li>Match score and qualification alignment</li>
+            <li>Missing qualifications and hiring considerations</li>
+            <li>Transferable experience supported by the base resume</li>
+            <li>Resume positioning strength and recruiter skim readability</li>
+            <li>Hiring risk signals that may need clarification</li>
           </ul>
           <p className="mt-3 text-xs font-bold uppercase tracking-[0.1em] text-slate-600">Final Recruiter Confidence: {readiness.readiness}</p>
         </div>
@@ -1804,10 +1806,12 @@ function RecommendationBadge({ value }) {
 }
 
 function getScoreTone(score) {
-  if (Number(score) >= 85) return { label: "Strong Match", panel: "border-emerald-200 bg-emerald-50", ring: "border-emerald-200 bg-white", score: "text-emerald-700" };
-  if (Number(score) >= 65) return { label: "Good Potential", panel: "border-sky-200 bg-sky-50", ring: "border-sky-200 bg-white", score: "text-sky-700" };
-  if (Number(score) >= 45) return { label: "Stretch Role", panel: "border-amber-200 bg-amber-50", ring: "border-amber-200 bg-white", score: "text-amber-700" };
-  return { label: "Low Match", panel: "border-rose-100 bg-rose-50", ring: "border-rose-100 bg-white", score: "text-rose-700" };
+  const value = Number(score);
+  const tone = getFitScoreTone(value);
+  if (value >= 80) return { label: tone.label, panel: "border-emerald-200 bg-emerald-50", ring: "border-emerald-200 bg-white", score: "text-emerald-700" };
+  if (value >= 70) return { label: tone.label, panel: "border-sky-200 bg-sky-50", ring: "border-sky-200 bg-white", score: "text-sky-700" };
+  if (value >= 60) return { label: tone.label, panel: "border-amber-200 bg-amber-50", ring: "border-amber-200 bg-white", score: "text-amber-700" };
+  return { label: tone.label, panel: "border-rose-100 bg-rose-50", ring: "border-rose-100 bg-white", score: "text-rose-700" };
 }
 
 function formatDateTime(value) {

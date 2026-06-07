@@ -2,7 +2,7 @@ import { CheckCircle2, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button.jsx";
-import { getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
+import { getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { getActiveJobs, getArchivedJobs, isArchivedJob } from "../../lib/archive.js";
@@ -435,9 +435,9 @@ function ApplicationCard({ model, onOpen, onSkipCoverLetter, onRestore, onDelete
 
 function OpportunityScoreBadge({ model }) {
   return (
-    <span className={`inline-flex min-w-14 shrink-0 flex-col items-center justify-center rounded-xl px-2.5 py-1.5 text-center font-black ring-1 ${model.className}`}>
+    <span className={`inline-flex min-w-[84px] shrink-0 flex-col items-center justify-center rounded-xl px-2.5 py-1.5 text-center font-black ring-1 ${model.className}`}>
       <span className="text-lg leading-none">{model.value}</span>
-      <span className="mt-0.5 text-[10px] uppercase tracking-[0.08em]">Fit</span>
+      <span className="mt-1 text-[10px] leading-tight">{model.label}</span>
     </span>
   );
 }
@@ -447,16 +447,19 @@ function getOpportunityScoreModel(score) {
   if (!Number.isFinite(value)) {
     return {
       value: "--",
-      label: "Possible Match",
+      label: "Not Scored",
       className: "bg-slate-50 text-slate-600 ring-slate-100",
       textClass: "text-slate-500",
     };
   }
   const rounded = `${Math.round(value)}%`;
-  if (value >= 90) return { value: rounded, label: "Excellent Match", className: "bg-emerald-50 text-emerald-800 ring-emerald-100", textClass: "text-emerald-700" };
-  if (value >= 85) return { value: rounded, label: "Strong Match", className: "bg-emerald-50 text-emerald-800 ring-emerald-100", textClass: "text-emerald-700" };
-  if (value >= 70) return { value: rounded, label: "Possible Match", className: "bg-amber-50 text-amber-800 ring-amber-100", textClass: "text-amber-700" };
-  return { value: rounded, label: "Long Shot", className: "bg-rose-50 text-rose-700 ring-rose-100", textClass: "text-rose-700" };
+  const tone = getFitScoreTone(value);
+  return {
+    value: rounded,
+    label: tone.label,
+    className: tone.className,
+    textClass: value >= 80 ? "text-emerald-700" : value >= 70 ? "text-brand-700" : value >= 60 ? "text-amber-700" : "text-rose-700",
+  };
 }
 
 function getPrimaryActionModel(action, category, stage) {

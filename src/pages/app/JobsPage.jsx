@@ -8,7 +8,7 @@ import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
 import { Field } from "../../components/ui/Field.jsx";
-import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
+import { FitScoreBadge, getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { priorities, remoteTypes, stages } from "../../data/seedData.js";
@@ -312,7 +312,7 @@ function getApplicationStatusTone(status) {
 export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = "", initialContactId = "", onClose, onEdit, onDelete, onArchive, onJobUpdate, pageMode = false }) {
   const { user } = useAuth();
   const toast = useToast();
-  const { profile, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, updateMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
+  const { profile, resumeUploads, jobs, jobScores, resumeVersions, messages, jobActivityLogs, jobContacts, interviewPrep, updateJob, saveMessage, updateMessage, saveJobContact, deleteJobContact, markJobContacted, saveInterviewPrep, logJobActivity } = useWorkspaceStore();
   const [job, setModalJob] = useState(initialJob);
   const [activeTab, setActiveTab] = useState(initialTab || "overview");
   const contentPanelRef = useRef(null);
@@ -388,6 +388,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     export: exportReady,
     recruiterView: recruiterViewReady,
   };
+  const onboardingState = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep });
 
   useEffect(() => {
     setModalJob(initialJob);
@@ -596,6 +597,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
 
   useEffect(() => {
     if (activeTab !== "overview" || !initialFocus) return;
+    if (initialFocus === "mark-applied") {
+      setMarkAppliedOpen(true);
+      return;
+    }
     const target = initialFocus === "contacts" ? contactsSectionRef : initialFocus === "followup" ? followUpSectionRef : null;
     if (!target) return;
     window.setTimeout(() => target.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 180);
@@ -795,7 +800,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
             </div>
           )}
           {activeTab === "resume" && (
-            <div className="mx-auto max-w-6xl">
+            <div className="mx-auto grid max-w-6xl gap-4">
               <AiToolsPanel
                 contentOnly
                 job={job}
@@ -805,6 +810,13 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   if (resume?.id) setExportedResumeIds((current) => new Set([...current, resume.id]));
                 }}
               />
+              {latestResume && onboardingState.completed && (
+                <NextRecommendedStep
+                  label="Review Recruiter View"
+                  description="See how a recruiter may interpret your positioning before you apply."
+                  onAction={() => requestTabChange("recruiterView")}
+                />
+              )}
             </div>
           )}
           {activeTab === "export" && (
@@ -831,6 +843,13 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   if (resume?.id) setExportedResumeIds((current) => new Set([...current, resume.id]));
                 }}
               />
+              {packageDownloaded && onboardingState.completed && getDisplayStage(job.status) === "Saved" && (
+                <NextRecommendedStep
+                  label="Track Application"
+                  description="Mark this opportunity applied so follow-ups and future activity stay organized."
+                  onAction={() => setMarkAppliedOpen(true)}
+                />
+              )}
             </div>
           )}
           {activeTab === "message" && (
@@ -839,7 +858,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
             </div>
           )}
           {activeTab === "recruiterView" && (
-            <div className="mx-auto max-w-6xl">
+            <div className="mx-auto grid max-w-6xl gap-4">
               <RecruiterViewWorkspace
                 score={latestScore}
                 profile={profile}
@@ -851,6 +870,13 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 onContinue={() => requestTabChange("interview")}
                 onMarkApplied={getDisplayStage(job.status) === "Saved" ? () => setMarkAppliedOpen(true) : undefined}
               />
+              {reviewedRecruiterView && onboardingState.completed && (
+                <NextRecommendedStep
+                  label="Prepare Interview Materials"
+                  description="Build likely questions, STAR stories, and talking points for this opportunity."
+                  onAction={() => requestTabChange("interview")}
+                />
+              )}
             </div>
           )}
           {activeTab === "coverLetter" && (
@@ -879,8 +905,15 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
             </div>
           )}
           {activeTab === "interview" && (
-            <div className="mx-auto max-w-6xl">
+            <div className="mx-auto grid max-w-6xl gap-4">
               <InterviewPrepWorkspace job={job} profile={profile} score={latestScore} resume={latestResume} contacts={contacts} prep={prep} user={user} updateJob={updateJob} onJobUpdate={mergeJobUpdate} onSavePrep={saveInterviewPrep} onLogActivity={logJobActivity} onUnsavedChange={setHasUnsavedChanges} onContinue={() => requestTabChange("export")} />
+              {prep && onboardingState.completed && (
+                <NextRecommendedStep
+                  label="Export Package"
+                  description="Choose the application and interview materials you want in one focused package."
+                  onAction={() => requestTabChange("export")}
+                />
+              )}
             </div>
           )}
           {activeTab === "activity" && (
@@ -1272,18 +1305,17 @@ function RecruiterConfidenceHeroSummary({ score, profile, resume, coverLetter, r
   if (!score) return null;
   const confidence = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage });
   const matchScore = Math.round(Number(score.score ?? score) || confidence.readiness || 0);
-  const recruiterConfidence = confidence.readiness >= 88 ? "High" : confidence.readiness >= 74 ? "Moderate" : "Building";
   const readinessLabel = confidence.readiness >= 82 ? "Ready to Apply" : confidence.tier;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">
-        {matchScore}% Match
+      <span className="rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-black text-brand-800 ring-1 ring-brand-100">
+        {matchScore}% Match · {getFitScoreTone(matchScore).label}
+      </span>
+      <span className="rounded-lg bg-brand-800 px-3 py-1.5 text-sm font-black text-white shadow-sm ring-1 ring-brand-900">
+        {confidence.readiness}% Recruiter Confidence
       </span>
       <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">
         {readinessLabel}
-      </span>
-      <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">
-        Recruiter Confidence: {recruiterConfidence}
       </span>
     </div>
   );
@@ -2481,7 +2513,7 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">{readiness.tier}</span>
-            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{readiness.readiness} Recruiter Confidence</span>
+            <span className="rounded-xl bg-brand-800 px-3 py-2 text-sm font-black text-white shadow-sm ring-1 ring-brand-900">{readiness.readiness}% Recruiter Confidence</span>
             {mitigationPlan.items.length > 0 && <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200">{strongRecoveryCount}/{mitigationPlan.items.length} Considerations Addressed</span>}
             {onMarkApplied && <Button className="min-h-8 px-3 text-xs" onClick={onMarkApplied}>Mark Applied</Button>}
           </div>
@@ -2569,9 +2601,24 @@ function CommandCenterOnboardingCard({ eyebrow, title, body, actionLabel, onActi
   );
 }
 
+function NextRecommendedStep({ label, description, onAction }) {
+  return (
+    <section className="rounded-xl bg-brand-50/70 p-4 shadow-sm ring-1 ring-brand-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-700">Next Recommended Step</p>
+          <h3 className="mt-1 text-base font-black text-ink">{label}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
+        </div>
+        <Button className="w-fit shrink-0" onClick={onAction}>{label}</Button>
+      </div>
+    </section>
+  );
+}
+
 function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterMessage, strategyItems, recoveryScores, onSelectSection, onContinue, hasIntelligenceData }) {
   const readiness = calculateApplicationReadiness({ score, profile, resume, coverLetter, recruiterMessage });
-  const recommendation = getApplicationRecommendation({ readiness, strategyItems, recoveryScores, resume, recruiterMessage });
+  const recommendation = getApplicationRecommendation({ readiness, strategyItems, recoveryScores, resume });
   const outlook = getHiringOutlook({ readiness, strategyItems, recoveryScores });
   const addressedCount = recoveryScores.filter((item) => item.score >= 3).length;
   const totalConsiderations = strategyItems.length || recoveryScores.length;
@@ -2587,16 +2634,33 @@ function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterM
         onContinue={onContinue}
       />
       <ApplicationReadinessCard score={score} profile={profile} resume={resume} coverLetter={coverLetter} recruiterMessage={recruiterMessage} />
+      <p className="-mt-1 rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-600 ring-1 ring-slate-100">
+        Match Score reflects qualification and keyword alignment. Recruiter Confidence estimates how clearly your evidence may move through recruiter screening.
+      </p>
       {strategyItems.length > 0 && (
-        <div className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Strategy highlights</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {strategyItems.slice(0, 4).map((item) => (
-              <span key={item.id} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{item.appliedLabel}</span>
-            ))}
+        <>
+          <div className="rounded-xl bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-sm ring-1 ring-brand-100">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-700">How to Increase Your Chances</p>
+            <h3 className="mt-1 text-lg font-black text-ink">Before applying</h3>
+            <ul className="mt-3 grid gap-2 text-sm font-semibold text-slate-700 md:grid-cols-2">
+              {strategyItems.slice(0, 4).map((item) => (
+                <li key={item.id} className="flex items-start gap-2">
+                  <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true" />
+                  <span>{getChanceAction(item)}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <p className="mt-3 text-sm leading-6 text-slate-700">Recruiters are likely to notice {readiness.strongestSignal.toLowerCase()}. The main place to stay clear and confident is {readiness.biggestConsideration.toLowerCase()}.</p>
-        </div>
+          <div className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Strategy highlights</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {strategyItems.slice(0, 4).map((item) => (
+                <span key={item.id} className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{item.appliedLabel}</span>
+              ))}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-700">Recruiters are likely to notice {readiness.strongestSignal.toLowerCase()}. The main place to stay clear and confident is {readiness.biggestConsideration.toLowerCase()}.</p>
+          </div>
+        </>
       )}
       {!hasIntelligenceData && (
         <div className="rounded-xl bg-white/90 p-4 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-brand-100">
@@ -2610,10 +2674,15 @@ function RecruiterViewOverview({ score, profile, resume, coverLetter, recruiterM
 function HiringOutlookCard({ outlook, recommendation, readiness, addressedCount, totalConsiderations, onSelectSection, onContinue }) {
   return (
     <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
-      <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Hiring Outlook</p>
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h3 className="text-2xl font-black text-ink">{outlook.label}</h3>
-        <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100">{recommendation.label}</span>
+      <div className={`rounded-xl p-4 ring-1 ${recommendation.tone}`}>
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-600">Recommended Action</p>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <h3 className="text-2xl font-black text-ink">{recommendation.icon} {recommendation.label}</h3>
+          <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-bold text-slate-700 ring-1 ring-white">{outlook.label}</span>
+        </div>
+        <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-700">{recommendation.description}</p>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {onContinue && <Button className="min-h-8 px-3 text-xs" onClick={onContinue}>Continue to Interview Prep</Button>}
         {recommendation.action && (
           <Button variant={recommendation.actionVariant} className="min-h-8 px-3 text-xs" onClick={() => onSelectSection?.(recommendation.actionSection)}>
@@ -2821,39 +2890,68 @@ function dedupeRewriteSections(items = []) {
   });
 }
 
-function getApplicationRecommendation({ readiness, strategyItems = [], recoveryScores = [], resume, recruiterMessage }) {
+function getApplicationRecommendation({ readiness, strategyItems = [], recoveryScores = [], resume }) {
   const total = strategyItems.length || recoveryScores.length;
   const strongOrFullRecoveryCount = recoveryScores.filter((item) => item.score >= 3).length;
   const unresolvedCriticalCount = strategyItems.filter((item) => item.severity === "critical" && !recoveryScores.some((row) => row.gapId === item.id && row.score >= 3)).length;
-  const missingCoreMaterials = !resume || !recruiterMessage;
+  const missingCoreMaterials = !resume;
   const recoveredRatio = total ? strongOrFullRecoveryCount / total : 1;
 
   if (readiness.readiness >= 90 && recoveredRatio >= 0.75 && unresolvedCriticalCount === 0 && !missingCoreMaterials) {
     return {
-      label: "Submit as-is",
+      label: "Apply Confidently",
+      icon: "🟢",
       description: "All major hiring considerations have been addressed. Recruiter confidence is strong and no blocking concerns remain.",
       note: `Confidence: High. ${readiness.readiness} recruiter confidence with ${strongOrFullRecoveryCount}/${total || 0} considerations strongly addressed.`,
       action: "",
       actionSection: "overview",
       actionVariant: "primary",
-      tone: "bg-emerald-50 ring-emerald-100",
+      tone: "bg-emerald-50 ring-emerald-200",
     };
   }
 
-  if (readiness.readiness >= 75) {
+  if (readiness.readiness >= 82 && unresolvedCriticalCount === 0) {
     return {
-      label: "Apply after quick review",
+      label: "Apply Confidently",
+      icon: "🟢",
+      description: "Recruiter confidence is strong and the major positioning concerns are addressed.",
+      note: `Confidence: High. ${readiness.tier}.`,
+      action: recoveryScores.length ? "Review Recovery" : "",
+      actionSection: recoveryScores.length ? "recovery" : "overview",
+      actionVariant: "secondary",
+      tone: "bg-emerald-50 ring-emerald-200",
+    };
+  }
+
+  if (readiness.readiness >= 70 && unresolvedCriticalCount === 0) {
+    return {
+      label: "Apply After Quick Review",
+      icon: "🟡",
       description: "This application is competitive. A quick review of the remaining positioning notes may improve confidence.",
       note: `Confidence: Moderate. ${readiness.tier}; review recovery if you want one last confidence check.`,
       action: "Review Recovery",
       actionSection: recoveryScores.length ? "recovery" : "overview",
       actionVariant: "secondary",
-      tone: "bg-brand-50 ring-brand-100",
+      tone: "bg-amber-50 ring-amber-200",
+    };
+  }
+
+  if (readiness.readiness < 55 || unresolvedCriticalCount > 1) {
+    return {
+      label: "Low Probability",
+      icon: "🔴",
+      description: "Major role requirements appear unresolved. Review the highest-impact considerations before deciding whether to apply.",
+      note: "Confidence: Low. Important requirements may still be missing.",
+      action: recoveryScores.length ? "Review Considerations" : "",
+      actionSection: "recovery",
+      actionVariant: "secondary",
+      tone: "bg-rose-50 ring-rose-200",
     };
   }
 
   return {
-    label: "Address remaining concerns before applying",
+    label: "Improve Before Applying",
+    icon: "🟠",
     description: "Strengthen the remaining positioning points before submitting this application.",
     note: missingCoreMaterials ? "Confidence: Low. Core application materials are still being built." : "Confidence: Low. A few positioning points may need more attention.",
     action: recoveryScores.length ? "Review Considerations" : "",
@@ -2861,6 +2959,17 @@ function getApplicationRecommendation({ readiness, strategyItems = [], recoveryS
     actionVariant: "secondary",
     tone: "bg-amber-50 ring-amber-100",
   };
+}
+
+function getChanceAction(item = {}) {
+  const actions = {
+    itsm_ticketing: "Emphasize intake, escalation, issue tracking, and workflow coordination experience.",
+    uat_validation: "Mention rollout validation, go-live readiness, testing, or client acceptance work.",
+    platform_familiarity: "Connect adjacent systems experience to your ability to learn the target platform quickly.",
+    seniority_framing: "Keep your positioning hands-on, practical, and aligned with the role's level.",
+    documentation_training: "Highlight documentation, training, onboarding, and user enablement examples.",
+  };
+  return actions[item.category] || item.strategy || item.appliedLabel || "Review this positioning point before applying.";
 }
 
 function getCoverageSummary(rows = []) {
@@ -3149,8 +3258,11 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const showPrepSlowHint = useSlowLoading(loading);
   const content = prep?.content;
   const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep });
-  const practiced = new Set(prep?.practiced_questions ?? []);
-  const confident = new Set(prep?.confident_questions ?? []);
+  const questionStatuses = getQuestionStatusMap(prep);
+  const practiced = new Set(Object.entries(questionStatuses).filter(([, status]) => ["practiced", "confident"].includes(status)).map(([index]) => Number(index)));
+  const confident = new Set(Object.entries(questionStatuses).filter(([, status]) => status === "confident").map(([index]) => Number(index)));
+  const needWork = new Set(Object.entries(questionStatuses).filter(([, status]) => status === "need_work").map(([index]) => Number(index)));
+  const skipped = new Set(Object.entries(questionStatuses).filter(([, status]) => status === "skipped").map(([index]) => Number(index)));
   const notes = prep?.answer_notes ?? {};
 
   useEffect(() => {
@@ -3204,19 +3316,25 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     await onSavePrep(user, job, { ...prep, ...patch, content: patch.content ?? content, skipActivity: true });
   }
 
+  function updateQuestionStatus(index, status) {
+    const nextStatuses = { ...questionStatuses };
+    if (!status || nextStatuses[index] === status) delete nextStatuses[index];
+    else nextStatuses[index] = status;
+    const nextPracticed = Object.entries(nextStatuses)
+      .filter(([, value]) => ["practiced", "confident"].includes(value))
+      .map(([questionIndex]) => Number(questionIndex));
+    updatePrepPatch({
+      practiced_questions: nextPracticed,
+      content: { ...content, questionStatuses: nextStatuses },
+    });
+  }
+
   function togglePracticed(index) {
-    const next = new Set(practiced);
-    if (next.has(index)) next.delete(index);
-    else next.add(index);
-    updatePrepPatch({ practiced_questions: [...next] });
+    updateQuestionStatus(index, "practiced");
   }
 
   function markConfident(index) {
-    const nextPracticed = new Set(practiced);
-    nextPracticed.add(index);
-    const nextConfident = new Set(confident);
-    nextConfident.add(index);
-    updatePrepPatch({ practiced_questions: [...nextPracticed], confident_questions: [...nextConfident] });
+    updateQuestionStatus(index, "confident");
   }
 
   function saveNote(index, value) {
@@ -3444,6 +3562,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           <Detail label="Interview date" value={interviewDetails.interview_date ? formatDate(interviewDetails.interview_date) : "Not scheduled"} />
           <Detail label="Preparation level" value={getPrepLevel(content, practiced.size)} />
         </div>
+        <InterviewQuestionProgress practicedCount={practiced.size} totalQuestions={questions.length} />
         {contacts[0] && <p className="mt-3 text-sm text-slate-600">Contact: <span className="font-semibold text-slate-800">{contacts[0].name}</span></p>}
         <InterviewPrepTabs active={prepTab} onSelect={setPrepTab} />
       </div>
@@ -3481,8 +3600,11 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           noteSaveStatus={noteSaveStatus}
           practiced={practiced}
           confident={confident}
+          needWork={needWork}
+          skipped={skipped}
           togglePracticed={togglePracticed}
           markConfident={markConfident}
+          updateQuestionStatus={updateQuestionStatus}
           stories={stories}
         />
       )}
@@ -3502,8 +3624,11 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
           totalQuestions={questions.length}
           practiced={practiced}
           confident={confident}
+          needWork={needWork}
+          skipped={skipped}
           onMarkPracticed={togglePracticed}
           onMarkConfident={markConfident}
+          onUpdateStatus={updateQuestionStatus}
           onNext={() => setPracticeIndex((index) => (questions.length ? (index + 1) % questions.length : 0))}
           onRandom={() => setPracticeIndex(() => (questions.length ? Math.floor(Math.random() * questions.length) : 0))}
           mockStarted={mockStarted}
@@ -3717,7 +3842,22 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, con
   );
 }
 
-function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draftNotes, notes, saveNote, persistNote, noteSaveStatus, practiced, confident, togglePracticed, markConfident, stories }) {
+function InterviewQuestionProgress({ practicedCount, totalQuestions }) {
+  const percent = totalQuestions ? Math.round((practicedCount / totalQuestions) * 100) : 0;
+  return (
+    <div className="mt-4 rounded-lg bg-brand-50/70 p-3 ring-1 ring-brand-100">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-bold text-ink">Interview Questions Practiced</p>
+        <p className="text-sm font-black text-brand-900">{practicedCount} / {totalQuestions} · {percent}%</p>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white" aria-label={`${practicedCount} of ${totalQuestions} interview questions practiced, ${percent}%`}>
+        <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-300" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draftNotes, notes, saveNote, persistNote, noteSaveStatus, practiced, confident, needWork, skipped, togglePracticed, markConfident, updateQuestionStatus, stories }) {
   const grouped = groupInterviewQuestions(questions);
   return (
     <PrepSection title="Top Interview Questions">
@@ -3748,7 +3888,7 @@ function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draf
                       </span>
                     </button>
                     <div className="grid justify-items-end gap-2">
-                      <QuestionStatusChip index={index} practiced={practiced} confident={confident} />
+                      <QuestionStatusChip index={index} practiced={practiced} confident={confident} needWork={needWork} skipped={skipped} />
                       <button
                         type="button"
                         className="inline-flex w-24 shrink-0 justify-center whitespace-nowrap rounded-full bg-white px-3 py-1.5 text-xs font-bold text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
@@ -3772,7 +3912,9 @@ function InterviewPrepQuestions({ questions, openQuestion, setOpenQuestion, draf
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button variant={practiced.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => togglePracticed(index)}>{practiced.has(index) ? "Practiced" : "Mark practiced"}</Button>
-                        <Button variant={confident.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => markConfident(index)}>{confident.has(index) ? "Confident" : "Mark confident"}</Button>
+                        <Button variant={needWork.has(index) ? "primary" : "secondary"} className="w-fit min-h-8 px-3 text-xs" onClick={() => updateQuestionStatus(index, "need_work")}>Need Work</Button>
+                        <Button variant={skipped.has(index) ? "primary" : "ghost"} className="w-fit min-h-8 px-3 text-xs" onClick={() => updateQuestionStatus(index, "skipped")}>Skip</Button>
+                        {confident.has(index) && <Button variant="ghost" className="w-fit min-h-8 px-3 text-xs" onClick={() => markConfident(index)}>Clear confident</Button>}
                       </div>
                     </div>
                   )}
@@ -3868,7 +4010,7 @@ function InterviewPrepResearch({ job, focusAreas, questionsToAsk }) {
   );
 }
 
-function InterviewPrepPractice({ question, questionIndex, totalQuestions, practiced, confident, onMarkPracticed, onMarkConfident, onNext, onRandom, mockStarted, onStart, thankYouCopied, thankYouSaved, interviewCompleted, thankYouDraft, setThankYouDraft, copyThankYou, saveThankYouEdits, markInterviewComplete, lastSavedThankYou }) {
+function InterviewPrepPractice({ question, questionIndex, totalQuestions, practiced, confident, needWork, skipped, onMarkPracticed, onMarkConfident, onUpdateStatus, onNext, onRandom, mockStarted, onStart, thankYouCopied, thankYouSaved, interviewCompleted, thankYouDraft, setThankYouDraft, copyThankYou, saveThankYouEdits, markInterviewComplete, lastSavedThankYou }) {
   return (
     <section className="grid gap-4">
       <PrepSection title="Mock Interview Practice">
@@ -3890,7 +4032,9 @@ function InterviewPrepPractice({ question, questionIndex, totalQuestions, practi
               {!mockStarted && <Button className="min-h-8 px-3 text-xs" onClick={onStart}>Start Mock Interview</Button>}
               <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onRandom}>Random Question</Button>
               <Button variant={practiced.has(questionIndex) ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={() => onMarkPracticed(questionIndex)}>{practiced.has(questionIndex) ? "Practiced" : "Mark practiced"}</Button>
-              <Button variant={confident.has(questionIndex) ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={() => onMarkConfident(questionIndex)}>{confident.has(questionIndex) ? "Confident" : "Mark confident"}</Button>
+              <Button variant={needWork.has(questionIndex) ? "primary" : "secondary"} className="min-h-8 px-3 text-xs" onClick={() => onUpdateStatus(questionIndex, "need_work")}>Need Work</Button>
+              <Button variant={skipped.has(questionIndex) ? "primary" : "ghost"} className="min-h-8 px-3 text-xs" onClick={() => onUpdateStatus(questionIndex, "skipped")}>Skip</Button>
+              {confident.has(questionIndex) && <Button variant="ghost" className="min-h-8 px-3 text-xs" onClick={() => onMarkConfident(questionIndex)}>Clear confident</Button>}
               <Button className="min-h-8 px-3 text-xs" onClick={onNext}>Next question</Button>
             </div>
           </div>
@@ -3986,10 +4130,14 @@ function InterviewConcernCard({ concern }) {
   );
 }
 
-function QuestionStatusChip({ index, practiced, confident }) {
-  const status = getQuestionStatus(index, practiced, confident);
+function QuestionStatusChip({ index, practiced, confident, needWork, skipped }) {
+  const status = getQuestionStatus(index, practiced, confident, needWork, skipped);
   const tone = confident.has(index)
     ? "bg-emerald-50 text-emerald-800 ring-emerald-100"
+    : needWork.has(index)
+      ? "bg-amber-50 text-amber-800 ring-amber-100"
+      : skipped.has(index)
+        ? "bg-slate-100 text-slate-600 ring-slate-200"
     : practiced.has(index)
       ? "bg-brand-50 text-brand-800 ring-brand-100"
       : "bg-slate-50 text-slate-600 ring-slate-100";
@@ -4342,10 +4490,18 @@ function getQuestionEvaluation(question = {}) {
   return "Whether your examples are specific, relevant, and grounded in real outcomes.";
 }
 
-function getQuestionStatus(index, practiced, confident) {
+function getQuestionStatus(index, practiced, confident, needWork = new Set(), skipped = new Set()) {
   if (confident.has(index)) return "Confident";
+  if (needWork.has(index)) return "Need Work";
+  if (skipped.has(index)) return "Skipped";
   if (practiced.has(index)) return "Practiced";
   return "Not Practiced";
+}
+
+function getQuestionStatusMap(prep = {}) {
+  const stored = prep?.content?.questionStatuses;
+  if (stored && typeof stored === "object" && !Array.isArray(stored)) return stored;
+  return Object.fromEntries((prep?.practiced_questions || []).map((index) => [index, "practiced"]));
 }
 
 function getRelatedStory(question = {}, stories = []) {

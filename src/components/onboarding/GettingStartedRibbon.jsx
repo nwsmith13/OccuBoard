@@ -1,5 +1,6 @@
-import { X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { CheckCircle2, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "../ui/Button.jsx";
 import { onboardingTrackerDismissedKey, writeBooleanFlag } from "../../lib/onboarding.js";
 
 export function GettingStartedRibbon({ state, dismissed }) {
@@ -54,23 +55,36 @@ function getStepGuidance(step) {
 export function CompletionRibbon({ state, dismissed, onDismiss }) {
   if (!state?.completed || dismissed) return null;
   return (
-    <section className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 shadow-sm ring-1 ring-emerald-100">
-      <div className="flex items-center justify-between gap-3">
+    <section className="mb-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-white to-brand-50 px-4 py-4 shadow-sm ring-1 ring-emerald-100">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">Getting Started</p>
-          <p className="mt-1 text-sm font-bold text-emerald-900">Your first application package is ready.</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">Finish Line</p>
+          <h2 className="mt-1 text-xl font-black text-emerald-950">🎉 Application Package Complete</h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {["Resume tailored", "Recruiter perspective reviewed", "Interview prep generated", "Application materials ready"].map((item) => (
+              <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100">
+                <CheckCircle2 size={13} aria-hidden="true" /> {item}
+              </span>
+            ))}
+          </div>
         </div>
-        <button
-          type="button"
-          className="rounded-lg p-2 text-emerald-700 transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100"
-          onClick={() => {
-            writeBooleanFlag(onboardingTrackerDismissedKey, true);
-            onDismiss?.();
-          }}
-          aria-label="Dismiss getting started"
-        >
-          <X size={16} />
-        </button>
+        <div className="flex items-center gap-2">
+          <Link to={state.latestJobId ? `/app/applications/${state.latestJobId}` : "/app/applications"} state={{ openJobTab: "overview", focus: "mark-applied" }}>
+            <Button>Mark Applied</Button>
+          </Link>
+          <Link to="/app/new-jobs"><Button variant="secondary">Analyze Another Job</Button></Link>
+          <button
+            type="button"
+            className="rounded-lg p-2 text-emerald-700 transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100"
+            onClick={() => {
+              writeBooleanFlag(onboardingTrackerDismissedKey, true);
+              onDismiss?.();
+            }}
+            aria-label="Dismiss completion message"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
     </section>
   );

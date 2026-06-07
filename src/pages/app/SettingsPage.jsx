@@ -107,7 +107,7 @@ export function SettingsPage() {
           pro={pro}
           loading={billingLoading === "portal"}
           onStartJobs={() => navigate("/app/new-jobs")}
-          onManage={openPortal}
+          onDashboard={() => navigate("/app/dashboard")}
         />
       )}
       <div className="grid gap-6 lg:grid-cols-[1fr_0.85fr]">
@@ -164,7 +164,7 @@ export function SettingsPage() {
   );
 }
 
-function CheckoutSuccessCard({ syncState, pro, loading, onStartJobs, onManage }) {
+function CheckoutSuccessCard({ syncState, pro, loading, onStartJobs, onDashboard }) {
   const pending = syncState === "pending" && !pro;
   const confirming = syncState === "confirming" && !pro;
   return (
@@ -178,12 +178,22 @@ function CheckoutSuccessCard({ syncState, pro, loading, onStartJobs, onManage })
               ? "Confirming your Pro subscription..."
               : pending
                 ? "Your payment was successful. We're still syncing your subscription. Refresh in a moment if Pro doesn't appear."
-                : "Your subscription is active. You can now create unlimited AI-powered applications, tailored resumes, recruiter messages, interview prep, and application tracking."}
+                : "Your subscription is active."}
           </p>
+          {!confirming && !pending && (
+            <div className="mt-4">
+              <p className="text-sm font-black text-slate-800">You now have unlimited access to:</p>
+              <ul className="mt-2 grid gap-1 text-sm font-semibold text-slate-700 sm:grid-cols-2">
+                {["Job analyses", "Resume tailoring", "Recruiter View", "Interview preparation", "Application tracking"].map((item) => (
+                  <li key={item} className="flex items-center gap-2"><span className="text-emerald-700" aria-hidden="true">✓</span>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={onStartJobs}>Start analyzing jobs</Button>
-          <Button variant="secondary" onClick={onManage} disabled={loading}>{loading ? "Opening..." : "Manage subscription"}</Button>
+          <Button onClick={onStartJobs}>Analyze a Job</Button>
+          <Button variant="secondary" onClick={onDashboard} disabled={loading}>Go to Dashboard</Button>
         </div>
       </div>
     </Card>
