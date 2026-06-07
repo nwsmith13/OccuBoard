@@ -18,15 +18,15 @@ export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmat
   return (
     <main className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-emerald-50 px-4 py-8 text-ink sm:px-6">
       <section className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col justify-center">
+        {showConfirmationSuccess && <EmailConfirmedBanner />}
         <div className="rounded-3xl bg-white/95 p-5 shadow-soft ring-1 ring-brand-100 sm:p-8 lg:p-10">
           <img src={occuboardLogo} alt="OccuBoard" className="mx-auto mb-6 h-12 w-auto max-w-[220px] object-contain sm:h-14 sm:max-w-[260px]" />
-          {showConfirmationSuccess && <EmailConfirmedBanner />}
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-600">Step {step.stepNumber} of {state.total}</p>
               <div className="mt-5 flex items-center gap-3">
-                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-800 ring-1 ring-brand-100">
-                  {step.iconAsset ? <img src={step.iconAsset} alt="" className="h-8 w-8 object-contain" /> : <StepIcon size={24} />}
+                <span className={step.iconAsset ? "grid h-12 w-12 shrink-0 place-items-center" : "grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-800 ring-1 ring-brand-100"}>
+                  {step.iconAsset ? <img src={step.iconAsset} alt="" className="h-12 w-12 object-contain" /> : <StepIcon size={24} />}
                 </span>
                 <h1 className="text-3xl font-black tracking-tight text-ink sm:text-4xl">{step.title}</h1>
               </div>
@@ -178,12 +178,12 @@ function getCurrentStep(state) {
 function EmailConfirmedBanner() {
   const milestones = ["Email Confirmed", "Upload Resume", "Add Job", "Analyze Fit", "Generate Resume"];
   return (
-    <section className="mb-7 rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-200 sm:p-5" aria-label="Email confirmation success">
+    <section className="mb-4 rounded-2xl bg-emerald-50 p-4 shadow-sm ring-1 ring-emerald-200 sm:p-5" aria-label="Email confirmation success">
       <div className="flex items-start gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200" aria-hidden="true">{"\u2713"}</span>
         <div>
-          <h2 className="text-lg font-black text-emerald-950">Email Confirmed</h2>
-          <p className="mt-1 text-sm font-semibold leading-6 text-emerald-900">Your email has been verified and your OccuBoard workspace is ready.</p>
+          <h2 className="text-lg font-black text-emerald-950">Email confirmed</h2>
+          <p className="mt-1 text-sm font-semibold leading-6 text-emerald-900">Your workspace is active and ready to use.</p>
         </div>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5" aria-label="First application journey">
