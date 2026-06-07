@@ -1,6 +1,7 @@
 import { ArrowRight, CheckCircle2, FileText, Search, Sparkles, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { clearProductTourRestart } from "../../lib/onboarding.js";
 import { Button } from "../ui/Button.jsx";
 
 const occuboardLogo = "/assets/occuboard-logo.svg";
@@ -66,6 +67,7 @@ export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmat
   }
 
   function handlePrimaryAction() {
+    clearProductTourRestart();
     if (showConfirmationSuccess) onEmailConfirmationAcknowledged?.();
     if (step.dismissOnClick) onDismiss?.();
   }
@@ -113,18 +115,38 @@ export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmat
 
           <div className="mt-8 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {state.steps.map((item) => (
-              <div key={item.id} className={`rounded-xl px-3 py-2 ring-1 ${item.done ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-500 ring-slate-100"}`}>
+              <Link
+                key={item.id}
+                to={getTourStepDestination(item.id, state.latestJobId)}
+                onClick={clearProductTourRestart}
+                title={item.done ? `${item.label} is complete. Open this section.` : `Open ${item.label} for guidance.`}
+                className={`rounded-xl px-3 py-2 ring-1 transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${item.done ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-500 ring-slate-100"}`}
+              >
                 <p className="flex items-center gap-2 text-xs font-black">
                   <span>{item.done ? "\u2713" : "\u25CB"}</span>
                   {item.label}
                 </p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
       </section>
     </main>
   );
+}
+
+function getTourStepDestination(stepId, jobId) {
+  const jobBase = jobId ? `/app/applications/${jobId}` : "/app/applications";
+  return {
+    resume: "/app/resume-studio#resume-import",
+    job: "/app/new-jobs",
+    fit: `${jobBase}?tab=fit`,
+    resumeGenerated: `${jobBase}?tab=resume`,
+    recruiterView: `${jobBase}?tab=recruiterView`,
+    interviewPrep: `${jobBase}?tab=interview`,
+    export: `${jobBase}?tab=export`,
+    track: jobBase,
+  }[stepId] || "/app/dashboard";
 }
 
 function getCurrentStep(state) {

@@ -281,6 +281,15 @@ function EmptyApplicationState({ filter, archiveMode, noApplications, children }
     <div className="rounded-xl bg-white/90 p-8 text-center shadow-card ring-1 ring-brand-100">
       <h3 className="text-xl font-bold text-ink">{emptyCopy.title}</h3>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">{emptyCopy.copy}</p>
+      {noApplications && (
+        <div className="mx-auto mt-4 grid max-w-md gap-1.5 text-left text-sm font-semibold text-slate-700 sm:grid-cols-2">
+          {["Fit Analysis", "Tailored Resumes", "Recruiter View", "Interview Prep"].map((item) => (
+            <span key={item} className="inline-flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 ring-1 ring-brand-100">
+              <CheckCircle2 size={14} className="text-brand-700" aria-hidden="true" /> {item}
+            </span>
+          ))}
+        </div>
+      )}
       {children}
     </div>
   );
@@ -290,7 +299,7 @@ function getEmptyStateCopy({ filter, archived, noApplications }) {
   if (noApplications) {
     return {
       title: "No Applications Yet",
-      copy: "Analyze a job to create your first opportunity.",
+      copy: "Add your first opportunity to unlock fit analysis, tailored materials, recruiter perspective, and interview preparation.",
     };
   }
   if (filter === "All") {

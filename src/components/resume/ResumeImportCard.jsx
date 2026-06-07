@@ -1,4 +1,4 @@
-import { ArrowDown, CheckCircle2, FileText, UploadCloud, X } from "lucide-react";
+import { ArrowDown, FileText, UploadCloud, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -6,6 +6,7 @@ import { buildOnboardingState } from "../../lib/onboarding.js";
 import { createEmptyProfile } from "../../lib/profile.js";
 import { extractResumeText, getResumeFileKind, normalizeResumeText, validateResumeFile } from "../../lib/resumeParser.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
+import { GuidedNextStep } from "../onboarding/GuidedNextStep.jsx";
 import { Button } from "../ui/Button.jsx";
 import { Card } from "../ui/Card.jsx";
 
@@ -57,7 +58,6 @@ export function ResumeImportCard({ compact = false }) {
       setReview(null);
       if (firstTimeBeforeUpload) {
         setHandoff(true);
-        window.setTimeout(() => navigate("/app/new-jobs", { state: { onboardingStep: "analyze-job" } }), 2200);
       }
     } catch (error) {
       setState({ loading: false, error: error.message, success: "", storageNote: "" });
@@ -72,7 +72,7 @@ export function ResumeImportCard({ compact = false }) {
 
   return (
     <Card className={`${compact ? "bg-brand-50/40" : ""} ${firstTimeBeforeUpload ? "border-brand-300 bg-gradient-to-br from-brand-50 via-white to-emerald-50 shadow-soft ring-2 ring-brand-200" : ""}`}>
-      {handoff && <ResumeOnboardingHandoff onContinue={() => navigate("/app/new-jobs", { state: { onboardingStep: "analyze-job" } })} />}
+      {handoff && <ResumeOnboardingHandoff onContinue={() => navigate("/app/new-jobs", { state: { onboardingStep: "analyze-job" } })} onSkip={() => setHandoff(false)} />}
       {firstTimeBeforeUpload && (
         <div className="mb-4 flex items-center gap-2 rounded-lg bg-brand-700 px-3 py-2 text-sm font-bold text-white shadow-sm">
           <ArrowDown size={16} aria-hidden="true" />
@@ -134,24 +134,20 @@ export function ResumeImportCard({ compact = false }) {
   );
 }
 
-function ResumeOnboardingHandoff({ onContinue }) {
+function ResumeOnboardingHandoff({ onContinue, onSkip }) {
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-white/95 px-4 backdrop-blur-sm">
-      <section className="w-full max-w-lg rounded-3xl bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-6 text-center shadow-soft ring-1 ring-brand-100 sm:p-8">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
-          <CheckCircle2 size={30} />
-        </span>
-        <p className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-brand-600">Getting Started</p>
-        <h2 className="mt-2 text-2xl font-black text-ink">Resume Uploaded</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Your resume is now the foundation for tailored applications.</p>
-        <p className="mt-2 text-sm font-semibold text-slate-700">1 of 8 complete</p>
-        <div className="mx-auto mt-4 h-2 max-w-xs overflow-hidden rounded-full bg-slate-100" aria-label="1 of 8 onboarding steps complete">
-          <div className="h-full w-[12.5%] rounded-full bg-emerald-500 transition-[width] duration-500" />
-        </div>
-        <p className="mt-5 text-sm leading-6 text-slate-600">Next step: Analyze your first job posting.</p>
-        <Button className="mt-4" onClick={onContinue}>Continue to Analyze Job</Button>
-        <p className="mt-4 text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Opening Analyze Job...</p>
-      </section>
+      <div className="w-full max-w-2xl">
+        <GuidedNextStep
+          title="Resume uploaded successfully"
+          message="Your resume foundation is ready."
+          nextStep="Add a job description so OccuBoard can analyze fit, tailor your resume, generate recruiter messaging, and prepare interview materials."
+          actionLabel="Add My First Job"
+          onAction={onContinue}
+          secondaryLabel="Skip for now"
+          onSecondary={onSkip}
+        />
+      </div>
     </div>
   );
 }

@@ -1,11 +1,14 @@
-import { BarChart3, Command, FileStack, FileText, LayoutDashboard, LogOut, Menu, PlusCircle, Settings, X } from "lucide-react";
+import { BarChart3, Command, FileStack, FileText, HelpCircle, LayoutDashboard, LogOut, Menu, PlusCircle, Settings, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
-import { buildOnboardingState, clearEmailConfirmation, onboardingStorageKey, onboardingTrackerDismissedKey, onboardingUpdatedEvent, readBooleanFlag, readEmailConfirmation, shouldShowFullOnboarding, writeBooleanFlag } from "../../lib/onboarding.js";
+import { buildOnboardingState, clearEmailConfirmation, clearProductTourRestart, getRestartedTourState, onboardingStorageKey, onboardingTrackerDismissedKey, onboardingUpdatedEvent, readBooleanFlag, readEmailConfirmation, readProductTourRestart, shouldShowFullOnboarding, writeBooleanFlag } from "../../lib/onboarding.js";
+import { openHelpCenterEvent } from "../../lib/helpCenter.js";
+import { trackProductEvent } from "../../lib/productAnalytics.js";
 import { isProSubscription } from "../../lib/billing.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { CommandPalette } from "../command/CommandPalette.jsx";
+import { HelpCenter } from "../help/HelpCenter.jsx";
 import { CompletionRibbon, GettingStartedRibbon } from "../onboarding/GettingStartedRibbon.jsx";
 import { OnboardingFlow } from "../onboarding/OnboardingFlow.jsx";
 import { Button } from "../ui/Button.jsx";
@@ -30,6 +33,7 @@ export function AppLayout() {
   const [hasManualSidebarPreference, setHasManualSidebarPreference] = useState(() => window.localStorage.getItem(sidebarPreferenceKey) !== null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [helpCenter, setHelpCenter] = useState({ open: false, section: "" });
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => readBooleanFlag(onboardingStorageKey));
   const [trackerDismissed, setTrackerDismissed] = useState(() => readBooleanFlag(onboardingTrackerDismissedKey));
   const [emailConfirmed, setEmailConfirmed] = useState(() => readEmailConfirmation());
@@ -70,6 +74,15 @@ export function AppLayout() {
   }, []);
 
   useEffect(() => {
+    function showHelp(event) {
+      setHelpCenter({ open: true, section: event.detail?.section || "" });
+      trackProductEvent("help_center_opened", { section: event.detail?.section || "" });
+    }
+    window.addEventListener(openHelpCenterEvent, showHelp);
+    return () => window.removeEventListener(openHelpCenterEvent, showHelp);
+  }, []);
+
+  useEffect(() => {
     function onKeyDown(event) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -81,6 +94,7 @@ export function AppLayout() {
   }, []);
 
   function dismissOnboarding() {
+    clearProductTourRestart();
     writeBooleanFlag(onboardingStorageKey, true);
     setOnboardingDismissed(true);
   }
@@ -101,7 +115,8 @@ export function AppLayout() {
 
   const workspaceReady = !loading && loadedFor === (user?.id ?? "local-demo-user");
   if (workspaceReady && shouldShowFullOnboarding(onboardingState, { pathname: location.pathname, dismissed: onboardingDismissed })) {
-    return <OnboardingFlow state={onboardingState} emailConfirmed={emailConfirmed} onEmailConfirmationAcknowledged={acknowledgeEmailConfirmation} onDismiss={dismissOnboarding} />;
+    const tourState = readProductTourRestart() ? getRestartedTourState(onboardingState) : onboardingState;
+    return <OnboardingFlow state={tourState} emailConfirmed={emailConfirmed} onEmailConfirmationAcknowledged={acknowledgeEmailConfirmation} onDismiss={dismissOnboarding} />;
   }
   const showOnboardingRibbon = workspaceReady && !onboardingState.completed && shouldShowOnboardingRibbon(location.pathname);
 
@@ -199,6 +214,29 @@ export function AppLayout() {
         </main>
       </div>
       <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
+      <button
+        type="button"
+        className="fixed bottom-5 right-5 z-30 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-800 px-4 text-sm font-black text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+        onClick={() => {
+          setHelpCenter({ open: true, section: "" });
+          trackProductEvent("help_center_opened", { source: "floating_button" });
+        }}
+        aria-label="Open OccuBoard Help Center"
+      >
+        <HelpCircle size={17} aria-hidden="true" /> Help
+      </button>
+      <HelpCenter
+        open={helpCenter.open}
+        initialSection={helpCenter.section}
+        onClose={() => setHelpCenter({ open: false, section: "" })}
+        onRestart={() => {
+          setHelpCenter({ open: false, section: "" });
+          setOnboardingDismissed(false);
+          setTrackerDismissed(false);
+          setOnboardingRefresh((value) => value + 1);
+          window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        }}
+      />
     </div>
   );
 }

@@ -3,6 +3,9 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { createBillingPortalSession, createCheckoutSession, FREE_LIMIT, getPlanLabel, isProSubscription, verifyCheckoutSession } from "../../lib/billing.js";
+import { openHelpCenter } from "../../lib/helpCenter.js";
+import { restartProductTour } from "../../lib/onboarding.js";
+import { trackProductEvent } from "../../lib/productAnalytics.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { ProfileForm } from "../../components/profile/ProfileForm.jsx";
 import { ResumeImportCard } from "../../components/resume/ResumeImportCard.jsx";
@@ -130,6 +133,23 @@ export function SettingsPage() {
             usage={usage}
           />
           <ResumeImportCard compact />
+          <Card>
+            <h2 className="text-xl font-bold">Help & Learning</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Learn how each OccuBoard workspace fits together or restart the guided product tour without changing your data.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => openHelpCenter()}>Open Help Center</Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  restartProductTour();
+                  trackProductEvent("tour_restarted", { source: "settings" });
+                  window.location.assign("/app/dashboard");
+                }}
+              >
+                Restart Product Tour
+              </Button>
+            </div>
+          </Card>
           <Card>
             <h2 className="text-xl font-bold">Legal</h2>
             <p className="mt-2 text-sm text-slate-600">Review OccuBoard&apos;s privacy and service terms.</p>

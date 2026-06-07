@@ -18,6 +18,7 @@ import {
   updateResumeVersion,
 } from "../lib/workspaceApi.js";
 import { createDefaultBillingState, fetchBillingState, incrementUsage, setUsageValue } from "../lib/billing.js";
+import { trackProductMilestone } from "../lib/productAnalytics.js";
 
 const localAiUsageCountedKey = "occuboard.aiUsageCountedJobs";
 let workspaceLoadSequence = 0;
@@ -76,12 +77,14 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   createJob: async (user, job) => {
     const saved = await createJob(user, job);
+    trackProductMilestone("job_added", { jobId: saved?.id, userId: user?.id });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     return saved;
   },
   updateJob: async (user, id, patch) => {
     const saved = await updateJob(user, id, patch);
+    if (patch?.status === "Applied") trackProductMilestone("application_tracked", { jobId: id, userId: user?.id });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, jobs: data.jobs.map((job) => (job.id === id ? saved : job)), billing: state.billing }));
     return saved;
@@ -93,12 +96,14 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   saveJobScore: async (user, job, score) => {
     await saveJobScore(user, job, score);
+    trackProductMilestone("fit_analyzed", { jobId: job?.id, userId: user?.id });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     await get().markJobAiUsageCounted(user, job);
   },
   saveResumeVersion: async (user, job, draft, metadata) => {
     const saved = await saveResumeVersion(user, job, draft, metadata);
+    trackProductMilestone("resume_generated", { jobId: job?.id, resumeId: saved?.id, userId: user?.id });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     await get().markJobAiUsageCounted(user, job);
@@ -143,6 +148,7 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   saveInterviewPrep: async (user, job, prep) => {
     const saved = await saveInterviewPrep(user, job, prep);
+    trackProductMilestone("interview_prep_opened", { jobId: job?.id, userId: user?.id });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     await get().markJobAiUsageCounted(user, job);
@@ -150,6 +156,7 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   saveResumeUpload: async (user, file, extractedText) => {
     const saved = await saveResumeUpload(user, file, extractedText);
+    trackProductMilestone("resume_uploaded", { userId: user?.id, uploadId: saved?.id });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     return saved;

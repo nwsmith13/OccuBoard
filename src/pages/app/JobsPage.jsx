@@ -27,6 +27,8 @@ import { buildMaterialRecoveryScores, buildRewriteInsights } from "../../lib/rew
 import { exportResumeDocx, exportResumePdf, getResumeExportHistory } from "../../lib/resumeExport.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { getNextBestAction } from "../../utils/nextBestAction.js";
+import { GuidedNextStep } from "../../components/onboarding/GuidedNextStep.jsx";
+import { trackProductMilestone } from "../../lib/productAnalytics.js";
 
 const emptyJob = {
   company_name: "",
@@ -538,6 +540,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
         appliedDate: patch.applied_date,
         followUpDate: patch.followup_date || "",
       });
+      trackProductMilestone("application_tracked", { jobId: job.id, userId: user?.id });
       setMarkAppliedOpen(false);
       if (patch.followup_date) setOverviewPanels((current) => ({ ...current, followup: true }));
       toast.success("Application marked applied.");
@@ -586,7 +589,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
       setReviewedRecruiterView(true);
       rememberOnboardingRecruiterView(job.id);
     }
-  }, [activeTab, job.id]);
+    if (activeTab === "interview") {
+      trackProductMilestone("interview_prep_opened", { jobId: job.id, userId: user?.id });
+    }
+  }, [activeTab, job.id, user?.id]);
 
   useEffect(() => {
     if (activeTab !== "overview" || !initialFocus) return;
@@ -2197,7 +2203,7 @@ function ApplicationPackageReadyCard({ onMarkApplied, onApplyLater }) {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Application package exported</p>
-          <h3 className="mt-1 text-lg font-black text-emerald-950">Your Application Package Is Ready</h3>
+          <h3 className="mt-1 text-lg font-black text-emerald-950">Application package exported</h3>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-emerald-900">You now have everything needed for a strong application:</p>
           <ul className="mt-3 flex flex-wrap gap-2">
             {readyItems.map((item) => (
@@ -2210,7 +2216,7 @@ function ApplicationPackageReadyCard({ onMarkApplied, onApplyLater }) {
           <p className="mt-3 text-sm font-semibold text-slate-700">Recommended next step: Submit your application and track it in OccuBoard.</p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Button className="w-fit" onClick={onMarkApplied}>Mark Applied</Button>
+          <Button className="w-fit" onClick={onMarkApplied}>Track Application</Button>
           <Button variant="secondary" className="w-fit" onClick={onApplyLater}>{"I'll Apply Later"}</Button>
         </div>
       </div>
@@ -2503,9 +2509,9 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
       {showRecruiterOnboarding && (
         <CommandCenterOnboardingCard
           eyebrow={reviewed ? "Step 5 Complete" : "Step 5 of 8"}
-          title={reviewed ? "Recruiter View Reviewed" : "Recruiter View"}
+          title={reviewed ? "Recruiter review complete" : "Recruiter View"}
           body={reviewed ? "You have reviewed the hiring-team perspective. Next, prepare interview support so you are ready if this turns into a conversation." : "See the hiring-team perspective before you apply. OccuBoard highlights what looks strong, what may raise questions, and whether this application is ready to submit."}
-          actionLabel={reviewed ? "Continue to Interview Prep" : "Review Recruiter View"}
+          actionLabel={reviewed ? "Prepare Interview Materials" : "Review Recruiter View"}
           onAction={reviewed ? onContinue : () => setSection("overview")}
         />
       )}
@@ -2531,20 +2537,35 @@ function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiter
 }
 
 function CommandCenterOnboardingCard({ eyebrow, title, body, actionLabel, onAction, disabled = false, loading = false }) {
-  return (
-    <section className="rounded-xl bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-sm ring-1 ring-brand-100">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">{eyebrow}</p>
-          <h3 className="mt-1 text-lg font-black text-ink">{title}</h3>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{body}</p>
+  const complete = /complete/i.test(eyebrow);
+  if (!complete) {
+    return (
+      <section className="rounded-xl bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-sm ring-1 ring-brand-100">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">{eyebrow}</p>
+            <h3 className="mt-1 text-lg font-black text-ink">{title}</h3>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{body}</p>
+          </div>
+          <Button className="w-fit shrink-0" onClick={onAction} disabled={disabled || loading}>
+            {loading && <Loader2 size={14} className="animate-spin" />}
+            {loading ? "Preparing..." : actionLabel}
+          </Button>
         </div>
-        <Button className="w-fit shrink-0" onClick={onAction} disabled={disabled || loading}>
-          {loading && <Loader2 size={14} className="animate-spin" />}
-          {actionLabel}
-        </Button>
-      </div>
-    </section>
+      </section>
+    );
+  }
+  return (
+    <GuidedNextStep
+      eyebrow={eyebrow}
+      title={title}
+      message={body}
+      actionLabel={loading ? "Preparing..." : actionLabel}
+      onAction={onAction}
+      disabled={disabled || loading}
+      className={disabled || loading ? "opacity-70" : ""}
+      compact
+    />
   );
 }
 
@@ -3393,9 +3414,9 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
       {!onboarding.completed && onboarding.hasInterviewPrep && !onboarding.hasExport && (
         <CommandCenterOnboardingCard
           eyebrow="Step 6 Complete"
-          title="Interview Prep Ready"
+          title="Interview preparation ready"
           body="Your interview support materials are ready. Recommended next step: continue to Export Package."
-          actionLabel="Continue to Export Package"
+          actionLabel="Export Application Package"
           onAction={onContinue}
         />
       )}

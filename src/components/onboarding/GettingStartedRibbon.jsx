@@ -1,7 +1,9 @@
 import { X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { onboardingTrackerDismissedKey, writeBooleanFlag } from "../../lib/onboarding.js";
 
 export function GettingStartedRibbon({ state, dismissed }) {
+  const navigate = useNavigate();
   if (!state || dismissed || state.completed) return null;
   const currentId = getCurrentStepId(state);
   return (
@@ -13,15 +15,40 @@ export function GettingStartedRibbon({ state, dismissed }) {
         </div>
         <div className="flex min-w-0 flex-wrap gap-2">
           {state.steps.map((step) => (
-            <span key={step.id} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black ring-1 ${getStepTone(step, currentId)}`}>
+            <button
+              key={step.id}
+              type="button"
+              title={getStepGuidance(step)}
+              onClick={() => navigate(getStepDestination(step.id, state.latestJobId))}
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black ring-1 transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${getStepTone(step, currentId)}`}
+            >
               <span aria-hidden="true">{step.done ? "\u2713" : step.id === currentId ? "\u2192" : "\u25CB"}</span>
               {step.label}
-            </span>
+            </button>
           ))}
         </div>
       </div>
     </section>
   );
+}
+
+function getStepDestination(stepId, jobId) {
+  const jobBase = jobId ? `/app/applications/${jobId}` : "/app/applications";
+  return {
+    resume: "/app/resume-studio#resume-import",
+    job: "/app/new-jobs",
+    fit: `${jobBase}?tab=fit`,
+    resumeGenerated: `${jobBase}?tab=resume`,
+    recruiterView: `${jobBase}?tab=recruiterView`,
+    interviewPrep: `${jobBase}?tab=interview`,
+    export: `${jobBase}?tab=export`,
+    track: jobBase,
+  }[stepId] || "/app/dashboard";
+}
+
+function getStepGuidance(step) {
+  if (step.done) return `${step.label} is complete. Open this section.`;
+  return `Open ${step.label} to see how to complete this step.`;
 }
 
 export function CompletionRibbon({ state, dismissed, onDismiss }) {

@@ -127,7 +127,7 @@ export function GeneratedResumesPage() {
             Generate a tailored resume from a job analysis.
           </p>
           <Link to="/app/new-jobs" className="mt-5 inline-flex">
-            <Button>Generate Resume</Button>
+            <Button>Analyze a Job</Button>
           </Link>
         </Card>
       </div>

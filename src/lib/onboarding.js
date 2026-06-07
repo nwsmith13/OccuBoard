@@ -1,15 +1,18 @@
 import { getResumeExportHistory } from "./resumeExport.js";
+import { trackProductMilestone } from "./productAnalytics.js";
 
 export const onboardingStorageKey = "occuboard-onboarding-dismissed";
 export const onboardingTrackerDismissedKey = "occuboard-onboarding-tracker-dismissed";
 export const onboardingPackageExportsKey = "occuboard-onboarding-package-exports";
 export const onboardingRecruiterViewKey = "occuboard-onboarding-recruiter-view-reviewed";
 export const emailConfirmationStorageKey = "occuboard-email-confirmed";
+export const productTourRestartKey = "occuboard-product-tour-restarted";
 export const onboardingUpdatedEvent = "occuboard:onboarding-updated";
 
 export function buildOnboardingState({ profile, resumeUploads = [], jobs = [], jobScores = [], resumeVersions = [], interviewPrep = [] } = {}) {
   const hasResume = Boolean(profile?.base_resume_text?.trim() || resumeUploads.length);
   const hasJob = jobs.length > 0;
+  const latestJob = [...jobs].sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0))[0] ?? null;
   const hasAnalysis = jobScores.some(hasValidAnalysis);
   const latestScore = [...jobScores].filter(hasValidAnalysis).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0] ?? null;
   const hasTailoredResume = resumeVersions.length > 0;
@@ -37,6 +40,7 @@ export function buildOnboardingState({ profile, resumeUploads = [], jobs = [], j
   return {
     hasResume,
     hasJob,
+    latestJobId: latestJob?.id || "",
     hasAnalysis,
     latestScore,
     hasTailoredResume,
@@ -53,7 +57,52 @@ export function buildOnboardingState({ profile, resumeUploads = [], jobs = [], j
 }
 
 export function shouldShowFullOnboarding(state, { pathname = "", dismissed = false } = {}) {
-  return Boolean(state?.isNewWorkspace && !dismissed && pathname === "/app/dashboard");
+  return Boolean((state?.isNewWorkspace && !dismissed && pathname === "/app/dashboard") || readProductTourRestart());
+}
+
+export function restartProductTour() {
+  try {
+    window.localStorage.removeItem(onboardingStorageKey);
+    window.localStorage.removeItem(onboardingTrackerDismissedKey);
+    window.sessionStorage.setItem(productTourRestartKey, "true");
+    dispatchOnboardingUpdated();
+  } catch {
+    // Tour state is presentation-only.
+  }
+}
+
+export function readProductTourRestart() {
+  try {
+    return window.sessionStorage.getItem(productTourRestartKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function clearProductTourRestart() {
+  try {
+    window.sessionStorage.removeItem(productTourRestartKey);
+  } catch {
+    // Tour state is presentation-only.
+  }
+}
+
+export function getRestartedTourState(state = {}) {
+  return {
+    ...state,
+    hasResume: false,
+    hasJob: false,
+    hasAnalysis: false,
+    hasTailoredResume: false,
+    hasRecruiterView: false,
+    hasInterviewPrep: false,
+    hasExport: false,
+    trackedApplication: false,
+    complete: 0,
+    completed: false,
+    isNewWorkspace: true,
+    steps: (state.steps || []).map((step) => ({ ...step, done: false })),
+  };
 }
 
 export function readBooleanFlag(key) {
@@ -102,6 +151,7 @@ export function rememberOnboardingPackageExport(jobId = "") {
     const current = getOnboardingPackageExports();
     const entry = { jobId, exportedAt: new Date().toISOString() };
     window.localStorage.setItem(onboardingPackageExportsKey, JSON.stringify([entry, ...current].slice(0, 20)));
+    trackProductMilestone("package_exported", { jobId });
     dispatchOnboardingUpdated();
   } catch {
     // Export tracking is a lightweight onboarding signal only.
@@ -114,6 +164,7 @@ export function rememberOnboardingRecruiterView(jobId = "") {
     if (jobId && current.some((item) => item.jobId === jobId)) return;
     const entry = { jobId, reviewedAt: new Date().toISOString() };
     window.localStorage.setItem(onboardingRecruiterViewKey, JSON.stringify([entry, ...current].slice(0, 20)));
+    trackProductMilestone("recruiter_view_opened", { jobId });
     dispatchOnboardingUpdated();
   } catch {
     // Recruiter View review is a lightweight first-tour signal only.

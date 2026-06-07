@@ -16,6 +16,7 @@ import { buildGapRecovery, buildMaterialRecoveryScores, buildRewriteInsights, es
 import { assessRewriteRestraint } from "../../lib/rewriteRestraint.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { ResumeExportPanel } from "../resume/ResumeExportPanel.jsx";
+import { GuidedNextStep } from "../onboarding/GuidedNextStep.jsx";
 import { Button } from "../ui/Button.jsx";
 
 export function AiToolsPanel({ job, compact = false, contentOnly = false, activeTab = "fit", onTabChange, onExportComplete }) {
@@ -146,12 +147,12 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         {aiState.loading && <div ref={loadingRef}><AiSkeleton action={aiState.loading} /></div>}
         {showSlowHint && <LoadingHint />}
         {aiState.error && <MissingOrError message={aiState.error} />}
-        {aiState.latest?.action === "fit" && (
+        {aiState.latest?.action === "fit" && !showOnboardingHelp && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">
             Analysis completed. You have a clearer view of this opportunity.
           </div>
         )}
-        {aiState.latest?.action === "resume" && aiState.latest.resumeId && (
+        {aiState.latest?.action === "resume" && aiState.latest.resumeId && !showOnboardingHelp && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
             <p className="font-bold">Tailored resume saved.</p>
             <Link className="mt-2 inline-flex font-semibold text-emerald-800 underline" to={`/app/generated-resumes?resume=${aiState.latest.resumeId}`}>
@@ -177,8 +178,8 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
             {showOnboardingHelp && !latestScore && (
               <AiOnboardingHelpCard
                 eyebrow="Step 3 of 8"
-                title="Analyze Your Match"
-                body="Let's see how well your experience aligns with this role."
+                title="Job added"
+                body="OccuBoard is ready to compare your resume against this opportunity."
                 bullets={["Match score", "Strengths", "Missing qualifications", "Resume tailoring opportunities"]}
                 actionLabel={aiState.loading === "fit" ? "Analyzing..." : "Analyze Fit"}
                 onAction={() => runAi("fit")}
@@ -186,12 +187,12 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
               />
             )}
             {showOnboardingHelp && latestScore && (
-              <AiOnboardingHelpCard
-                eyebrow="Step 3 of 8"
-                title="Review Your Match"
-                body="Your analysis is ready. Review your match score, strengths, and opportunities before generating your tailored resume."
-                actionLabel="Continue to Resume"
-                onAction={() => onTabChange?.("resume")}
+              <GuidedNextStep
+                title="Fit analysis complete"
+                message="See how your experience aligns and identify areas to strengthen."
+                nextStep="Generate a job-specific resume using the strongest evidence from your analysis."
+                actionLabel={aiState.loading === "resume" ? "Generating..." : "Generate Tailored Resume"}
+                onAction={() => runAi("resume")}
               />
             )}
             <FitResult score={latestScore} onGenerate={() => runAi("fit")} onRegenerate={() => runAi("fit", { regenerate: true })} loading={aiState.loading} showAction={!(showOnboardingHelp && !latestScore)} onContinue={() => onTabChange?.("resume")} onRecruiterView={() => onTabChange?.("recruiterView")} />
@@ -210,14 +211,14 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
               />
             )}
             {showOnboardingHelp && latestResume && !onboarding.hasRecruiterView && (
-              <AiOnboardingHelpCard
-                eyebrow="Step 4 Complete"
-                title="Resume Ready"
-                body="Your tailored resume is ready. Next, see how a recruiter may view this application and what concerns to address before applying."
-                actionLabel="Continue to Recruiter View"
+              <GuidedNextStep
+                title="Tailored resume ready"
+                message="A job-specific version of your resume has been prepared."
+                nextStep="See how a recruiter may view this application and what questions your positioning should answer."
+                actionLabel="Open Recruiter View"
                 onAction={() => onTabChange?.("recruiterView")}
-                secondaryActionLabel="View Resume"
-                onSecondaryAction={() => window.setTimeout(() => document.getElementById("tailored-resume-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }), 20)}
+                secondaryLabel="View Resume"
+                onSecondary={() => window.setTimeout(() => document.getElementById("tailored-resume-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }), 20)}
               />
             )}
             <ResumeResult resume={latestResume} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} hideIndividualExport={showOnboardingHelp && latestResume && !onboarding.hasRecruiterView} onOpenRecruiterView={() => onTabChange?.("recruiterView")} onOpenExport={() => onTabChange?.("export")} onOpenMessage={() => onTabChange?.("message")} onOpenInterview={() => onTabChange?.("interview")} />
@@ -319,12 +320,12 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       {aiState.loading && <div ref={loadingRef}><AiSkeleton action={aiState.loading} /></div>}
       {showSlowHint && <LoadingHint />}
       {aiState.error && <MissingOrError message={aiState.error} />}
-      {aiState.latest?.action === "fit" && (
+      {aiState.latest?.action === "fit" && !showOnboardingHelp && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">
           Analysis completed. You have a clearer view of this opportunity.
         </div>
       )}
-      {aiState.latest?.action === "resume" && aiState.latest.resumeId && (
+      {aiState.latest?.action === "resume" && aiState.latest.resumeId && !showOnboardingHelp && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
           <p className="font-bold">Tailored resume saved.</p>
           <Link className="mt-2 inline-flex font-semibold text-emerald-800 underline" to={`/app/generated-resumes?resume=${aiState.latest.resumeId}`}>
