@@ -644,18 +644,6 @@ export function ResumeResult({ resume, score, materials = {}, analysisReady = tr
           {onOpenInterview && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenInterview}>Optional: Prepare For Interview</Button>}
         </div>
       </div>
-      <section className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-brand-100" aria-labelledby={`resume-preview-${resume.id}`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Resume Preview</p>
-            <h5 id={`resume-preview-${resume.id}`} className="mt-0.5 text-sm font-bold text-ink">Tailored application resume</h5>
-          </div>
-          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-100">Generated</span>
-        </div>
-        <div className="max-h-[680px] overflow-y-auto bg-white px-5 py-6 sm:px-8">
-          <div className="whitespace-pre-wrap font-sans text-sm leading-7 text-slate-800">{resume.content}</div>
-        </div>
-      </section>
       {whyThisFits && (
         <div className="mt-4 rounded-lg bg-white/85 p-4 text-sm leading-6 text-slate-700">
           <p className="font-bold text-ink">Why this fits</p>

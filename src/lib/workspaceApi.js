@@ -366,8 +366,31 @@ export async function deleteJob(user, id) {
     return id;
   }
   writeLocal(keys.jobs, readLocal(keys.jobs, seedJobs).filter((job) => job.id !== id));
+  writeLocal(keys.jobScores, readLocal(keys.jobScores, seedJobScores).filter((item) => item.job_id !== id));
+  writeLocal(keys.resumeVersions, readLocal(keys.resumeVersions, seedResumeVersions).filter((item) => item.job_id !== id));
+  writeLocal(keys.messages, readLocal(keys.messages, seedMessages).filter((item) => item.job_id !== id));
+  writeLocal(keys.jobActivityLogs, readLocal(keys.jobActivityLogs, seedJobActivityLogs).filter((item) => item.job_id !== id));
+  writeLocal(keys.jobContacts, readLocal(keys.jobContacts, []).filter((item) => item.job_id !== id));
+  writeLocal(keys.interviewPrep, readLocal(keys.interviewPrep, []).filter((item) => item.job_id !== id));
+  clearLocalJobOverrides(id);
   await logActivity(user, "Job", "Deleted a saved job");
   return id;
+}
+
+function clearLocalJobOverrides(jobId) {
+  [
+    keys.jobFollowUpOverrides,
+    keys.jobCalendarOverrides,
+    keys.jobArchiveOverrides,
+    keys.jobCoverLetterOverrides,
+    keys.jobAiUsageOverrides,
+  ].forEach((key) => {
+    const values = readLocal(key, {});
+    if (!values || typeof values !== "object" || Array.isArray(values) || !(jobId in values)) return;
+    const next = { ...values };
+    delete next[jobId];
+    writeLocal(key, next);
+  });
 }
 
 export async function saveJobScore(user, job, score) {

@@ -1,4 +1,4 @@
-import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, Circle, Clipboard, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
+import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, Circle, Clipboard, Clock, Download, Edit3, ExternalLink, FileText as FileTextIcon, Loader2, Mail, MapPin, MessageCircle, MoreVertical, Plus, Search, Sparkles, Trash2, Upload, User, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AiToolsPanel, ApplicationReadinessCard, CopyButton, CoverageMatrix, RecruiterConfidenceIndicator, RecoveryBar, RewriteInsightCard, RewriteVisibilityPanel } from "../../components/ai/AiToolsPanel.jsx";
@@ -16,6 +16,7 @@ import { formatDate, isOverdue, todayIso } from "../../lib/date.js";
 import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, getFollowUpNote, getFollowUpSnoozedUntil, getFollowUpStatus, getFollowUpTone } from "../../lib/followUp.js";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { calculateApplicationReadiness } from "../../lib/applicationReadiness.js";
+import { isArchivedJob } from "../../lib/archive.js";
 import { buildFollowUpCalendarEvent, buildGoogleCalendarUrl, buildInterviewCalendarEvent, buildOutlookCalendarUrl, downloadIcsEvent } from "../../lib/calendarExport.js";
 import { exportCoverLetterDocx, exportCoverLetterPdf } from "../../lib/coverLetterExport.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
@@ -123,6 +124,12 @@ export function JobsPage() {
     setSelected(null);
   }
 
+  async function removeJob(job) {
+    if (!confirmDeleteApplication()) return;
+    await deleteJob(user, job.id);
+    if (selected?.id === job.id) setSelected(null);
+  }
+
   return (
     <div className="grid gap-6 xl:grid-cols-[460px_minmax(0,1fr)] 2xl:grid-cols-[520px_minmax(0,1fr)]">
       <Card className="self-start bg-brand-50/45">
@@ -220,7 +227,7 @@ export function JobsPage() {
                   </div>
                   <div className="flex gap-2">
                     <Button variant="secondary" className="px-3" onClick={(event) => { event.stopPropagation(); editJob(job); }}><Edit3 size={16} /></Button>
-                    <Button variant="danger" className="px-3" onClick={(event) => { event.stopPropagation(); deleteJob(user, job.id); }}><Trash2 size={16} /></Button>
+                    <Button variant="danger" className="px-3" onClick={(event) => { event.stopPropagation(); removeJob(job); }}><Trash2 size={16} /></Button>
                   </div>
                 </div>
               </Card>
@@ -236,7 +243,10 @@ export function JobsPage() {
           initialTab={selected.initialTab}
           onClose={() => setSelected(null)}
           onEdit={() => editJob(selected)}
-          onDelete={async () => { await deleteJob(user, selected.id); setSelected(null); }}
+          onDelete={async () => {
+            await deleteJob(user, selected.id);
+            setSelected(null);
+          }}
           onMove={() => moveToApplied(selected)}
           onJobUpdate={(updated) => setSelected(updated)}
         />
@@ -274,6 +284,12 @@ function getDisplayStage(status) {
   if (status === "Closed") return "Rejected";
   if (["Offer", "Rejected", "Recruiter Screen", "Final Interview"].includes(status)) return status;
   return status || "Saved";
+}
+
+function confirmDeleteApplication() {
+  return window.confirm(
+    "Are you sure you want to delete this application?\n\nThis will remove the job, analysis, generated materials, and activity history for this application.",
+  );
 }
 
 function isTrackedApplicationStatus(status) {
@@ -519,6 +535,16 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     }
   }
 
+  async function handleDeleteApplication() {
+    if (!confirmDeleteApplication()) return;
+    try {
+      await onDelete?.();
+      toast.success("Application deleted.");
+    } catch {
+      toast.error("Could not delete application.");
+    }
+  }
+
   async function saveMarkApplied() {
     setMarkAppliedSaving(true);
     try {
@@ -668,6 +694,11 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   }}
                 />
               </div>
+              <ApplicationActionsMenu
+                archived={isArchivedJob(job)}
+                onArchive={handleArchive}
+                onDelete={handleDeleteApplication}
+              />
               {!pageMode && (
                 <button type="button" className="hidden shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50 lg:inline-flex" onClick={requestClose} aria-label="Close job details">
                   <X size={20} />
@@ -788,8 +819,6 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
               <div className="flex flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
                 <StageMoveControl value={getDisplayStage(job.status)} onChange={handleMoveStage} />
                 {onEdit && <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>}
-                <Button variant="secondary" onClick={handleArchive}>Archive</Button>
-                <Button variant="danger" onClick={onDelete}><Trash2 size={16} /> Delete</Button>
               </div>
             </div>
           )}
@@ -1283,6 +1312,40 @@ function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
         <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onCancel}>Cancel</Button>
       </div>
     </section>
+  );
+}
+
+function ApplicationActionsMenu({ archived, onArchive, onDelete }) {
+  return (
+    <details className="relative shrink-0">
+      <summary
+        className="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-lg text-slate-600 ring-1 ring-brand-100 transition hover:bg-brand-50 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 [&::-webkit-details-marker]:hidden"
+        aria-label="Application actions"
+        title="Application actions"
+      >
+        <MoreVertical size={19} aria-hidden="true" />
+      </summary>
+      <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-lg bg-white p-1.5 shadow-soft ring-1 ring-brand-100">
+        {!archived && (
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-brand-50 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
+            onClick={onArchive}
+          >
+            <Archive size={16} aria-hidden="true" />
+            Archive Application
+          </button>
+        )}
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+          onClick={onDelete}
+        >
+          <Trash2 size={16} aria-hidden="true" />
+          Delete Application
+        </button>
+      </div>
+    </details>
   );
 }
 

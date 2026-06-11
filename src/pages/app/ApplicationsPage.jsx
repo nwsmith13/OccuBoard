@@ -102,6 +102,18 @@ export function ApplicationsPage() {
     }
   }
 
+  async function removeArchivedJob(job) {
+    if (!confirmDeleteApplication()) return;
+    try {
+      await deleteJob(user, job.id);
+      setSuccess("Application deleted.");
+      toast.success("Application deleted.");
+      window.setTimeout(() => setSuccess(""), 2600);
+    } catch {
+      toast.error("Could not delete application.");
+    }
+  }
+
   return (
     <div>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -151,7 +163,7 @@ export function ApplicationsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {displayedJobs.map((model) => (
-            <ApplicationCard key={model.job.id} model={model} onOpen={() => navigate(`/app/applications/${model.job.id}`)} onSkipCoverLetter={model.action?.actionType === "generate_cover_letter" ? () => skipCoverLetter(model.job) : undefined} onRestore={model.archived ? () => restoreJob(model.job) : undefined} onDelete={model.archived ? () => deleteJob(user, model.job.id) : undefined} />
+            <ApplicationCard key={model.job.id} model={model} onOpen={() => navigate(`/app/applications/${model.job.id}`)} onSkipCoverLetter={model.action?.actionType === "generate_cover_letter" ? () => skipCoverLetter(model.job) : undefined} onRestore={model.archived ? () => restoreJob(model.job) : undefined} onDelete={model.archived ? () => removeArchivedJob(model.job) : undefined} />
           ))}
         </div>
       )}
@@ -372,6 +384,12 @@ function getPipelineStage(status) {
   if (normalized === "Interview") return "Interview";
   if (normalized === "Applied") return "Applied";
   return "Saved";
+}
+
+function confirmDeleteApplication() {
+  return window.confirm(
+    "Are you sure you want to delete this application?\n\nThis will remove the job, analysis, generated materials, and activity history for this application.",
+  );
 }
 
 function ApplicationCard({ model, onOpen, onSkipCoverLetter, onRestore, onDelete }) {

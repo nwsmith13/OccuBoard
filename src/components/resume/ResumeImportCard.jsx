@@ -1,4 +1,4 @@
-import { ArrowDown, FileText, UploadCloud, X } from "lucide-react";
+import { ArrowDown, ArrowRight, CheckCircle2, FileText, UploadCloud, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -6,7 +6,6 @@ import { buildOnboardingState } from "../../lib/onboarding.js";
 import { createEmptyProfile } from "../../lib/profile.js";
 import { extractResumeText, getResumeFileKind, normalizeResumeText, validateResumeFile } from "../../lib/resumeParser.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
-import { GuidedNextStep } from "../onboarding/GuidedNextStep.jsx";
 import { Button } from "../ui/Button.jsx";
 import { Card } from "../ui/Card.jsx";
 
@@ -137,17 +136,27 @@ export function ResumeImportCard({ compact = false }) {
 function ResumeOnboardingHandoff({ onContinue, onSkip }) {
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-white/95 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl">
-        <GuidedNextStep
-          title="Resume uploaded successfully"
-          message="Your resume foundation is ready."
-          nextStep="Add a job description so OccuBoard can analyze fit, tailor your resume, generate recruiter messaging, and prepare interview materials."
-          actionLabel="Add My First Job"
-          onAction={onContinue}
-          secondaryLabel="Skip for now"
-          onSecondary={onSkip}
-        />
-      </div>
+      <section className="w-full max-w-xl rounded-xl border border-brand-100 bg-white p-6 text-center shadow-soft sm:p-8" role="dialog" aria-modal="true" aria-labelledby="resume-upload-success-title">
+        <img src="/assets/occuboard-logo.svg" alt="OccuBoard" className="mx-auto h-auto w-44 max-w-full" />
+        <div className="mx-auto mt-6 grid h-14 w-14 place-items-center rounded-full bg-emerald-50 ring-1 ring-emerald-100">
+          <img src="/assets/favicon.svg" alt="" className="h-8 w-8" aria-hidden="true" />
+        </div>
+        <div className="mt-5 flex items-center justify-center gap-2 text-emerald-700">
+          <CheckCircle2 size={20} aria-hidden="true" />
+          <p className="text-xs font-black uppercase tracking-[0.14em]">Resume foundation complete</p>
+        </div>
+        <h2 id="resume-upload-success-title" className="mt-2 text-2xl font-black text-ink">Resume uploaded successfully</h2>
+        <p className="mt-2 text-base font-semibold text-slate-700">Your resume foundation is ready.</p>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
+          Add a job description so OccuBoard can analyze fit, tailor your resume, generate recruiter messaging, and prepare interview materials.
+        </p>
+        <div className="mt-6 flex flex-col-reverse items-center justify-center gap-2 sm:flex-row">
+          <Button variant="ghost" className="w-full sm:w-fit" onClick={onSkip}>Skip for now</Button>
+          <Button className="w-full sm:w-fit" onClick={onContinue}>
+            Add My First Job <ArrowRight size={16} aria-hidden="true" />
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }
