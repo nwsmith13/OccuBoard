@@ -16,7 +16,7 @@ import { getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus, isCoverLetterSkipped } from "../../lib/jobAiStatus.js";
 import { getJobMomentumValue } from "../../lib/jobMomentum.js";
-import { buildOnboardingState } from "../../lib/onboarding.js";
+import { buildOnboardingState, getOnboardingRecruiterViewReviews } from "../../lib/onboarding.js";
 import { getMissingProfileItems, getProfileCompleteness } from "../../lib/profile.js";
 import { filterRecommendationsForDashboard, generateRecommendations, getRecommendationIcon, getRecommendationMeta, getRecommendationTone } from "../../lib/recommendationEngine.js";
 import { buildSearchPatternInsights } from "../../lib/searchPatternInsights.js";
@@ -59,6 +59,7 @@ export function DashboardPage() {
   const insights = buildDashboardInsights({ jobs: activeJobs, jobScores, resumeVersions, messages, jobActivityLogs, interviewPrep });
   const visibleActivity = showAllActivity ? activityLogs : activityLogs.slice(0, 4);
   const onboarding = useMemo(() => buildOnboardingState({ profile, resumeUploads, jobs: activeJobs, jobScores, resumeVersions, interviewPrep }), [activeJobs, interviewPrep, jobScores, profile, resumeUploads, resumeVersions]);
+  const searchProgress = useMemo(() => getSearchProgress({ jobs, resumeVersions, interviewPrep }), [interviewPrep, jobs, resumeVersions]);
   const pro = isProSubscription(billing?.subscription);
   const aiApplicationsRemaining = getUsageRemaining(billing, usageActions.application);
 
@@ -129,6 +130,8 @@ export function DashboardPage() {
         </section>
 
         <TodaysGuidance recommendations={visibleRecommendations} jobs={activeJobs} onOpen={openRecommendation} />
+
+        <SearchProgressCard progress={searchProgress} />
 
         <section className="rounded-xl bg-white/95 p-4 shadow-card sm:p-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -506,6 +509,43 @@ function SmartInsightPanel({ insights = [] }) {
       </div>
     </section>
   );
+}
+
+function SearchProgressCard({ progress }) {
+  const items = [
+    ["Applications tracked", progress.applications],
+    ["Resumes tailored", progress.resumes],
+    ["Recruiter views reviewed", progress.recruiterViews],
+    ["Interview kits prepared", progress.interviewKits],
+  ];
+  return (
+    <section className="rounded-xl bg-white/90 p-4 shadow-card ring-1 ring-brand-100 sm:p-5">
+      <div>
+        <p className={tinyLabelClass}>Search Progress</p>
+        <h2 className="mt-1 text-xl font-bold text-ink">What you have built so far</h2>
+        <p className={helperTextClass}>Active and historical totals from your OccuBoard workspace.</p>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {items.map(([label, value]) => (
+          <div key={label} className="rounded-xl bg-brand-50/65 p-3.5 ring-1 ring-brand-100">
+            <p className="text-2xl font-black text-brand-900">{value}</p>
+            <p className="mt-1 text-sm font-bold text-slate-700">{label}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function getSearchProgress({ jobs = [], resumeVersions = [], interviewPrep = [] }) {
+  const trackedJobIds = new Set(jobs.map((job) => job.id));
+  const reviewedJobIds = new Set(getOnboardingRecruiterViewReviews().map((item) => item.jobId).filter((jobId) => jobId && trackedJobIds.has(jobId)));
+  return {
+    applications: jobs.length,
+    resumes: resumeVersions.length,
+    recruiterViews: reviewedJobIds.size,
+    interviewKits: interviewPrep.filter((prep) => prep?.content && Object.keys(prep.content).length).length,
+  };
 }
 
 function getGuidanceIcon(icon) {

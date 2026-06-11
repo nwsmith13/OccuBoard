@@ -179,7 +179,7 @@ function getOnboardingPackageExports() {
   }
 }
 
-function getOnboardingRecruiterViewReviews() {
+export function getOnboardingRecruiterViewReviews() {
   try {
     return JSON.parse(window.localStorage.getItem(onboardingRecruiterViewKey) || "[]");
   } catch {

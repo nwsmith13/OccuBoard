@@ -30,22 +30,26 @@ export function buildSearchPatternInsights({ jobs = [], jobScores = [] } = {}) {
   const followUpStats = getFollowUpCompletion(jobs);
   const companyPattern = getCompanyPattern(jobs, latestScores);
   const analyzedCount = scoredJobs.length;
-  const freshness = analyzedCount ? `Based on ${analyzedCount} analyzed job${analyzedCount === 1 ? "" : "s"} · updated today` : "Current pipeline trends";
+  const remainingForTrends = Math.max(0, 3 - analyzedCount);
+  const hasTrendData = remainingForTrends === 0;
+  const trendUnlockCopy = `Analyze ${remainingForTrends} more job${remainingForTrends === 1 ? "" : "s"} to unlock keyword trends.`;
+  const noClearTrendCopy = "No recurring trend is strong enough yet. Analyze more jobs to sharpen this insight.";
+  const freshness = analyzedCount ? `Based on ${analyzedCount} analyzed job${analyzedCount === 1 ? "" : "s"} · updated today` : "No analyzed jobs yet";
 
   return [
     {
       id: "best-category",
       label: "Best Match Category",
-      value: bestGroup ? bestGroup.label : "Not enough data yet",
-      description: bestGroup ? "Highest average fit across your analyzed active roles." : "Analyze a few roles to identify where fit is strongest.",
-      meta: bestGroup ? `${bestGroup.average}% avg match` : freshness,
+      value: hasTrendData && bestGroup ? bestGroup.label : "Not enough data yet",
+      description: hasTrendData && bestGroup ? "Highest average fit across your analyzed active roles." : remainingForTrends ? trendUnlockCopy : noClearTrendCopy,
+      meta: hasTrendData && bestGroup ? `${bestGroup.average}% avg match` : freshness,
     },
     {
       id: "recurring-keyword",
       label: "Strongest Keyword",
-      value: strongestKeyword?.label || "Patterns building",
-      description: strongestKeyword ? "Appears across multiple strong-match roles." : "Keyword patterns will become clearer with more analyzed jobs.",
-      meta: strongestKeyword ? `${strongestKeyword.count} strong match${strongestKeyword.count === 1 ? "" : "es"}` : freshness,
+      value: hasTrendData && strongestKeyword ? strongestKeyword.label : "Not enough data yet",
+      description: hasTrendData && strongestKeyword ? "Appears across multiple strong-match roles." : remainingForTrends ? trendUnlockCopy : noClearTrendCopy,
+      meta: hasTrendData && strongestKeyword ? `${strongestKeyword.count} strong match${strongestKeyword.count === 1 ? "" : "es"}` : freshness,
     },
     {
       id: "interview-conversion",
@@ -64,9 +68,9 @@ export function buildSearchPatternInsights({ jobs = [], jobScores = [] } = {}) {
     {
       id: "company-momentum",
       label: "Company Momentum",
-      value: companyPattern?.company || "Company patterns building",
-      description: companyPattern ? `${companyPattern.count} active opportunit${companyPattern.count === 1 ? "y" : "ies"}.` : "The most active company will appear as your search grows.",
-      meta: companyPattern?.highestFit ? `Best fit: ${Math.round(companyPattern.highestFit)}%` : "Current search trends",
+      value: companyPattern?.company || "Not enough data yet",
+      description: companyPattern ? `${companyPattern.count} active opportunit${companyPattern.count === 1 ? "y" : "ies"}.` : "Track your first application to begin company-level trends.",
+      meta: companyPattern?.highestFit ? `Best fit: ${Math.round(companyPattern.highestFit)}%` : "No company trends yet",
     },
   ];
 }

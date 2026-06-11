@@ -41,6 +41,7 @@ export function ApplicationsPage() {
   const visibleJobs = useMemo(() => enrichedJobs.filter((model) => matchesSmartFilter(model, smartFilter)), [enrichedJobs, smartFilter]);
   const actionQueue = useMemo(() => getActionQueue(enrichedJobs.filter((model) => isActiveJob(model.job))), [enrichedJobs]);
   const filterCounts = useMemo(() => getWorkflowFilterCounts(enrichedJobs), [enrichedJobs]);
+  const recommendedAction = useMemo(() => getApplicationsRecommendedAction(enrichedJobs), [enrichedJobs]);
   const displayedJobs = visibleJobs;
 
   useEffect(() => {
@@ -139,6 +140,13 @@ export function ApplicationsPage() {
         onChange={setSmartFilter}
       />
 
+      {recommendedAction && (
+        <ApplicationsRecommendedAction
+          recommendation={recommendedAction}
+          onOpen={() => navigate(`/app/applications/${recommendedAction.job.id}`, { state: { openJobTab: recommendedAction.tab } })}
+        />
+      )}
+
       {loading ? (
         <ApplicationCardsSkeleton />
       ) : !displayedJobs.length ? (
@@ -176,6 +184,21 @@ function CareerMomentumPanel({ metrics }) {
         <span className="font-black text-ink">{metrics.topOpportunity.roleTitle}</span>{" "}
         <span className="font-black text-emerald-700">({metrics.topOpportunity.matchLabel})</span>.
       </p>
+    </section>
+  );
+}
+
+function ApplicationsRecommendedAction({ recommendation, onOpen }) {
+  return (
+    <section className="mb-4 rounded-xl border-l-4 border-l-brand-600 bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 shadow-card ring-1 ring-brand-100">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-700">Recommended Next Action</p>
+          <h3 className="mt-1 text-lg font-black leading-snug text-ink">{recommendation.title}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{recommendation.description}</p>
+        </div>
+        <Button className="w-fit shrink-0" onClick={onOpen}>{recommendation.cta}</Button>
+      </div>
     </section>
   );
 }
@@ -599,6 +622,44 @@ function getActionQueue(models) {
     needsAttention: models.filter((model) => model.category === "Needs Attention").slice(0, 5),
     followUp: models.filter((model) => model.health.tone === "danger" || model.reminder).slice(0, 5),
     interviewing: models.filter((model) => model.category === "Interviewing").slice(0, 5),
+  };
+}
+
+function getApplicationsRecommendedAction(models = []) {
+  const strongest = models
+    .filter((model) => isActiveJob(model.job))
+    .sort((a, b) => {
+      const scoreDelta = Number(b.score?.score ?? -1) - Number(a.score?.score ?? -1);
+      if (scoreDelta) return scoreDelta;
+      return Number(a.action?.priority ?? 99) - Number(b.action?.priority ?? 99);
+    })[0];
+  if (!strongest) return null;
+
+  const role = getDisplayJobTitle(strongest.job);
+  const score = Number(strongest.score?.score);
+  const scoreText = Number.isFinite(score) ? ` — ${Math.round(score)}% match` : "";
+  const actionCopy = {
+    analyze_fit: ["Analyze fit for", "Analyze Fit", "fit", "This is your strongest active opportunity without a completed fit analysis."],
+    generate_resume: ["Generate resume for", "Generate Resume", "resume", "This is your strongest active opportunity that has not been tailored yet."],
+    export_package: ["Prepare to apply for", "Export Package", "export", "Your strongest active opportunity has a tailored resume and is ready for final review."],
+    prepare_interview: ["Prepare interview materials for", "Prepare Interview", "interview", "This active opportunity is in an interview stage and preparation will create the most momentum."],
+    follow_up_overdue: ["Follow up on", "Add Follow-Up", "overview", "This strong opportunity has an overdue follow-up that deserves attention."],
+    follow_up_today: ["Follow up on", "Add Follow-Up", "overview", "This strong opportunity is due for a recruiter or hiring-team touchpoint today."],
+    generate_message: ["Draft recruiter message for", "Draft Message", "message", "This is your strongest active opportunity and a concise outreach message can help create momentum."],
+    review_high_fit: ["Review recruiter perspective for", "Review Recruiter View", "recruiterView", "This strong active opportunity is worth one more recruiter-focused review before your next move."],
+  }[strongest.action?.actionType] || [
+    "Review",
+    "Review Opportunity",
+    "recruiterView",
+    "This is your strongest active opportunity and the best place to focus next.",
+  ];
+
+  return {
+    job: strongest.job,
+    title: `${actionCopy[0]} ${role}${scoreText}`,
+    cta: actionCopy[1],
+    tab: actionCopy[2],
+    description: actionCopy[3],
   };
 }
 
