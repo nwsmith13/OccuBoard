@@ -5,7 +5,7 @@ import { BillingLimitModal } from "../../components/billing/BillingLimitModal.js
 import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
 import { CompanyLogo } from "../../components/ui/CompanyLogo.jsx";
-import { FitScoreBadge, getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
+import { FitScoreBadge, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { getActiveJobs } from "../../lib/archive.js";
@@ -54,7 +54,6 @@ export function DashboardPage() {
   const patternInsights = useMemo(() => buildSearchPatternInsights({ jobs: activeJobs, jobScores }), [activeJobs, jobScores]);
   const focusItems = getFocusItems({ jobs: activeJobs, jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep });
   const followUpsDue = activeJobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
-  const bestMatchRoles = getBestMatchRoles(jobScores, activeJobs, profile, resumeVersions, messages, jobActivityLogs, interviewPrep);
   const momentum = getMomentumSummary({ jobs: activeJobs, resumeVersions, jobScores });
   const insights = buildDashboardInsights({ jobs: activeJobs, jobScores, resumeVersions, messages, jobActivityLogs, interviewPrep });
   const visibleActivity = showAllActivity ? activityLogs : activityLogs.slice(0, 4);
@@ -129,9 +128,9 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <TodaysGuidance recommendations={visibleRecommendations} jobs={activeJobs} onOpen={openRecommendation} />
-
         <SearchProgressCard progress={searchProgress} />
+
+        <TodaysGuidance recommendations={visibleRecommendations} jobs={activeJobs} onOpen={openRecommendation} />
 
         <section className="rounded-xl bg-white/95 p-4 shadow-card sm:p-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -173,39 +172,6 @@ export function DashboardPage() {
                 <p className="text-sm font-semibold text-slate-800">Nothing urgent. Add or review saved jobs when you are ready.</p>
               </div>
             )}
-          </div>
-        </section>
-
-        <section className="rounded-xl bg-white/70 p-4 shadow-sm">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <h2 className="text-xl font-bold">Best Match Roles</h2>
-            <p className="text-sm text-slate-600">A light signal from your profile and analyzed jobs.</p>
-          </div>
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
-            {bestMatchRoles.map((item, index) => (
-              <button key={`${item.label}-${index}`} type="button" className={`group rounded-xl p-3.5 text-left shadow-sm ring-1 ring-white/70 transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-out hover:-translate-y-0.5 hover:bg-white/90 hover:ring-brand-100 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${item.job ? getBestMatchTone(item.stage) : "bg-white/65"}`} onClick={() => item.job && setSelectedJob({ ...item.job, initialTab: "overview" })}>
-                <div className="flex items-start gap-3">
-                  {item.score ? (
-                    <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-sm font-black ${getFitScoreTone(item.score.score).className.replace("ring-1 ", "")}`}>{Math.round(Number(item.score.score))}%</span>
-                  ) : item.job ? (
-                    <CompanyLogo companyName={item.company} companyDomain={item.job.company_domain} companyLogoUrl={item.job.company_logo_url} sourceUrl={item.job.source_url} size="md" />
-                  ) : (
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-xs font-bold text-brand-800">{index + 1}</span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold leading-tight text-brand-950">{item.label}</p>
-                    {item.company && <p className="mt-1 text-sm font-semibold text-slate-800">{item.company}</p>}
-                  </div>
-                  {item.job && <ChevronRight className="shrink-0 text-slate-300 opacity-0 transition duration-[160ms] ease-out group-hover:translate-x-0.5 group-hover:opacity-100" size={16} />}
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {item.stage && <span className="rounded-full bg-white/85 px-2 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100">{item.stage}</span>}
-                  {item.matchLabel && <span className="text-xs font-bold text-brand-800">{item.matchLabel}</span>}
-                </div>
-                {item.reason && <p className="mt-2 text-[13px] font-bold leading-5 text-slate-800">{item.reason}</p>}
-                {item.action && <p className="mt-1 truncate text-xs font-bold text-brand-800">{item.action}</p>}
-              </button>
-            ))}
           </div>
         </section>
 
@@ -501,7 +467,8 @@ function SmartInsightPanel({ insights = [] }) {
         {insights.map((insight) => (
           <article key={insight.id} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-brand-100">
             <p className="text-sm font-bold text-slate-600">{insight.label}</p>
-            <p className="mt-2 text-xl font-black leading-tight text-ink">{insight.value}</p>
+            {insight.metric && <p className="mt-2 text-sm font-black text-brand-800">{insight.metric}</p>}
+            <p className={`${insight.metric ? "mt-1" : "mt-2"} text-xl font-black leading-tight text-ink`}>{insight.value}</p>
             <p className="mt-2 text-sm leading-6 text-slate-700">{insight.description}</p>
             {insight.meta && <p className="mt-3 text-sm font-black text-brand-800">{insight.meta}</p>}
           </article>
@@ -738,102 +705,6 @@ function formatCompanyActivity(company) {
     .map((stage) => `${company.stageCounts[stage]} ${stage.toLowerCase()}`);
   const stageSummary = stageParts.length ? stageParts.join(" \u2022 ") : company.stages.join(", ");
   return `${company.count} role${company.count === 1 ? "" : "s"} \u2022 ${stageSummary}${company.highestFit ? ` \u2022 best fit ${Math.round(company.highestFit)}%` : ""}`;
-}
-
-function getBestMatchRoles(jobScores, jobs, profile, resumeVersions = [], messages = [], jobActivityLogs = [], interviewPrep = []) {
-  const strongScores = jobScores.filter((score) => Number(score.score) >= 65);
-  const topJobs = [...strongScores]
-    .sort((a, b) => {
-      const aJob = jobs.find((item) => item.id === a.job_id);
-      const bJob = jobs.find((item) => item.id === b.job_id);
-      const aMomentum = aJob ? getJobMomentumValue(aJob, { score: a, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }) : 0;
-      const bMomentum = bJob ? getJobMomentumValue(bJob, { score: b, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }) : 0;
-      return bMomentum - aMomentum || Number(b.score) - Number(a.score);
-    })
-    .slice(0, 3)
-    .map((score) => {
-      const job = jobs.find((item) => item.id === score.job_id);
-      const aiStatus = job ? getJobAiStatus(job.id, jobScores, resumeVersions, messages, job) : {};
-      const nextBestAction = job ? getNextBestAction(job, { score, aiStatus, messages, coverLetterSkipped: isCoverLetterSkipped(job) }) : null;
-      return job ? {
-        label: getDisplayJobTitle(job),
-        company: getDisplayCompanyName(job),
-        matchLabel: getFitScoreTone(score.score).label,
-        score,
-        job,
-        stage: normalizeStage(job.status),
-        action: getBestMatchAction(nextBestAction, score, job),
-        reason: getMatchReason(job, score),
-        momentum: getJobMomentumValue(job, { score, messages, resumeVersions, interviewPrep, activityHistory: jobActivityLogs }),
-      } : null;
-    })
-    .filter(Boolean);
-  if (topJobs.length) return topJobs;
-
-  const roleCounts = new Map();
-  strongScores.forEach((score) => {
-    const job = jobs.find((item) => item.id === score.job_id);
-    if (!job?.job_title) return;
-    roleCounts.set(job.job_title, (roleCounts.get(job.job_title) ?? 0) + 1);
-  });
-
-  const roles = [...roleCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([label, count]) => ({ label, matchLabel: `${count} analyzed match${count === 1 ? "" : "es"}` }));
-
-  if (roles.length) return roles;
-
-  const targetRoles = String(profile?.target_roles ?? "")
-    .split(",")
-    .map((role) => role.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .map((label) => ({ label, matchLabel: "From your target roles" }));
-
-  if (targetRoles.length) return targetRoles;
-
-  return [{ label: "Analyze a few jobs", matchLabel: "Best-match insights will appear here." }];
-}
-
-function getBestMatchAction(nextBestAction, score, job) {
-  const interviewLabel = getInterviewTimingLabel(job);
-  if (interviewLabel) return interviewLabel;
-  if (nextBestAction?.actionType && nextBestAction.actionType !== "no_action") return nextBestAction.label;
-  if (Number(score?.score ?? 0) >= 85) return "Strong implementation match";
-  return "Review match";
-}
-
-function getInterviewTimingLabel(job = {}) {
-  if (!job.interview_date) return "";
-  const today = new Date();
-  const date = new Date(`${job.interview_date}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return "";
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const diffDays = Math.round((date.getTime() - todayStart.getTime()) / 86400000);
-  if (diffDays === 0) return "Interview today";
-  if (diffDays === 1) return "Interview tomorrow";
-  if (diffDays > 1 && diffDays <= 14) return `Interview in ${diffDays} days`;
-  return "";
-}
-
-function getMatchReason(job, score) {
-  const text = `${job.job_title || ""} ${job.job_description || ""}`.toLowerCase();
-  if (/\bimplementation|onboarding|rollout|deployment|solution design\b/.test(text)) return "Strong implementation overlap";
-  if (/\bcustomer|client|success|account|stakeholder|consultant|support\b/.test(text)) return "Customer-facing SaaS alignment";
-  if (/\bworkflow|process|operations|optimization|automation\b/.test(text)) return "Workflow/process experience match";
-  if (/\bdata mapping|integration|api|erp|crm|migration|reporting\b/.test(text)) return "Data mapping experience match";
-  if (Number(score?.score ?? 0) >= 85) return "High fit with current resume";
-  return "Good alignment with your profile";
-}
-
-function getBestMatchTone(stage) {
-  return {
-    Saved: "bg-cyan-50/70",
-    Applied: "bg-brand-50/70",
-    Interview: "bg-emerald-50/70",
-    Closed: "bg-slate-50",
-  }[stage] ?? "bg-white/65";
 }
 
 function getFocusTone(tone) {
