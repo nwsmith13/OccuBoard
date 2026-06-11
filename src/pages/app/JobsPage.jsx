@@ -13,7 +13,7 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { priorities, remoteTypes, stages } from "../../data/seedData.js";
 import { formatDate, isOverdue, todayIso } from "../../lib/date.js";
-import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, getFollowUpNote, getFollowUpSnoozedUntil, getFollowUpStatus, getFollowUpTone } from "../../lib/followUp.js";
+import { addDaysIso, getFollowUpCompletedAt, getFollowUpDate, getFollowUpLabel, getFollowUpNote, getFollowUpSnoozedUntil, getFollowUpStatus, getFollowUpTone, normalizeStage } from "../../lib/followUp.js";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
 import { calculateApplicationReadiness } from "../../lib/applicationReadiness.js";
 import { isArchivedJob } from "../../lib/archive.js";
@@ -280,10 +280,7 @@ export function PriorityBadge({ priority }) {
 }
 
 function getDisplayStage(status) {
-  if (status === "Tailoring") return "Saved";
-  if (status === "Closed") return "Rejected";
-  if (["Offer", "Rejected", "Recruiter Screen", "Final Interview"].includes(status)) return status;
-  return status || "Saved";
+  return normalizeStage(status);
 }
 
 function confirmDeleteApplication() {
@@ -341,6 +338,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const [notesDraft, setNotesDraft] = useState(initialJob.notes || "");
   const [tasks, setTasks] = useState(() => loadJobCommandTasks(initialJob.id));
   const [markAppliedOpen, setMarkAppliedOpen] = useState(false);
+  const [editJobOpen, setEditJobOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+  const [jobEditDraft, setJobEditDraft] = useState(() => getJobEditDraft(initialJob));
   const [markAppliedSaving, setMarkAppliedSaving] = useState(false);
   const [markAppliedForm, setMarkAppliedForm] = useState(() => ({
     appliedDate: initialJob.applied_date || todayIso(),
@@ -415,6 +416,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
       followUpDate: getFollowUpDate(initialJob) || "",
       followUpNote: getFollowUpNote(initialJob) || "",
     });
+    setJobEditDraft(getJobEditDraft(initialJob));
   }, [initialJob]);
 
   useEffect(() => {
@@ -536,12 +538,33 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   }
 
   async function handleDeleteApplication() {
-    if (!confirmDeleteApplication()) return;
+    setDeleteSaving(true);
     try {
       await onDelete?.();
       toast.success("Application deleted.");
     } catch {
       toast.error("Could not delete application.");
+    } finally {
+      setDeleteSaving(false);
+      setDeleteConfirmOpen(false);
+    }
+  }
+
+  async function saveJobEdits() {
+    try {
+      const updated = await updateJob(user, job.id, {
+        company_name: jobEditDraft.company_name.trim(),
+        job_title: jobEditDraft.job_title.trim(),
+        location: jobEditDraft.location.trim(),
+        source_url: jobEditDraft.source_url.trim(),
+        priority: jobEditDraft.priority,
+        job_description: jobEditDraft.job_description,
+      });
+      if (updated) mergeJobUpdate(updated);
+      setEditJobOpen(false);
+      toast.success("Job details updated.");
+    } catch {
+      toast.error("Could not update job details.");
     }
   }
 
@@ -696,8 +719,9 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
               </div>
               <ApplicationActionsMenu
                 archived={isArchivedJob(job)}
+                onEdit={() => setEditJobOpen(true)}
                 onArchive={handleArchive}
-                onDelete={handleDeleteApplication}
+                onDelete={() => setDeleteConfirmOpen(true)}
               />
               {!pageMode && (
                 <button type="button" className="hidden shrink-0 rounded-lg p-2 text-slate-500 hover:bg-brand-50 lg:inline-flex" onClick={requestClose} aria-label="Close job details">
@@ -719,6 +743,19 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 onChange={(field, value) => setMarkAppliedForm((current) => ({ ...current, [field]: value }))}
                 onCancel={() => setMarkAppliedOpen(false)}
                 onSave={saveMarkApplied}
+              />
+            </div>
+          )}
+          {editJobOpen && (
+            <div className="mx-auto mb-4 max-w-6xl">
+              <JobEditPanel
+                draft={jobEditDraft}
+                onChange={(field, value) => setJobEditDraft((current) => ({ ...current, [field]: value }))}
+                onCancel={() => {
+                  setJobEditDraft(getJobEditDraft(job));
+                  setEditJobOpen(false);
+                }}
+                onSave={saveJobEdits}
               />
             </div>
           )}
@@ -974,6 +1011,12 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
           </main>
         </div>
       </section>
+      <DeleteApplicationModal
+        open={deleteConfirmOpen}
+        saving={deleteSaving}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onDelete={handleDeleteApplication}
+      />
     </div>
   );
 }
@@ -1315,22 +1358,37 @@ function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
   );
 }
 
-function ApplicationActionsMenu({ archived, onArchive, onDelete }) {
+function ApplicationActionsMenu({ archived, onEdit, onArchive, onDelete }) {
   return (
     <details className="relative shrink-0">
       <summary
-        className="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-lg text-slate-600 ring-1 ring-brand-100 transition hover:bg-brand-50 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 [&::-webkit-details-marker]:hidden"
+        className="inline-flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-lg px-3 text-sm font-bold text-slate-700 ring-1 ring-brand-100 transition hover:bg-brand-50 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 [&::-webkit-details-marker]:hidden"
         aria-label="Application actions"
         title="Application actions"
       >
         <MoreVertical size={19} aria-hidden="true" />
+        <span>Actions</span>
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-lg bg-white p-1.5 shadow-soft ring-1 ring-brand-100">
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-brand-50 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
+          onClick={(event) => {
+            event.currentTarget.closest("details")?.removeAttribute("open");
+            onEdit();
+          }}
+        >
+          <Edit3 size={16} aria-hidden="true" />
+          Edit Job
+        </button>
         {!archived && (
           <button
             type="button"
             className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-brand-50 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
-            onClick={onArchive}
+            onClick={(event) => {
+              event.currentTarget.closest("details")?.removeAttribute("open");
+              onArchive();
+            }}
           >
             <Archive size={16} aria-hidden="true" />
             Archive Application
@@ -1339,7 +1397,10 @@ function ApplicationActionsMenu({ archived, onArchive, onDelete }) {
         <button
           type="button"
           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
-          onClick={onDelete}
+          onClick={(event) => {
+            event.currentTarget.closest("details")?.removeAttribute("open");
+            onDelete();
+          }}
         >
           <Trash2 size={16} aria-hidden="true" />
           Delete Application
@@ -1347,6 +1408,83 @@ function ApplicationActionsMenu({ archived, onArchive, onDelete }) {
       </div>
     </details>
   );
+}
+
+function JobEditPanel({ draft, onChange, onCancel, onSave }) {
+  return (
+    <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Edit Job</p>
+          <h3 className="mt-1 text-lg font-black text-ink">Update opportunity details</h3>
+        </div>
+        <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={onCancel}>Cancel</Button>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <Field id="edit-company-name" label="Company name" value={draft.company_name} onChange={(event) => onChange("company_name", event.target.value)} />
+        <Field id="edit-job-title" label="Job title" value={draft.job_title} onChange={(event) => onChange("job_title", event.target.value)} />
+        <Field id="edit-job-location" label="Location" value={draft.location} onChange={(event) => onChange("location", event.target.value)} />
+        <Field id="edit-job-source" label="Source URL" value={draft.source_url} onChange={(event) => onChange("source_url", event.target.value)} />
+        <label className="grid gap-2 text-sm font-medium text-ink">
+          Priority
+          <select className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100" value={draft.priority} onChange={(event) => onChange("priority", event.target.value)}>
+            {priorities.map((priority) => <option key={priority}>{priority}</option>)}
+          </select>
+        </label>
+        <div className="md:col-span-2">
+          <Field id="edit-job-description" label="Job description" as="textarea" rows="7" value={draft.job_description} onChange={(event) => onChange("job_description", event.target.value)} />
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button onClick={onSave} disabled={!draft.company_name.trim() || !draft.job_title.trim()}>Save Changes</Button>
+        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+      </div>
+    </section>
+  );
+}
+
+function DeleteApplicationModal({ open, saving, onCancel, onDelete }) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[90] grid place-items-center bg-ink/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-application-title"
+      onMouseDown={(event) => {
+        event.stopPropagation();
+        onCancel();
+      }}
+    >
+      <section className="w-full max-w-md rounded-xl bg-white p-5 shadow-soft ring-1 ring-rose-100" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-100">
+          <Trash2 size={20} aria-hidden="true" />
+        </div>
+        <h2 id="delete-application-title" className="mt-4 text-xl font-black text-ink">Delete application?</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          This will permanently remove this job, analysis, generated materials, notes, contacts, prep content, and activity history.
+        </p>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
+          <Button variant="danger" onClick={onDelete} disabled={saving}>
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {saving ? "Deleting..." : "Delete Application"}
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function getJobEditDraft(job = {}) {
+  return {
+    company_name: job.company_name || "",
+    job_title: job.job_title || "",
+    location: job.location || "",
+    source_url: job.source_url || "",
+    priority: job.priority || "Medium",
+    job_description: job.job_description || "",
+  };
 }
 
 function StageMoveControl({ value, onChange }) {

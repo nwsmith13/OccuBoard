@@ -143,7 +143,7 @@ function ResumeOnboardingHandoff({ onContinue, onSkip }) {
         </div>
         <div className="mt-5 flex items-center justify-center gap-2 text-emerald-700">
           <CheckCircle2 size={20} aria-hidden="true" />
-          <p className="text-xs font-black uppercase tracking-[0.14em]">Resume foundation complete</p>
+          <p className="text-xs font-black uppercase tracking-[0.14em]">Step 1 Complete</p>
         </div>
         <h2 id="resume-upload-success-title" className="mt-2 text-2xl font-black text-ink">Resume uploaded successfully</h2>
         <p className="mt-2 text-base font-semibold text-slate-700">Your resume foundation is ready.</p>

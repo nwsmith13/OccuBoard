@@ -1,5 +1,5 @@
 import { formatDate, todayIso } from "./date.js";
-import { isArchivedJob } from "./archive.js";
+import { isActiveJob } from "./archive.js";
 import { getFollowUpDate, getFollowUpStatus, normalizeStage } from "./followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "./jobDisplay.js";
 import { isCoverLetter, isCoverLetterSkipped, isRecruiterMessage } from "./jobAiStatus.js";
@@ -44,7 +44,7 @@ export function generateRecommendations({
   const latestScores = getLatestScores(jobScores);
   const recommendations = [];
 
-  const jobsToEvaluate = (jobs.length ? jobs : followups).filter((job) => !isArchivedJob(job));
+  const jobsToEvaluate = (jobs.length ? jobs : followups).filter(isActiveJob);
 
   jobsToEvaluate.forEach((job) => {
     const score = latestScores.get(job.id);

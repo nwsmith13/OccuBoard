@@ -50,7 +50,7 @@ export function DashboardPage() {
     generatedAssets: { jobScores, resumeVersions, interviewPrep },
     activityHistory: jobActivityLogs,
   }), [activeJobs, interviewPrep, jobActivityLogs, jobScores, messages, resumeVersions]);
-  const visibleRecommendations = useMemo(() => filterRecommendationsForDashboard(recommendations, 5), [recommendations]);
+  const visibleRecommendations = useMemo(() => filterRecommendationsForDashboard(recommendations, 3), [recommendations]);
   const patternInsights = useMemo(() => buildSearchPatternInsights({ jobs: activeJobs, jobScores }), [activeJobs, jobScores]);
   const focusItems = getFocusItems({ jobs: activeJobs, jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep });
   const followUpsDue = activeJobs.filter((job) => ["due", "overdue"].includes(getFollowUpStatus(job))).length;
@@ -128,7 +128,7 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <TodaysGuidance recommendations={visibleRecommendations} onOpen={openRecommendation} />
+        <TodaysGuidance recommendations={visibleRecommendations} jobs={activeJobs} onOpen={openRecommendation} />
 
         <section className="rounded-xl bg-white/95 p-4 shadow-card sm:p-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -435,19 +435,20 @@ function DashboardSkeleton() {
   );
 }
 
-function TodaysGuidance({ recommendations = [], onOpen }) {
+function TodaysGuidance({ recommendations = [], jobs = [], onOpen }) {
   return (
     <section className="rounded-xl bg-white/90 p-4 shadow-card sm:p-5">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className={tinyLabelClass}>Guidance</p>
-          <h2 className="mt-1 text-xl font-bold text-ink">Today&apos;s Guidance</h2>
+          <p className={tinyLabelClass}>Today&apos;s Guidance</p>
+          <h2 className="mt-1 text-xl font-bold text-ink">Recommended Next Actions</h2>
         </div>
-        <p className="max-w-md text-sm leading-6 text-slate-700">Operational recommendations from your current pipeline.</p>
+        <p className="max-w-md text-sm leading-6 text-slate-700">The next few things most likely to move your search forward.</p>
       </div>
       <div className="mt-4 grid gap-3">
         {recommendations.map((recommendation) => {
           const Icon = getGuidanceIcon(getRecommendationIcon(recommendation.type));
+          const job = jobs.find((item) => item.id === recommendation.relatedJobId);
           return (
             <button
               key={recommendation.id}
@@ -465,9 +466,10 @@ function TodaysGuidance({ recommendations = [], onOpen }) {
                   <span className="text-xs font-semibold text-slate-500">{getRecommendationMeta(recommendation)}</span>
                 </span>
                 <span className="mt-1 block font-bold leading-snug text-ink">{recommendation.title}</span>
+                {job && <span className="mt-0.5 block text-sm font-semibold text-brand-800">{getDisplayJobTitle(job)} · {getDisplayCompanyName(job)}</span>}
                 <span className="mt-1 block text-sm leading-5 text-slate-600">{recommendation.description}</span>
                 {recommendation.reasoningText && <span className="mt-2 block text-[13px] font-semibold leading-5 text-slate-700">{recommendation.reasoningText}</span>}
-                <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-brand-800">
+                <span className="mt-3 inline-flex min-h-8 items-center gap-1 rounded-lg bg-brand-700 px-3 text-xs font-bold text-white shadow-sm">
                   {recommendation.actionLabel}
                   <ChevronRight className="transition duration-[160ms] ease-out group-hover:translate-x-0.5" size={13} />
                 </span>
@@ -492,13 +494,13 @@ function SmartInsightPanel({ insights = [] }) {
         <p className={tinyLabelClass}>Patterns</p>
         <h2 className="mt-1 text-xl font-bold text-ink">Smart Insight Summaries</h2>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {insights.map((insight) => (
-          <article key={insight.id} className="rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-100">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{insight.label}</p>
-            <p className="mt-2 text-base font-black leading-tight text-ink">{insight.value}</p>
-            <p className="mt-2 text-[13px] leading-5 text-slate-700">{insight.description}</p>
-            {insight.meta && <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">{insight.meta}</p>}
+          <article key={insight.id} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-brand-100">
+            <p className="text-sm font-bold text-slate-600">{insight.label}</p>
+            <p className="mt-2 text-xl font-black leading-tight text-ink">{insight.value}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{insight.description}</p>
+            {insight.meta && <p className="mt-3 text-sm font-black text-brand-800">{insight.meta}</p>}
           </article>
         ))}
       </div>

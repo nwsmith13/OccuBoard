@@ -5,7 +5,7 @@ import { Button } from "../../components/ui/Button.jsx";
 import { getFitScoreTone, getLatestFitScore } from "../../components/ui/FitScoreBadge.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
-import { getActiveJobs, getArchivedJobs, isArchivedJob } from "../../lib/archive.js";
+import { getActiveJobs, isActiveJob, isArchivedJob } from "../../lib/archive.js";
 import { formatDate, todayIso } from "../../lib/date.js";
 import { normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
@@ -30,21 +30,17 @@ export function ApplicationsPage() {
   const navigate = useNavigate();
   const { applicationId } = useParams();
   const [searchParams] = useSearchParams();
-  const [smartFilter, setSmartFilter] = useState("All");
-  const [archiveMode, setArchiveMode] = useState("active");
+  const [smartFilter, setSmartFilter] = useState("Active");
   const [success, setSuccess] = useState("");
   const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
-  const archivedJobs = useMemo(() => getArchivedJobs(jobs), [jobs]);
-  const baseVisibleJobs = archiveMode === "archived" || smartFilter === "Archived" ? archivedJobs : activeJobs;
   const metrics = useMemo(() => getApplicationMetrics(activeJobs, { jobScores, jobContacts, resumeVersions, messages, jobActivityLogs }), [activeJobs, jobActivityLogs, jobContacts, jobScores, messages, resumeVersions]);
   const enrichedJobs = useMemo(
-    () => baseVisibleJobs.map((job) => getApplicationCardModel(job, { jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep })),
-    [baseVisibleJobs, jobActivityLogs, jobContacts, jobScores, interviewPrep, messages, resumeVersions],
+    () => jobs.map((job) => getApplicationCardModel(job, { jobScores, resumeVersions, messages, jobContacts, jobActivityLogs, interviewPrep })),
+    [jobs, jobActivityLogs, jobContacts, jobScores, interviewPrep, messages, resumeVersions],
   );
   const visibleJobs = useMemo(() => enrichedJobs.filter((model) => matchesSmartFilter(model, smartFilter)), [enrichedJobs, smartFilter]);
-  const actionQueue = useMemo(() => getActionQueue(enrichedJobs.filter((model) => !model.archived)), [enrichedJobs]);
-  const focusJobs = useMemo(() => getFocusViewJobs(actionQueue), [actionQueue]);
-  const filterCounts = useMemo(() => getWorkflowFilterCounts(enrichedJobs, archivedJobs.length, focusJobs.length), [archivedJobs.length, enrichedJobs, focusJobs.length]);
+  const actionQueue = useMemo(() => getActionQueue(enrichedJobs.filter((model) => isActiveJob(model.job))), [enrichedJobs]);
+  const filterCounts = useMemo(() => getWorkflowFilterCounts(enrichedJobs), [enrichedJobs]);
   const displayedJobs = visibleJobs;
 
   useEffect(() => {
@@ -82,8 +78,7 @@ export function ApplicationsPage() {
 
   async function restoreJob(job) {
     const restored = await updateJob(user, job.id, { archived_at: null, archived_reason: "", archived_by_user: false });
-    setArchiveMode("active");
-    setSmartFilter("All");
+    setSmartFilter("Active");
     setSuccess("Opportunity restored.");
     toast.success("Opportunity restored.");
     window.setTimeout(() => setSuccess(""), 2600);
@@ -134,27 +129,24 @@ export function ApplicationsPage() {
 
       {error && <div className="mb-5 rounded-lg bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div>}
 
-      {archiveMode === "active" && <ActionQueueSection queue={actionQueue} onOpen={(jobId) => navigate(`/app/applications/${jobId}`)} />}
+      {smartFilter === "Active" && <ActionQueueSection queue={actionQueue} onOpen={(jobId) => navigate(`/app/applications/${jobId}`)} />}
 
       <CareerMomentumPanel metrics={metrics} />
 
       <WorkflowStagePills
         active={smartFilter}
         counts={filterCounts}
-        onChange={(filter) => {
-          setSmartFilter(filter);
-          setArchiveMode(filter === "Archived" ? "archived" : "active");
-        }}
+        onChange={setSmartFilter}
       />
 
       {loading ? (
         <ApplicationCardsSkeleton />
       ) : !displayedJobs.length ? (
-        <EmptyApplicationState filter={smartFilter} archiveMode={archiveMode} noApplications={!activeJobs.length && archiveMode === "active"}>
-          {archiveMode === "active" && smartFilter !== "All" && (
+        <EmptyApplicationState filter={smartFilter} noApplications={!jobs.length}>
+          {smartFilter !== "All" && (
             <Button variant="secondary" className="mt-5 mr-2 inline-flex" onClick={() => setSmartFilter("All")}>Back to All</Button>
           )}
-          {archiveMode === "active" && smartFilter === "All" && (
+          {smartFilter === "All" && (
             <Link to="/app/new-jobs" className="mt-5 inline-flex">
               <Button>Analyze Job</Button>
             </Link>
@@ -253,7 +245,7 @@ function ActionQueueSection({ queue, onOpen }) {
 }
 
 function WorkflowStagePills({ active, counts, onChange }) {
-  const filters = ["All", "Saved", "Applied", "Interviewing", "In Progress", "Archived"];
+  const filters = ["Active", "Saved", "Applied", "Interviewing", "Rejected", "Archived", "All"];
   return (
     <div className="mb-4 rounded-2xl bg-white/80 p-3 shadow-sm ring-1 ring-brand-100">
       <p className="mb-2 text-sm font-semibold text-slate-600">
@@ -277,17 +269,18 @@ function WorkflowStagePills({ active, counts, onChange }) {
 
 function getWorkflowFilterHelper(filter) {
   return {
-    All: "all active opportunities.",
+    Active: "opportunities still moving through your search.",
     Saved: "saved roles still being prepared.",
-    "In Progress": "roles still missing a key preparation step.",
     Interviewing: "roles in interview stages.",
     Applied: "submitted applications still in motion.",
-    Archived: "roles removed from the active search.",
+    Rejected: "roles that ended with a rejection.",
+    Archived: "archived and closed roles outside your active search.",
+    All: "every application, including inactive history.",
   }[filter] ?? "all opportunities in this view.";
 }
 
-function EmptyApplicationState({ filter, archiveMode, noApplications, children }) {
-  const archived = archiveMode === "archived" || filter === "Archived";
+function EmptyApplicationState({ filter, noApplications, children }) {
+  const archived = filter === "Archived";
   const emptyCopy = getEmptyStateCopy({ filter, archived, noApplications });
   return (
     <div className="rounded-xl bg-white/90 p-8 text-center shadow-card ring-1 ring-brand-100">
@@ -314,7 +307,7 @@ function getEmptyStateCopy({ filter, archived, noApplications }) {
       copy: "Add your first opportunity to unlock fit analysis, tailored materials, recruiter perspective, and interview preparation.",
     };
   }
-  if (filter === "All") {
+  if (filter === "Active") {
     return {
       title: "No active opportunities yet.",
       copy: "Analyze a job to create your first opportunity.",
@@ -327,10 +320,11 @@ function getEmptyStateCopy({ filter, archived, noApplications }) {
     };
   }
   const copyByFilter = {
-    "In Progress": ["Start your command center.", "Analyze your first role and OccuBoard will organize the next steps here."],
     Saved: ["No saved roles.", "Saved roles you are still preparing will appear here."],
     Interviewing: ["No active interviews yet.", "Interview-stage roles will appear here with prep shortcuts."],
     Applied: ["No applied roles in this view.", "Once you mark roles applied, they will collect here."],
+    Rejected: ["No rejected applications.", "Roles marked rejected will appear here without cluttering your active search."],
+    All: ["No applications yet.", "Analyze a job to create your first opportunity."],
   };
   const [title, copy] = copyByFilter[filter] || [`No roles match ${filter}.`, "Try another filter or keep preparing your strongest roles."];
   return { title, copy };
@@ -566,7 +560,7 @@ function getApplicationCardModel(job, { jobScores = [], resumeVersions = [], mes
 
 function getApplicationCategory({ archived, stage, status, coverLetterResolved, health }) {
   if (archived) return "Archived";
-  if (stage === "Rejected") return "Not Active";
+  if (["Rejected", "Closed"].includes(stage)) return "Not Active";
   if (["Interview", "Final Interview", "Phone Screen"].includes(stage)) return "Interviewing";
   if (status.resumeDrafted && coverLetterResolved && stage === "Saved") return "Ready To Apply";
   if (health.tone === "danger" || !status.resumeDrafted || !coverLetterResolved) return "Needs Attention";
@@ -589,12 +583,13 @@ function getApplicationCategoryTone(category) {
 }
 
 function matchesSmartFilter(model, filter) {
-  if (filter === "All") return !model.archived;
-  if (filter === "Archived") return model.archived;
-  if (filter === "Saved") return !model.archived && model.stage === "Saved";
-  if (filter === "In Progress") return !model.archived && !["Ready To Apply", "Interviewing", "Not Active"].includes(model.category) && model.stage !== "Applied";
-  if (filter === "Interviewing") return model.category === "Interviewing";
-  if (filter === "Applied") return model.stage === "Applied";
+  if (filter === "All") return true;
+  if (filter === "Active") return isActiveJob(model.job);
+  if (filter === "Archived") return model.archived || model.stage === "Closed";
+  if (filter === "Rejected") return !model.archived && model.stage === "Rejected";
+  if (filter === "Saved") return isActiveJob(model.job) && model.stage === "Saved";
+  if (filter === "Interviewing") return isActiveJob(model.job) && model.category === "Interviewing";
+  if (filter === "Applied") return isActiveJob(model.job) && model.stage === "Applied";
   return true;
 }
 
@@ -607,26 +602,15 @@ function getActionQueue(models) {
   };
 }
 
-function getFocusViewJobs(queue) {
-  const seen = new Set();
-  return [queue.applyToday, queue.followUp, queue.interviewing, queue.needsAttention]
-    .flat()
-    .filter((model) => {
-      if (seen.has(model.job.id)) return false;
-      seen.add(model.job.id);
-      return true;
-    })
-    .slice(0, 12);
-}
-
-function getWorkflowFilterCounts(models, archivedCount) {
+function getWorkflowFilterCounts(models) {
   return {
-    All: models.filter((model) => !model.archived).length,
-    Saved: models.filter((model) => !model.archived && model.stage === "Saved").length,
-    "In Progress": models.filter((model) => !model.archived && !["Ready To Apply", "Interviewing", "Not Active"].includes(model.category) && model.stage !== "Applied").length,
-    Interviewing: models.filter((model) => model.category === "Interviewing").length,
-    Applied: models.filter((model) => model.stage === "Applied").length,
-    Archived: archivedCount,
+    Active: models.filter((model) => isActiveJob(model.job)).length,
+    Saved: models.filter((model) => isActiveJob(model.job) && model.stage === "Saved").length,
+    Interviewing: models.filter((model) => isActiveJob(model.job) && model.category === "Interviewing").length,
+    Applied: models.filter((model) => isActiveJob(model.job) && model.stage === "Applied").length,
+    Rejected: models.filter((model) => !model.archived && model.stage === "Rejected").length,
+    Archived: models.filter((model) => model.archived || model.stage === "Closed").length,
+    All: models.length,
   };
 }
 
