@@ -1,3 +1,5 @@
+import posthog from "posthog-js";
+
 const analyticsStorageKey = "occuboard:product-events";
 export const productAnalyticsEvent = "occuboard:product-event";
 
@@ -14,6 +16,7 @@ export function trackProductEvent(name, metadata = {}) {
     window.localStorage.setItem(analyticsStorageKey, JSON.stringify([event, ...current].slice(0, 250)));
     window.dispatchEvent(new window.CustomEvent(productAnalyticsEvent, { detail: event }));
     window.dataLayer?.push?.({ event: name, ...metadata });
+    posthog.capture(name, metadata);
   } catch {
     // Analytics must never interrupt the user's work.
   }
