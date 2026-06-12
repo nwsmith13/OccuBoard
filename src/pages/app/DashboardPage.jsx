@@ -61,6 +61,7 @@ export function DashboardPage() {
   const searchProgress = useMemo(() => getSearchProgress({ jobs, resumeVersions, interviewPrep }), [interviewPrep, jobs, resumeVersions]);
   const pro = isProSubscription(billing?.subscription);
   const aiApplicationsRemaining = getUsageRemaining(billing, usageActions.application);
+  const firstTimeMode = !onboarding.hasAnalysis;
 
   async function moveToApplied(job) {
     const saved = await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || new Date().toISOString().slice(0, 10) });
@@ -96,6 +97,36 @@ export function DashboardPage() {
 
   if (loading) return <DashboardSkeleton />;
 
+  if (firstTimeMode) {
+    return (
+      <>
+        <BillingLimitModal
+          open={upgradeModalOpen}
+          upgrading={upgrading}
+          onUpgrade={startProCheckout}
+          onClose={() => setUpgradeModalOpen(false)}
+        />
+        <FirstTimeDashboard
+          onboarding={onboarding}
+          error={error}
+          onAction={(stepId) => {
+            if (stepId === "resume") {
+              navigate("/app/resume-studio#resume-import");
+              return;
+            }
+            if (stepId === "job") {
+              navigate("/app/new-jobs");
+              return;
+            }
+            if (onboarding.latestJobId) {
+              navigate(`/app/applications/${onboarding.latestJobId}?tab=${stepId === "fit" ? "fit" : "resume"}`);
+            }
+          }}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
       <BillingLimitModal
@@ -106,7 +137,6 @@ export function DashboardPage() {
       />
       <main className="grid min-w-0 gap-5">
         {error && <div className="rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
-        {onboarding.isNewWorkspace && <NewAccountWelcome />}
         <section className="overflow-hidden rounded-xl bg-gradient-to-br from-stone-100 via-white to-emerald-50 px-4 py-3 shadow-card transition duration-[160ms] ease-out hover:shadow-soft sm:px-5">
           <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -359,21 +389,116 @@ function DashboardProStatusCard() {
   );
 }
 
-function NewAccountWelcome() {
+function FirstTimeDashboard({ onboarding, error, onAction }) {
+  const steps = onboarding.steps.slice(0, 4);
+  const currentStep = steps.find((step) => !step.done) || steps[steps.length - 1];
+  const currentIndex = Math.max(0, steps.findIndex((step) => step.id === currentStep.id));
+  const content = {
+    resume: {
+      headline: "Upload your resume",
+      description: "Start with your existing resume so OccuBoard can understand your experience.",
+      action: "Upload Resume",
+    },
+    job: {
+      headline: "Add your first job",
+      description: "Paste a LinkedIn job posting or the full job description.",
+      action: "Add Job",
+    },
+    fit: {
+      headline: "Analyze your fit",
+      description: "See how well your experience aligns with the role.",
+      action: "Analyze Fit",
+    },
+    resumeGenerated: {
+      headline: "Generate a tailored resume",
+      description: "Create a role-specific version optimized for the position.",
+      action: "Generate Resume",
+    },
+  }[currentStep.id];
+  const features = [
+    { title: "Match Analysis", description: "See where your experience aligns and what deserves stronger positioning.", icon: Search },
+    { title: "Resume Tailoring", description: "Turn your base resume into a focused version for each opportunity.", icon: FileText },
+    { title: "Recruiter View", description: "Understand what recruiters may notice first and where questions could arise.", icon: MessageCircle },
+    { title: "Interview Preparation", description: "Prepare likely questions, STAR stories, talking points, and research.", icon: Sparkles },
+  ];
+  const workflow = ["Job Description", "Fit Analysis", "Tailored Resume", "Recruiter View", "Interview Prep", "Export Package"];
+
   return (
-    <section className="rounded-xl bg-gradient-to-br from-brand-50 via-white to-emerald-50 p-5 shadow-card ring-1 ring-brand-100">
-      <p className={tinyLabelClass}>Welcome</p>
-      <h2 className="mt-2 text-2xl font-black text-ink">Welcome To OccuBoard</h2>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Complete your first application to start building momentum.</p>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {["Upload Resume", "Add Job", "Analyze Fit", "Generate Resume", "Recruiter View", "Interview Prep", "Export Package", "Track Application"].map((label) => (
-          <div key={label} className="flex items-center gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm font-bold text-slate-700 ring-1 ring-white/80">
-            <span className="text-emerald-700">{"\u2713"}</span>
-            {label}
+    <main className="mx-auto grid w-full max-w-6xl gap-5">
+      {error && <div className="rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
+
+      <section className="rounded-xl bg-gradient-to-br from-brand-50 via-white to-emerald-50 px-5 py-6 shadow-card ring-1 ring-brand-100 sm:px-7">
+        <p className={tinyLabelClass}>Welcome</p>
+        <h1 className="mt-2 text-3xl font-black text-ink sm:text-4xl">Welcome to OccuBoard</h1>
+        <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-slate-700">
+          Turn any job posting into a tailored resume, recruiter message, interview prep kit, and application tracker.
+        </p>
+      </section>
+
+      <section className="overflow-hidden rounded-xl bg-white shadow-card ring-1 ring-brand-100">
+        <div className="border-b border-slate-100 px-5 py-4 sm:px-7">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-700">Step {currentIndex + 1} of 4</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            {steps.map((step, index) => {
+              const isCurrent = step.id === currentStep.id;
+              return (
+                <div key={step.id} className="flex min-w-0 items-center gap-2">
+                  <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ring-1 ${
+                    step.done
+                      ? "bg-emerald-600 text-white ring-emerald-600"
+                      : isCurrent
+                        ? "bg-brand-700 text-white ring-brand-700"
+                        : "bg-slate-50 text-slate-400 ring-slate-200"
+                  }`}>
+                    {step.done ? "\u2713" : index + 1}
+                  </span>
+                  <span className={`text-sm font-bold ${isCurrent ? "text-brand-900" : step.done ? "text-emerald-800" : "text-slate-400"}`}>{step.label}</span>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
-    </section>
+        </div>
+        <div className="bg-gradient-to-br from-white via-white to-brand-50/60 px-5 py-7 sm:px-7 sm:py-9">
+          <div className="max-w-2xl">
+            <h2 className="text-2xl font-black text-ink">{content.headline}</h2>
+            <p className="mt-2 text-base leading-7 text-slate-700">{content.description}</p>
+            <Button className="mt-5 min-h-11 px-5 text-sm" onClick={() => onAction(currentStep.id)}>
+              {content.action}
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl bg-white/90 p-5 shadow-sm ring-1 ring-slate-100 sm:p-6">
+        <p className={tinyLabelClass}>What You&apos;ll Get</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {features.map(({ title, description, icon: Icon }) => (
+            <article key={title} className="rounded-xl bg-slate-50/75 p-4 ring-1 ring-slate-100">
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-brand-100">
+                <Icon size={18} aria-hidden="true" />
+              </span>
+              <h3 className="mt-3 font-black text-ink">{title}</h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-xl bg-white/85 p-5 shadow-sm ring-1 ring-slate-100 sm:p-6">
+        <p className={tinyLabelClass}>Example Workflow</p>
+        <div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          {workflow.map((label, index) => (
+            <div key={label} className="contents">
+              <div className="flex min-h-12 flex-1 items-center justify-center rounded-lg bg-brand-50/70 px-3 text-center text-sm font-bold text-brand-950 ring-1 ring-brand-100">
+                {label}
+              </div>
+              {index < workflow.length - 1 && <ChevronRight className="mx-auto rotate-90 text-brand-300 sm:rotate-0" size={18} aria-hidden="true" />}
+            </div>
+          ))}
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -447,8 +572,11 @@ function TodaysGuidance({ recommendations = [], jobs = [], onOpen }) {
           );
         })}
         {!recommendations.length && (
-          <div className="rounded-lg bg-brand-50/70 p-4 text-sm leading-6 text-slate-700">
-            No recommendations need attention right now. Guidance will appear as jobs, follow-ups, and interviews move.
+          <div className="flex flex-col gap-3 rounded-lg bg-brand-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-semibold leading-6 text-slate-700">Add another opportunity to continue building momentum.</p>
+            <Link to="/app/new-jobs" className="shrink-0">
+              <Button className="min-h-9 px-3 text-sm">Analyze New Job</Button>
+            </Link>
           </div>
         )}
       </div>
