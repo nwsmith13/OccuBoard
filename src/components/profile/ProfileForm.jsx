@@ -3,6 +3,7 @@ import { useAuth } from "../../contexts/AuthContext.jsx";
 import { getCompletenessTone } from "../../lib/completenessTone.js";
 import { createEmptyProfile, getMissingProfileItems, getProfileCompleteness } from "../../lib/profile.js";
 import { normalizeResumeText } from "../../lib/resumeParser.js";
+import { trackEvent, trackProductMilestone } from "../../lib/productAnalytics.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { Button } from "../ui/Button.jsx";
 import { Field } from "../ui/Field.jsx";
@@ -43,12 +44,19 @@ export function ProfileForm({ compact = false, onSaved }) {
     const payload = autoClean
       ? { ...form, base_resume_text: normalizeResumeText(form.base_resume_text ?? "") }
       : form;
+    const resumeTextChanged = String(payload.base_resume_text || "").trim() !== String(profile?.base_resume_text || "").trim();
     setSaving(true);
     await saveProfile(user, payload);
     setForm(payload);
     setSaving(false);
     setSaved(true);
     setCleaned(false);
+    if (resumeTextChanged && payload.base_resume_text?.trim()) {
+      trackEvent("resume_pasted", { user_id: user?.id, source: "paste" });
+    }
+    if (!hadBaseResume && payload.base_resume_text?.trim()) {
+      trackProductMilestone("resume_added", { user_id: user?.id, source: "paste" });
+    }
     onSaved?.({ hadBaseResume, hasBaseResume: Boolean(payload.base_resume_text?.trim()), profile: payload });
   }
 

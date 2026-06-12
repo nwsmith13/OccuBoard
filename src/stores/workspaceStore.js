@@ -18,7 +18,7 @@ import {
   updateResumeVersion,
 } from "../lib/workspaceApi.js";
 import { createDefaultBillingState, fetchBillingState, incrementUsage, setUsageValue } from "../lib/billing.js";
-import { trackProductMilestone } from "../lib/productAnalytics.js";
+import { trackEvent, trackProductMilestone } from "../lib/productAnalytics.js";
 
 const localAiUsageCountedKey = "occuboard.aiUsageCountedJobs";
 let workspaceLoadSequence = 0;
@@ -77,33 +77,58 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   createJob: async (user, job) => {
     const saved = await createJob(user, job);
-    trackProductMilestone("job_added", { jobId: saved?.id, userId: user?.id });
+    trackProductMilestone("job_added", { job_id: saved?.id, user_id: user?.id });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     return saved;
   },
   updateJob: async (user, id, patch) => {
+    const previousJob = get().jobs.find((job) => job.id === id);
     const saved = await updateJob(user, id, patch);
-    if (patch?.status === "Applied") trackProductMilestone("application_tracked", { jobId: id, userId: user?.id });
+    if (patch?.status && patch.status !== previousJob?.status) {
+      trackEvent("application_stage_changed", {
+        job_id: id,
+        user_id: user?.id,
+        previous_stage: previousJob?.status || "unknown",
+        new_stage: patch.status,
+      });
+    }
+    if (patch?.status === "Applied") trackProductMilestone("application_tracked", { job_id: id, user_id: user?.id, stage: "applied" });
+    if (patch?.archived_at && !previousJob?.archived_at) trackProductMilestone("application_archived", { job_id: id, user_id: user?.id });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, jobs: data.jobs.map((job) => (job.id === id ? saved : job)), billing: state.billing }));
     return saved;
   },
   deleteJob: async (user, id) => {
     await deleteJob(user, id);
+    trackProductMilestone("application_deleted", { job_id: id, user_id: user?.id });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
   },
   saveJobScore: async (user, job, score) => {
-    await saveJobScore(user, job, score);
-    trackProductMilestone("fit_analyzed", { jobId: job?.id, userId: user?.id });
+    const saved = await saveJobScore(user, job, score);
+    const properties = {
+      job_id: job?.id,
+      user_id: user?.id,
+      fit_score: Number(saved?.score ?? score?.score ?? 0),
+      fit_label: getAnalyticsFitLabel(saved?.score ?? score?.score),
+    };
+    trackProductMilestone("fit_analyzed", properties);
+    trackProductMilestone("fit_analysis_completed", properties);
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     await get().markJobAiUsageCounted(user, job);
   },
   saveResumeVersion: async (user, job, draft, metadata) => {
     const saved = await saveResumeVersion(user, job, draft, metadata);
-    trackProductMilestone("resume_generated", { jobId: job?.id, resumeId: saved?.id, userId: user?.id });
+    const latestScore = get().jobScores.find((score) => score.job_id === job?.id);
+    trackProductMilestone("resume_generated", {
+      job_id: job?.id,
+      resume_id: saved?.id,
+      user_id: user?.id,
+      fit_score: Number(latestScore?.score || 0) || undefined,
+      tailoring_intensity: metadata?.tailoringIntensity || saved?.tailoring_intensity || undefined,
+    });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     await get().markJobAiUsageCounted(user, job);
@@ -116,6 +141,10 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   saveMessage: async (user, job, message) => {
     const saved = await saveMessage(user, job, message);
+    const messageType = saved?.type || message?.type || "Recruiter Message";
+    if (["Recruiter Message", "Outreach Message", "LinkedIn intro"].includes(messageType)) {
+      trackEvent("recruiter_message_generated", { job_id: job?.id, user_id: user?.id, message_id: saved?.id });
+    }
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     if (["Recruiter Message", "Outreach Message", "Cover Letter"].includes(saved?.type || message?.type || "Recruiter Message")) {
@@ -148,7 +177,9 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   saveInterviewPrep: async (user, job, prep) => {
     const saved = await saveInterviewPrep(user, job, prep);
-    trackProductMilestone("interview_prep_opened", { jobId: job?.id, userId: user?.id });
+    if (!prep?.skipActivity) {
+      trackEvent("interview_prep_generated", { job_id: job?.id, user_id: user?.id, interview_prep_id: saved?.id });
+    }
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     await get().markJobAiUsageCounted(user, job);
@@ -156,7 +187,12 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   saveResumeUpload: async (user, file, extractedText) => {
     const saved = await saveResumeUpload(user, file, extractedText);
-    trackProductMilestone("resume_uploaded", { userId: user?.id, uploadId: saved?.id });
+    trackProductMilestone("resume_uploaded", {
+      user_id: user?.id,
+      upload_id: saved?.id,
+      upload_method: "file",
+      file_type: getAnalyticsFileType(file),
+    });
     const data = await fetchWorkspace(user);
     set((state) => ({ ...data, billing: state.billing }));
     return saved;
@@ -216,6 +252,24 @@ export const useWorkspaceStore = create((set, get) => ({
     return saved;
   },
 }));
+
+function getAnalyticsFitLabel(score) {
+  const value = Number(score || 0);
+  if (value >= 90) return "Strong Match";
+  if (value >= 80) return "Competitive Match";
+  if (value >= 70) return "Viable Match";
+  if (value >= 60) return "Stretch Match";
+  return "Low Match";
+}
+
+function getAnalyticsFileType(file) {
+  const extension = String(file?.name || "").split(".").pop()?.toLowerCase();
+  if (["pdf", "docx", "txt"].includes(extension)) return extension;
+  if (file?.type === "application/pdf") return "pdf";
+  if (file?.type === "text/plain") return "txt";
+  if (String(file?.type || "").includes("wordprocessingml")) return "docx";
+  return "unknown";
+}
 
 function isCurrentWorkspaceUser(state, userKey) {
   return state.loadedFor === userKey || state.loadingFor === userKey;

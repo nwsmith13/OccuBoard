@@ -2,6 +2,7 @@ import { ArrowDown, ArrowRight, CheckCircle2, FileText, UploadCloud, X } from "l
 import { useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { buildOnboardingState } from "../../lib/onboarding.js";
+import { trackProductMilestone } from "../../lib/productAnalytics.js";
 import { createEmptyProfile } from "../../lib/profile.js";
 import { extractResumeText, getResumeFileKind, normalizeResumeText, validateResumeFile } from "../../lib/resumeParser.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -45,6 +46,7 @@ export function ResumeImportCard({ compact = false, highlighted = false, onBaseR
       const upload = file ? await saveResumeUpload(user, file, cleanedText) : null;
       const currentProfile = profile?.id === user?.id ? profile : createEmptyProfile(user);
       await saveProfile(user, { ...currentProfile, base_resume_text: cleanedText });
+      if (!hasBaseResume) trackProductMilestone("resume_added", { user_id: user?.id, source: file ? "upload" : "paste" });
       setState({
         loading: false,
         error: "",

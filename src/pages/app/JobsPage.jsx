@@ -29,7 +29,7 @@ import { exportResumeDocx, exportResumePdf, getResumeExportHistory } from "../..
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { getNextBestAction } from "../../utils/nextBestAction.js";
 import { GuidedNextStep } from "../../components/onboarding/GuidedNextStep.jsx";
-import { trackProductMilestone } from "../../lib/productAnalytics.js";
+import { trackEvent, trackProductMilestone } from "../../lib/productAnalytics.js";
 
 const emptyJob = {
   company_name: "",
@@ -638,9 +638,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     if (activeTab === "recruiterView") {
       setReviewedRecruiterView(true);
       rememberOnboardingRecruiterView(job.id);
+      trackEvent("recruiter_view_opened", { job_id: job.id, user_id: user?.id });
     }
     if (activeTab === "interview") {
-      trackProductMilestone("interview_prep_opened", { jobId: job.id, userId: user?.id });
+      trackEvent("interview_prep_opened", { job_id: job.id, user_id: user?.id });
     }
   }, [activeTab, job.id, user?.id]);
 
@@ -2171,11 +2172,13 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         if (item.key === "resumePdf") {
           await exportResumePdf({ content: resume.content, profile, job, resume });
           await onLogActivity?.(user, job.id, "resume_exported_pdf", { fileType: "PDF", packageExport: true });
+          trackEvent("resume_exported", { format: "pdf", source: "export_tab", job_id: job.id, resume_id: resume.id, fit_score: Number(score?.score || 0) || undefined, user_id: user?.id });
           onExportComplete?.(resume);
         }
         if (item.key === "resumeDocx") {
           await exportResumeDocx({ content: resume.content, profile, job, resume });
           await onLogActivity?.(user, job.id, "resume_exported_docx", { fileType: "DOCX", packageExport: true });
+          trackEvent("resume_exported", { format: "docx", source: "export_tab", job_id: job.id, resume_id: resume.id, fit_score: Number(score?.score || 0) || undefined, user_id: user?.id });
           onExportComplete?.(resume);
         }
         if (item.key === "coverLetterPdf") {
@@ -2209,6 +2212,13 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
       }
 
       rememberOnboardingPackageExport(job.id);
+      trackEvent("package_exported", {
+        format: selectedPackageItems.length > 1 ? "multiple" : selectedPackageItems[0]?.key || "unknown",
+        source: "export_tab",
+        job_id: job.id,
+        user_id: user?.id,
+        item_count: selectedPackageItems.length,
+      });
       setPackageCompleted(true);
       await onLogActivity?.(user, job.id, "application_package_exported", { detail: "Application package exported", itemCount: selectedPackageItems.length });
       toast.success("Selected package downloaded.");
@@ -2294,7 +2304,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
           <div id="advanced-individual-downloads" className="grid gap-3 border-t border-brand-100 p-4">
             <MaterialCard title="Resume" status={resume ? "Generated" : "Not generated"} description={resume ? "Preview or download your tailored resume." : "Create a tailored resume before exporting your application package."}>
               {resume ? (
-                <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
+                <ResumeExportPanel resume={resume} profile={profile} job={job} score={score} source="export_tab" compact onExportComplete={onExportComplete} />
               ) : (
                 <Button className="w-fit min-h-8 px-3 text-xs" onClick={onGoToResume}>Generate Resume</Button>
               )}

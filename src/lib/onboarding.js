@@ -1,5 +1,4 @@
 import { getResumeExportHistory } from "./resumeExport.js";
-import { trackProductMilestone } from "./productAnalytics.js";
 
 export const onboardingStorageKey = "occuboard-onboarding-dismissed";
 export const onboardingTrackerDismissedKey = "occuboard-onboarding-tracker-dismissed";
@@ -151,7 +150,6 @@ export function rememberOnboardingPackageExport(jobId = "") {
     const current = getOnboardingPackageExports();
     const entry = { jobId, exportedAt: new Date().toISOString() };
     window.localStorage.setItem(onboardingPackageExportsKey, JSON.stringify([entry, ...current].slice(0, 20)));
-    trackProductMilestone("package_exported", { jobId });
     dispatchOnboardingUpdated();
   } catch {
     // Export tracking is a lightweight onboarding signal only.
@@ -164,7 +162,6 @@ export function rememberOnboardingRecruiterView(jobId = "") {
     if (jobId && current.some((item) => item.jobId === jobId)) return;
     const entry = { jobId, reviewedAt: new Date().toISOString() };
     window.localStorage.setItem(onboardingRecruiterViewKey, JSON.stringify([entry, ...current].slice(0, 20)));
-    trackProductMilestone("recruiter_view_opened", { jobId });
     dispatchOnboardingUpdated();
   } catch {
     // Recruiter View review is a lightweight first-tour signal only.

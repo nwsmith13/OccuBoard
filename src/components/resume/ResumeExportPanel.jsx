@@ -8,6 +8,7 @@ import {
   openResumePrintPreview,
   parseResumeForExport,
 } from "../../lib/resumeExport.js";
+import { trackEvent } from "../../lib/productAnalytics.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { Button } from "../ui/Button.jsx";
 
@@ -20,7 +21,7 @@ const exportColors = {
   Charcoal: "#334155",
 };
 
-export function ResumeExportPanel({ resume, content, profile, job, compact = false, showHistory = !compact, showPreviewDefault = true, historyResumeId, onExportComplete }) {
+export function ResumeExportPanel({ resume, content, profile, job, score, source = "application_page", compact = false, showHistory = !compact, showPreviewDefault = true, historyResumeId, onExportComplete }) {
   const { user } = useAuth();
   const { logJobActivity } = useWorkspaceStore();
   const [includeWhyThisFits, setIncludeWhyThisFits] = useState(false);
@@ -48,6 +49,14 @@ export function ResumeExportPanel({ resume, content, profile, job, compact = fal
       if (type === "PDF") await exportResumePdf({ content: resumeContent, profile, job, resume, includeWhyThisFits, accentColor: exportAccentColor });
       if (type === "DOCX") await exportResumeDocx({ content: resumeContent, profile, job, resume, includeWhyThisFits, accentColor: exportAccentColor });
       await logJobActivity(user, job?.id || resume?.job_id, type === "PDF" ? "resume_exported_pdf" : "resume_exported_docx", { resumeId: resume?.id, fileType: type });
+      trackEvent("resume_exported", {
+        format: type.toLowerCase(),
+        source,
+        job_id: job?.id || resume?.job_id,
+        resume_id: resume?.id,
+        fit_score: Number(score?.score || 0) || undefined,
+        user_id: user?.id,
+      });
       setHistory(getResumeExportHistory());
       onExportComplete?.(resume);
       setSuccess(`Resume ready to send. ${type} export successful.`);
@@ -63,6 +72,14 @@ export function ResumeExportPanel({ resume, content, profile, job, compact = fal
     setError("");
     try {
       openResumePrintPreview({ content: resumeContent, profile, job, includeWhyThisFits, accentColor: exportAccentColor });
+      trackEvent("resume_exported", {
+        format: "print",
+        source,
+        job_id: job?.id || resume?.job_id,
+        resume_id: resume?.id,
+        fit_score: Number(score?.score || 0) || undefined,
+        user_id: user?.id,
+      });
     } catch {
       setError("We couldn't open Print Preview. Check that pop-ups are allowed, then try again.");
     }

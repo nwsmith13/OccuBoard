@@ -8,6 +8,7 @@ import { Card } from "../../components/ui/Card.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { normalizeResumeText } from "../../lib/resumeParser.js";
 import { createEmptyProfile } from "../../lib/profile.js";
+import { trackProductMilestone } from "../../lib/productAnalytics.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 
 export function ResumeStudioPage() {
@@ -28,6 +29,7 @@ export function ResumeStudioPage() {
     const wasFirstResume = !hasBaseResume;
     const currentProfile = profile?.id === user?.id ? profile : createEmptyProfile(user);
     await saveProfile(user, { ...currentProfile, base_resume_text: normalizeResumeText(text) });
+    if (wasFirstResume) trackProductMilestone("resume_added", { user_id: user?.id, source: "upload" });
     setReviewUpload(null);
     if (wasFirstResume) setHandoff(true);
   }

@@ -235,6 +235,8 @@ export function GeneratedResumesPage() {
                 content={selectedDraft}
                 profile={profile}
                 job={selectedJob}
+                score={selectedScore}
+                source="generated_resumes"
                 historyResumeId={selected.id}
                 onExportComplete={refreshExportHistory}
               />

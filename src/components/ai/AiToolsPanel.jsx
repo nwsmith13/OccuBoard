@@ -8,6 +8,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { calculateApplicationReadiness } from "../../lib/applicationReadiness.js";
 import { canUseUsageFeature, createCheckoutSession, usageActions } from "../../lib/billing.js";
 import { canRunAi, generateAiOutput } from "../../lib/aiClient.js";
+import { trackEvent } from "../../lib/productAnalytics.js";
 import { formatDate } from "../../lib/date.js";
 import { getLatestForJob, isCoverLetter, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
 import { buildMitigationPlan, getAppliedMitigationLabels, getAppliedMitigations } from "../../lib/mitigationPlan.js";
@@ -127,6 +128,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
           open={Boolean(limitAction)}
           upgrading={upgrading}
           onUpgrade={async () => {
+            trackEvent("upgrade_clicked", { source: "free_limit_modal", user_id: user?.id });
             setUpgrading(true);
             try {
               const url = await createCheckoutSession(user);
@@ -235,8 +237,9 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       <BillingLimitModal
         open={Boolean(limitAction)}
         upgrading={upgrading}
-        onUpgrade={async () => {
-          setUpgrading(true);
+          onUpgrade={async () => {
+            trackEvent("upgrade_clicked", { source: "free_limit_modal", user_id: user?.id });
+            setUpgrading(true);
           try {
             const url = await createCheckoutSession(user);
             window.location.assign(url);
@@ -662,7 +665,7 @@ export function ResumeResult({ resume, score, materials = {}, analysisReady = tr
       </div>
       {!hideIndividualExport && (
         <div className="mt-5">
-          <ResumeExportPanel resume={resume} profile={profile} job={job} compact onExportComplete={onExportComplete} />
+          <ResumeExportPanel resume={resume} profile={profile} job={job} score={score} source="resume_tab" compact onExportComplete={onExportComplete} />
         </div>
       )}
       {onRegenerate && <RegenerateButton label="Regenerate resume" onClick={onRegenerate} disabled={Boolean(loading)} />}

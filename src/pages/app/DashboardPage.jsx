@@ -1,5 +1,5 @@
 import { Archive, ArrowRightCircle, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock, FileText, MessageCircle, Search, Sparkles, TrendingUp } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BillingLimitModal } from "../../components/billing/BillingLimitModal.jsx";
 import { Button } from "../../components/ui/Button.jsx";
@@ -18,6 +18,7 @@ import { getJobAiStatus, isCoverLetterSkipped } from "../../lib/jobAiStatus.js";
 import { getJobMomentumValue } from "../../lib/jobMomentum.js";
 import { buildOnboardingState, getOnboardingRecruiterViewReviews } from "../../lib/onboarding.js";
 import { getMissingProfileItems, getProfileCompleteness } from "../../lib/profile.js";
+import { trackEvent, trackProductMilestone } from "../../lib/productAnalytics.js";
 import { filterRecommendationsForDashboard, generateRecommendations, getRecommendationIcon, getRecommendationMeta, getRecommendationTone } from "../../lib/recommendationEngine.js";
 import { buildSearchPatternInsights } from "../../lib/searchPatternInsights.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -63,6 +64,11 @@ export function DashboardPage() {
   const aiApplicationsRemaining = getUsageRemaining(billing, usageActions.application);
   const firstTimeMode = !onboarding.hasAnalysis;
 
+  useEffect(() => {
+    if (!firstTimeMode) return;
+    trackProductMilestone("onboarding_started", { user_id: user?.id });
+  }, [firstTimeMode, user?.id]);
+
   async function moveToApplied(job) {
     const saved = await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || new Date().toISOString().slice(0, 10) });
     setSelectedJob(saved ? { ...saved, initialTab: "overview" } : null);
@@ -77,7 +83,8 @@ export function DashboardPage() {
     if (recommendation.actionRoute) navigate(recommendation.actionRoute);
   }
 
-  async function startProCheckout() {
+  async function startProCheckout(source = "dashboard") {
+    trackEvent("upgrade_clicked", { source: typeof source === "string" ? source : "dashboard", user_id: user?.id });
     setUpgrading(true);
     try {
       const url = await createCheckoutSession(user);
@@ -103,7 +110,7 @@ export function DashboardPage() {
         <BillingLimitModal
           open={upgradeModalOpen}
           upgrading={upgrading}
-          onUpgrade={startProCheckout}
+          onUpgrade={() => startProCheckout("free_limit_modal")}
           onClose={() => setUpgradeModalOpen(false)}
         />
         <FirstTimeDashboard
@@ -132,7 +139,7 @@ export function DashboardPage() {
       <BillingLimitModal
         open={upgradeModalOpen}
         upgrading={upgrading}
-        onUpgrade={startProCheckout}
+        onUpgrade={() => startProCheckout("free_limit_modal")}
         onClose={() => setUpgradeModalOpen(false)}
       />
       <main className="grid min-w-0 gap-5">
@@ -219,13 +226,13 @@ export function DashboardPage() {
           <DashboardProStatusCard />
         )}
         {!pro && (
-          <ProUpgradeCard upgrading={upgrading} onUpgrade={startProCheckout} />
+          <ProUpgradeCard upgrading={upgrading} onUpgrade={() => startProCheckout("dashboard")} />
         )}
         {!pro && (
           <DashboardUsageCard
             remaining={aiApplicationsRemaining}
             upgrading={upgrading}
-            onUpgrade={startProCheckout}
+            onUpgrade={() => startProCheckout("dashboard")}
             onOpenUpgrade={() => setUpgradeModalOpen(true)}
           />
         )}

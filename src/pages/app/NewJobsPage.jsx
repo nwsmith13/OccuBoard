@@ -12,6 +12,7 @@ import { todayIso } from "../../lib/date.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { buildOnboardingState } from "../../lib/onboarding.js";
 import { createCheckoutSession, getUsageRemaining, isProSubscription, usageActions } from "../../lib/billing.js";
+import { trackEvent } from "../../lib/productAnalytics.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 
 const emptyIntake = {
@@ -227,6 +228,7 @@ export function NewJobsPage() {
         open={limitOpen}
         upgrading={upgrading}
         onUpgrade={async () => {
+          trackEvent("upgrade_clicked", { source: "new_jobs", user_id: user?.id });
           setUpgrading(true);
           try {
             const url = await createCheckoutSession(user);

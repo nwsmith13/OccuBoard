@@ -5,7 +5,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { createBillingPortalSession, createCheckoutSession, FREE_LIMIT, getPlanLabel, isProSubscription, verifyCheckoutSession } from "../../lib/billing.js";
 import { openHelpCenter } from "../../lib/helpCenter.js";
 import { restartProductTour } from "../../lib/onboarding.js";
-import { trackProductEvent } from "../../lib/productAnalytics.js";
+import { trackEvent, trackProductEvent, trackProductMilestone } from "../../lib/productAnalytics.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { ProfileForm } from "../../components/profile/ProfileForm.jsx";
 import { ResumeImportCard } from "../../components/resume/ResumeImportCard.jsx";
@@ -27,6 +27,7 @@ export function SettingsPage() {
   const pro = isProSubscription(subscription);
 
   async function startCheckout() {
+    trackEvent("upgrade_clicked", { source: "settings", user_id: user?.id });
     setBillingLoading("checkout");
     try {
       const url = await createCheckoutSession(user);
@@ -78,6 +79,7 @@ export function SettingsPage() {
             if (isProSubscription(latestBilling?.subscription)) {
               if (cancelled) return;
               setCheckoutSyncState("active");
+              trackProductMilestone("subscription_started", { user_id: user?.id, plan: "pro" });
               toast.success("Subscription successful. Welcome to OccuBoard Pro.");
               return;
             }
