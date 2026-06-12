@@ -665,7 +665,7 @@ export function ResumeResult({ resume, score, materials = {}, analysisReady = tr
       </div>
       {!hideIndividualExport && (
         <div className="mt-5">
-          <ResumeExportPanel resume={resume} profile={profile} job={job} score={score} source="resume_tab" compact onExportComplete={onExportComplete} />
+          <ResumeExportPanel resume={resume} profile={profile} job={job} score={score} source="resume_page" compact onExportComplete={onExportComplete} />
         </div>
       )}
       {onRegenerate && <RegenerateButton label="Regenerate resume" onClick={onRegenerate} disabled={Boolean(loading)} />}

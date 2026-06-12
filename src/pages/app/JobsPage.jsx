@@ -2141,6 +2141,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
       if (type === "pdf") await exportCoverLetterPdf({ content: coverLetter.content, profile, job });
       if (type === "docx") await exportCoverLetterDocx({ content: coverLetter.content, profile, job });
       await onLogActivity?.(user, job.id, type === "pdf" ? "cover_letter_exported_pdf" : "cover_letter_exported_docx", { fileType: type.toUpperCase() });
+      trackEvent("cover_letter_exported", { format: type, source: "export_page", job_id: job.id, user_id: user?.id });
       toast.success(`Cover letter ${type.toUpperCase()} exported.`);
     } catch (err) {
       setError(err.message || "Cover letter export failed.");
@@ -2172,13 +2173,13 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         if (item.key === "resumePdf") {
           await exportResumePdf({ content: resume.content, profile, job, resume });
           await onLogActivity?.(user, job.id, "resume_exported_pdf", { fileType: "PDF", packageExport: true });
-          trackEvent("resume_exported", { format: "pdf", source: "export_tab", job_id: job.id, resume_id: resume.id, fit_score: Number(score?.score || 0) || undefined, user_id: user?.id });
+          trackEvent("resume_exported", { format: "pdf", source: "export_page", job_id: job.id, resume_id: resume.id, fit_score: Number(score?.score || 0) || undefined, user_id: user?.id });
           onExportComplete?.(resume);
         }
         if (item.key === "resumeDocx") {
           await exportResumeDocx({ content: resume.content, profile, job, resume });
           await onLogActivity?.(user, job.id, "resume_exported_docx", { fileType: "DOCX", packageExport: true });
-          trackEvent("resume_exported", { format: "docx", source: "export_tab", job_id: job.id, resume_id: resume.id, fit_score: Number(score?.score || 0) || undefined, user_id: user?.id });
+          trackEvent("resume_exported", { format: "docx", source: "export_page", job_id: job.id, resume_id: resume.id, fit_score: Number(score?.score || 0) || undefined, user_id: user?.id });
           onExportComplete?.(resume);
         }
         if (item.key === "coverLetterPdf") {
@@ -2211,16 +2212,18 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         }
       }
 
-      rememberOnboardingPackageExport(job.id);
-      trackEvent("package_exported", {
-        format: selectedPackageItems.length > 1 ? "multiple" : selectedPackageItems[0]?.key || "unknown",
-        source: "export_tab",
-        job_id: job.id,
-        user_id: user?.id,
-        item_count: selectedPackageItems.length,
+      const exportKind = trackPackageBuilderExport({
+        selectedItems: selectedPackageItems,
+        job,
+        resume,
+        score,
+        userId: user?.id,
       });
-      setPackageCompleted(true);
-      await onLogActivity?.(user, job.id, "application_package_exported", { detail: "Application package exported", itemCount: selectedPackageItems.length });
+      if (exportKind === "package") {
+        rememberOnboardingPackageExport(job.id);
+        setPackageCompleted(true);
+        await onLogActivity?.(user, job.id, "application_package_exported", { detail: "Application package exported", itemCount: selectedPackageItems.length });
+      }
       toast.success("Selected package downloaded.");
     } catch (err) {
       setError(err.message || "Package download failed.");
@@ -2304,7 +2307,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
           <div id="advanced-individual-downloads" className="grid gap-3 border-t border-brand-100 p-4">
             <MaterialCard title="Resume" status={resume ? "Generated" : "Not generated"} description={resume ? "Preview or download your tailored resume." : "Create a tailored resume before exporting your application package."}>
               {resume ? (
-                <ResumeExportPanel resume={resume} profile={profile} job={job} score={score} source="export_tab" compact onExportComplete={onExportComplete} />
+                <ResumeExportPanel resume={resume} profile={profile} job={job} score={score} source="export_page" compact onExportComplete={onExportComplete} />
               ) : (
                 <Button className="w-fit min-h-8 px-3 text-xs" onClick={onGoToResume}>Generate Resume</Button>
               )}
@@ -2601,6 +2604,71 @@ function getPackageBuilderItems({ resume, coverLetter, recruiterMessage, prepCon
     { key: "researchNotes", label: "Research Notes", group: "Interview Prep Kit", available: hasResearch, missingLabel: "Prepare interview first" },
     { key: "recruiterMessage", label: "Recruiter Message", group: "Communication", available: Boolean(recruiterMessage?.content), missingLabel: "Draft message first" },
   ];
+}
+
+function trackPackageBuilderExport({ selectedItems = [], job, resume, score, userId }) {
+  const selectedDocumentTypes = new Set(selectedItems.map((item) => getExportDocumentType(item.key)).filter(Boolean));
+  const includedDocuments = ["resume", "cover_letter", "recruiter_message", "interview_prep", "cheat_sheet"]
+    .filter((documentType) => selectedDocumentTypes.has(documentType));
+  const baseProperties = {
+    source: "export_page",
+    job_id: job?.id,
+    user_id: userId,
+  };
+
+  if (includedDocuments.length > 1) {
+    trackEvent("package_exported", {
+      ...baseProperties,
+      included_documents: includedDocuments,
+      item_count: selectedItems.length,
+    });
+    return "package";
+  }
+
+  const documentType = includedDocuments[0];
+  const formats = [...new Set(selectedItems.map((item) => getExportItemFormat(item.key)))];
+  const format = formats.length === 1 ? formats[0] : "multiple";
+  if (documentType === "resume") return "resume";
+  if (documentType === "cover_letter") {
+    trackEvent("cover_letter_exported", { ...baseProperties, format });
+    return "cover_letter";
+  }
+  if (documentType === "recruiter_message") {
+    trackEvent("recruiter_message_exported", { ...baseProperties, format: "txt" });
+    return "recruiter_message";
+  }
+  if (documentType === "cheat_sheet") {
+    trackEvent("cheat_sheet_exported", { ...baseProperties, format: "html" });
+    return "cheat_sheet";
+  }
+  if (documentType === "interview_prep") {
+    trackEvent("interview_prep_exported", { ...baseProperties, format, item_count: selectedItems.length });
+    return "interview_prep";
+  }
+  trackEvent("resume_exported", {
+    ...baseProperties,
+    format: format || "unknown",
+    resume_id: resume?.id,
+    fit_score: Number(score?.score || 0) || undefined,
+  });
+  return "unknown";
+}
+
+function getExportDocumentType(key) {
+  if (key === "resumePdf" || key === "resumeDocx") return "resume";
+  if (key === "coverLetterPdf" || key === "coverLetterDocx") return "cover_letter";
+  if (key === "recruiterMessage") return "recruiter_message";
+  if (key === "interviewCheatSheet") return "cheat_sheet";
+  if (["interviewQuestions", "starStories", "researchNotes"].includes(key)) return "interview_prep";
+  return "";
+}
+
+function getExportItemFormat(key) {
+  if (key.endsWith("Pdf")) return "pdf";
+  if (key.endsWith("Docx")) return "docx";
+  if (key === "interviewCheatSheet") return "html";
+  if (["recruiterMessage", "interviewQuestions", "starStories", "researchNotes"].includes(key)) return "txt";
+  return "unknown";
 }
 
 function getPackageFileBaseName(job) {
@@ -3344,6 +3412,7 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
       if (type === "pdf") await exportCoverLetterPdf({ content: draft, profile, job });
       if (type === "docx") await exportCoverLetterDocx({ content: draft, profile, job });
       await onLogActivity?.(user, job.id, type === "pdf" ? "cover_letter_exported_pdf" : "cover_letter_exported_docx", { fileType: type.toUpperCase() });
+      trackEvent("cover_letter_exported", { format: type, source: "application_page", job_id: job.id, user_id: user?.id });
       toast.success(`Cover letter ${type.toUpperCase()} exported.`);
     } catch (err) {
       setError(err.message || "Cover letter export failed.");
@@ -3730,13 +3799,19 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
 
   function exportCheatSheet() {
     const exported = printInterviewCheatSheet(cheatSheetPayload);
-    if (exported) toast.success("\u2713 Cheat Sheet Ready To Print");
+    if (exported) {
+      trackEvent("cheat_sheet_exported", { format: "print", source: "application_page", job_id: job.id, user_id: user?.id });
+      toast.success("\u2713 Cheat Sheet Ready To Print");
+    }
     else toast.error("Could not open cheat sheet.");
   }
 
   function downloadCheatSheet() {
     const downloaded = downloadInterviewCheatSheet(cheatSheetPayload);
-    if (downloaded) toast.success("\u2713 Cheat Sheet Downloaded");
+    if (downloaded) {
+      trackEvent("cheat_sheet_exported", { format: "html", source: "application_page", job_id: job.id, user_id: user?.id });
+      toast.success("\u2713 Cheat Sheet Downloaded");
+    }
     else toast.error("Could not download cheat sheet.");
   }
 

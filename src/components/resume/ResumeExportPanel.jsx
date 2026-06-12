@@ -21,7 +21,7 @@ const exportColors = {
   Charcoal: "#334155",
 };
 
-export function ResumeExportPanel({ resume, content, profile, job, score, source = "application_page", compact = false, showHistory = !compact, showPreviewDefault = true, historyResumeId, onExportComplete }) {
+export function ResumeExportPanel({ resume, content, profile, job, score, source = "unknown", compact = false, showHistory = !compact, showPreviewDefault = true, historyResumeId, onExportComplete }) {
   const { user } = useAuth();
   const { logJobActivity } = useWorkspaceStore();
   const [includeWhyThisFits, setIncludeWhyThisFits] = useState(false);
@@ -51,7 +51,7 @@ export function ResumeExportPanel({ resume, content, profile, job, score, source
       await logJobActivity(user, job?.id || resume?.job_id, type === "PDF" ? "resume_exported_pdf" : "resume_exported_docx", { resumeId: resume?.id, fileType: type });
       trackEvent("resume_exported", {
         format: type.toLowerCase(),
-        source,
+        source: normalizeResumeExportSource(source),
         job_id: job?.id || resume?.job_id,
         resume_id: resume?.id,
         fit_score: Number(score?.score || 0) || undefined,
@@ -74,7 +74,7 @@ export function ResumeExportPanel({ resume, content, profile, job, score, source
       openResumePrintPreview({ content: resumeContent, profile, job, includeWhyThisFits, accentColor: exportAccentColor });
       trackEvent("resume_exported", {
         format: "print",
-        source,
+        source: normalizeResumeExportSource(source),
         job_id: job?.id || resume?.job_id,
         resume_id: resume?.id,
         fit_score: Number(score?.score || 0) || undefined,
@@ -226,6 +226,11 @@ function ResumeExportPreview({ sections, accentColor = exportColors["Occu Blue"]
       </article>
     </div>
   );
+}
+
+function normalizeResumeExportSource(source) {
+  const allowedSources = new Set(["resume_page", "export_page", "generated_resumes", "application_resume_tab", "unknown"]);
+  return allowedSources.has(source) ? source : "unknown";
 }
 
 function ResumeContactHeader({ section }) {
