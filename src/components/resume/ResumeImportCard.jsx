@@ -1,6 +1,5 @@
 import { ArrowDown, ArrowRight, CheckCircle2, FileText, UploadCloud, X } from "lucide-react";
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { buildOnboardingState } from "../../lib/onboarding.js";
 import { createEmptyProfile } from "../../lib/profile.js";
@@ -9,13 +8,11 @@ import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { Button } from "../ui/Button.jsx";
 import { Card } from "../ui/Card.jsx";
 
-export function ResumeImportCard({ compact = false }) {
+export function ResumeImportCard({ compact = false, highlighted = false, onBaseResumeSaved }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { profile, resumeUploads, jobs, jobScores, resumeVersions, saveProfile, saveResumeUpload } = useWorkspaceStore();
   const [state, setState] = useState({ loading: false, error: "", success: "", storageNote: "" });
   const [review, setReview] = useState(null);
-  const [handoff, setHandoff] = useState(false);
   const inputRef = useRef(null);
   const hasBaseResume = Boolean(profile?.base_resume_text?.trim());
   const firstTimeBeforeUpload = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions }).isNewWorkspace;
@@ -55,8 +52,8 @@ export function ResumeImportCard({ compact = false }) {
         storageNote: upload?.storage_note ?? "",
       });
       setReview(null);
-      if (firstTimeBeforeUpload) {
-        setHandoff(true);
+      if (!hasBaseResume) {
+        onBaseResumeSaved?.();
       }
     } catch (error) {
       setState({ loading: false, error: error.message, success: "", storageNote: "" });
@@ -70,8 +67,7 @@ export function ResumeImportCard({ compact = false }) {
   }
 
   return (
-    <Card className={`${compact ? "bg-brand-50/40" : ""} ${firstTimeBeforeUpload ? "border-brand-300 bg-gradient-to-br from-brand-50 via-white to-emerald-50 shadow-soft ring-2 ring-brand-200" : ""}`}>
-      {handoff && <ResumeOnboardingHandoff onContinue={() => navigate("/app/new-jobs", { state: { onboardingStep: "analyze-job" } })} onSkip={() => setHandoff(false)} />}
+    <Card className={`${compact ? "bg-brand-50/40" : ""} ${firstTimeBeforeUpload ? "border-brand-300 bg-gradient-to-br from-brand-50 via-white to-emerald-50 shadow-soft ring-2 ring-brand-200" : ""} ${highlighted ? "onboarding-card-highlight" : ""}`}>
       {firstTimeBeforeUpload && (
         <div className="mb-4 flex items-center gap-2 rounded-lg bg-brand-700 px-3 py-2 text-sm font-bold text-white shadow-sm">
           <ArrowDown size={16} aria-hidden="true" />
@@ -133,7 +129,7 @@ export function ResumeImportCard({ compact = false }) {
   );
 }
 
-function ResumeOnboardingHandoff({ onContinue, onSkip }) {
+export function ResumeOnboardingHandoff({ onContinue, onSkip }) {
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-white/95 px-4 backdrop-blur-sm">
       <section className="w-full max-w-xl rounded-xl border border-brand-100 bg-white p-6 text-center shadow-soft sm:p-8" role="dialog" aria-modal="true" aria-labelledby="resume-upload-success-title">
@@ -151,7 +147,7 @@ function ResumeOnboardingHandoff({ onContinue, onSkip }) {
           Add a job description so OccuBoard can analyze fit, tailor your resume, generate recruiter messaging, and prepare interview materials.
         </p>
         <div className="mt-6 flex flex-col-reverse items-center justify-center gap-2 sm:flex-row">
-          <Button variant="ghost" className="w-full sm:w-fit" onClick={onSkip}>Skip for now</Button>
+          <Button variant="ghost" className="w-full sm:w-fit" onClick={onSkip}>Stay here</Button>
           <Button className="w-full sm:w-fit" onClick={onContinue}>
             Add My First Job <ArrowRight size={16} aria-hidden="true" />
           </Button>

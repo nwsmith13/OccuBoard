@@ -1,5 +1,4 @@
 import { ArrowRight, CheckCircle2, FileText, Search, Sparkles, UploadCloud } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { clearProductTourRestart } from "../../lib/onboarding.js";
 import { Button } from "../ui/Button.jsx";
@@ -9,63 +8,9 @@ const occuboardLogo = "/assets/occuboard-logo.svg";
 const occuboardIcon = "/assets/favicon.svg";
 
 export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmationAcknowledged, onDismiss }) {
-  const onboardingCardRef = useRef(null);
-  const scrollFrameRef = useRef(null);
-  const highlightTimerRef = useRef(null);
-  const [highlightOnboarding, setHighlightOnboarding] = useState(false);
   const step = getCurrentStep(state);
   const StepIcon = step.icon;
   const showConfirmationSuccess = emailConfirmed && step.stepNumber === 1;
-
-  useEffect(() => () => {
-    if (scrollFrameRef.current) window.cancelAnimationFrame(scrollFrameRef.current);
-    if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
-  }, []);
-
-  function highlightAndFocusOnboarding() {
-    const card = onboardingCardRef.current;
-    if (!card) return;
-    card.focus({ preventScroll: true });
-    setHighlightOnboarding(false);
-    window.requestAnimationFrame(() => setHighlightOnboarding(true));
-    if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
-    highlightTimerRef.current = window.setTimeout(() => setHighlightOnboarding(false), 1800);
-  }
-
-  function focusOnboardingCard() {
-    const card = onboardingCardRef.current;
-    if (!card) return;
-    const initialRect = card.getBoundingClientRect();
-    const isFullyVisible = initialRect.top >= 0 && initialRect.bottom <= window.innerHeight;
-
-    if (isFullyVisible) {
-      highlightAndFocusOnboarding();
-      return;
-    }
-
-    card.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-    const startedAt = window.performance.now();
-    let previousTop = initialRect.top;
-    let stableFrames = 0;
-
-    function waitForScroll() {
-      const currentCard = onboardingCardRef.current;
-      if (!currentCard) return;
-      const currentTop = currentCard.getBoundingClientRect().top;
-      stableFrames = Math.abs(currentTop - previousTop) < 1 ? stableFrames + 1 : 0;
-      previousTop = currentTop;
-
-      if (stableFrames >= 4 || window.performance.now() - startedAt > 1600) {
-        scrollFrameRef.current = null;
-        highlightAndFocusOnboarding();
-        return;
-      }
-      scrollFrameRef.current = window.requestAnimationFrame(waitForScroll);
-    }
-
-    if (scrollFrameRef.current) window.cancelAnimationFrame(scrollFrameRef.current);
-    scrollFrameRef.current = window.requestAnimationFrame(waitForScroll);
-  }
 
   function handlePrimaryAction() {
     clearProductTourRestart();
@@ -76,8 +21,8 @@ export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmat
   return (
     <main className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-emerald-50 px-4 py-8 text-ink sm:px-6">
       <section className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col justify-center">
-        {showConfirmationSuccess && <EmailConfirmedBanner onContinue={focusOnboardingCard} />}
-        <div ref={onboardingCardRef} tabIndex={-1} className={`rounded-3xl bg-white/95 p-5 shadow-soft ring-1 ring-brand-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 sm:p-8 lg:p-10 ${highlightOnboarding ? "onboarding-card-highlight" : ""}`}>
+        {showConfirmationSuccess && <EmailConfirmedBanner onContinue={onEmailConfirmationAcknowledged} />}
+        <div className="rounded-3xl bg-white/95 p-5 shadow-soft ring-1 ring-brand-100 sm:p-8 lg:p-10">
           <img src={occuboardLogo} alt="OccuBoard" className="mx-auto mb-6 h-12 w-auto max-w-[220px] object-contain sm:h-14 sm:max-w-[260px]" />
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl">
@@ -265,9 +210,11 @@ function EmailConfirmedBanner({ onContinue }) {
             <p className="mt-1 text-sm font-semibold leading-6 text-emerald-900">Your email has been verified and your workspace is ready.</p>
           </div>
         </div>
-        <Button type="button" variant="secondary" onClick={onContinue} className="min-h-10 shrink-0 border-emerald-200 bg-white px-4 text-emerald-800 hover:bg-emerald-100">
-          Get Started <ArrowRight size={15} aria-hidden="true" />
-        </Button>
+        <Link to="/app/resume-studio#resume-import" onClick={onContinue} className="inline-flex shrink-0">
+          <Button type="button" variant="secondary" className="min-h-10 border-emerald-200 bg-white px-4 text-emerald-800 hover:bg-emerald-100">
+            Get Started <ArrowRight size={15} aria-hidden="true" />
+          </Button>
+        </Link>
       </div>
     </section>
   );

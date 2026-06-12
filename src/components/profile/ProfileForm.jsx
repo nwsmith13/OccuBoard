@@ -7,7 +7,7 @@ import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { Button } from "../ui/Button.jsx";
 import { Field } from "../ui/Field.jsx";
 
-export function ProfileForm({ compact = false }) {
+export function ProfileForm({ compact = false, onSaved }) {
   const { user } = useAuth();
   const { profile, saveProfile } = useWorkspaceStore();
   const [form, setForm] = useState(() => getCurrentUserProfile(profile, user));
@@ -39,6 +39,7 @@ export function ProfileForm({ compact = false }) {
 
   async function submit(event) {
     event.preventDefault();
+    const hadBaseResume = Boolean(profile?.base_resume_text?.trim());
     const payload = autoClean
       ? { ...form, base_resume_text: normalizeResumeText(form.base_resume_text ?? "") }
       : form;
@@ -48,6 +49,7 @@ export function ProfileForm({ compact = false }) {
     setSaving(false);
     setSaved(true);
     setCleaned(false);
+    onSaved?.({ hadBaseResume, hasBaseResume: Boolean(payload.base_resume_text?.trim()), profile: payload });
   }
 
   return (

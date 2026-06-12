@@ -1,10 +1,11 @@
 import { CheckCircle2, X } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/Button.jsx";
 import { onboardingTrackerDismissedKey, writeBooleanFlag } from "../../lib/onboarding.js";
 
 export function GettingStartedRibbon({ state, dismissed }) {
   const navigate = useNavigate();
+  const location = useLocation();
   if (!state || dismissed || state.completed) return null;
   const currentId = getCurrentStepId(state);
   return (
@@ -20,7 +21,13 @@ export function GettingStartedRibbon({ state, dismissed }) {
               key={step.id}
               type="button"
               title={getStepGuidance(step)}
-              onClick={() => navigate(getStepDestination(step.id, state.latestJobId))}
+              onClick={() => {
+                if (step.id === "resume" && location.pathname === "/app/resume-studio") {
+                  window.dispatchEvent(new window.Event("occuboard:focus-resume-import"));
+                  return;
+                }
+                navigate(getStepDestination(step.id, state.latestJobId));
+              }}
               className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black ring-1 transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${getStepTone(step, currentId)}`}
             >
               <span aria-hidden="true">{step.done ? "\u2713" : step.id === currentId ? "\u2192" : "\u25CB"}</span>
