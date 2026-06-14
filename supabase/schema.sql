@@ -121,6 +121,8 @@ create table if not exists public.messages (
   job_id uuid references public.jobs(id) on delete cascade,
   type text not null,
   content text not null,
+  tone_mode text,
+  tone_notes text,
   created_at timestamptz not null default now()
 );
 

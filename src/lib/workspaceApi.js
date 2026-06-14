@@ -513,6 +513,8 @@ export async function saveMessage(user, job, message) {
     type: messageType,
     content: message.content ?? message.coverLetterText,
     applied_mitigations: message.appliedMitigations ?? message.applied_mitigations ?? [],
+    tone_mode: message.toneMode ?? message.tone_mode ?? null,
+    tone_notes: message.toneNotes ?? message.tone_notes ?? null,
     created_at: now(),
   };
   if (hasSupabaseConfig && user?.id) {
@@ -523,11 +525,19 @@ export async function saveMessage(user, job, message) {
       const legacyPayload = { ...payload };
       delete legacyPayload.contact_id;
       delete legacyPayload.applied_mitigations;
+      delete legacyPayload.tone_mode;
+      delete legacyPayload.tone_notes;
       const retry = await supabase.from("messages").insert(legacyPayload).select("*").single();
       if (retry.error) throw retry.error;
       await logActivity(user, "AI", getMessageActivityDescription(payload.type, job));
       await logJobActivity(user, job.id, getMessageActivityType(payload.type), { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });
-      return { ...retry.data, contact_id: payload.contact_id, applied_mitigations: payload.applied_mitigations };
+      return {
+        ...retry.data,
+        contact_id: payload.contact_id,
+        applied_mitigations: payload.applied_mitigations,
+        tone_mode: payload.tone_mode,
+        tone_notes: payload.tone_notes,
+      };
     }
     await logActivity(user, "AI", getMessageActivityDescription(payload.type, job));
     await logJobActivity(user, job.id, getMessageActivityType(payload.type), { type: payload.type, contactId: payload.contact_id, contactName: message.contactName });

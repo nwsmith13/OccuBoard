@@ -19,6 +19,7 @@ import { calculateApplicationReadiness } from "../../lib/applicationReadiness.js
 import { isArchivedJob } from "../../lib/archive.js";
 import { buildFollowUpCalendarEvent, buildGoogleCalendarUrl, buildInterviewCalendarEvent, buildOutlookCalendarUrl, downloadIcsEvent } from "../../lib/calendarExport.js";
 import { exportCoverLetterDocx, exportCoverLetterPdf } from "../../lib/coverLetterExport.js";
+import { COVER_LETTER_TONES, getRecommendedCoverLetterTone, normalizeCoverLetterTone } from "../../lib/coverLetterTone.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
 import { getJobAiStatus, isCoverLetter, isCoverLetterSkipped, isRecruiterMessage } from "../../lib/jobAiStatus.js";
@@ -2102,6 +2103,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         fitSummary: score?.summary,
         latestResume: resume?.content,
         contactName: contact?.name || "",
+        coverLetterTone: getRecommendedCoverLetterTone(job),
         mitigationPlan,
         appliedMitigationLabels: appliedMitigations.map((item) => item.appliedLabel),
       });
@@ -2110,6 +2112,8 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         content: result.coverLetterText,
         coverLetterText: result.coverLetterText,
         appliedMitigations,
+        toneMode: getRecommendedCoverLetterTone(job),
+        toneNotes: result.toneNotes,
       });
       if (appliedMitigations.length) await onLogActivity?.(user, job.id, "cover_letter_strengthened_from_analysis", { detail: "Cover letter strengthened from analysis", appliedLabels: appliedMitigations.map((item) => item.appliedLabel) });
       toast.success("Cover letter saved.");
@@ -3318,6 +3322,9 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
   const [lastSavedDraft, setLastSavedDraft] = useState(coverLetter?.content ?? "");
   const [savedState, setSavedState] = useState("");
   const [copied, setCopied] = useState(false);
+  const recommendedTone = useMemo(() => getRecommendedCoverLetterTone(job), [job]);
+  const [selectedTone, setSelectedTone] = useState(() => normalizeCoverLetterTone(coverLetter?.tone_mode || recommendedTone));
+  const selectedToneLabel = COVER_LETTER_TONES.find((tone) => tone.value === selectedTone)?.label || "Professional";
   const showSlowHint = useSlowLoading(loading);
   const isDirty = draft !== lastSavedDraft;
 
@@ -3326,7 +3333,8 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
     setLastSavedDraft(coverLetter?.content ?? "");
     setSavedState("");
     setCopied(false);
-  }, [coverLetter?.id, coverLetter?.content]);
+    setSelectedTone(normalizeCoverLetterTone(coverLetter?.tone_mode || recommendedTone));
+  }, [coverLetter?.id, coverLetter?.content, coverLetter?.tone_mode, recommendedTone]);
 
   useEffect(() => {
     onUnsavedChange?.(isDirty);
@@ -3352,6 +3360,7 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
         fitSummary: score?.summary,
         latestResume: resume?.content,
         contactName: contact?.name || "",
+        coverLetterTone: selectedTone,
         mitigationPlan,
         appliedMitigationLabels: appliedMitigations.map((item) => item.appliedLabel),
       });
@@ -3360,6 +3369,8 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
         content: result.coverLetterText,
         coverLetterText: result.coverLetterText,
         appliedMitigations,
+        toneMode: selectedTone,
+        toneNotes: result.toneNotes,
       });
       const nextContent = saved?.content || result.coverLetterText || "";
       setDraft(nextContent);
@@ -3442,6 +3453,12 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
           )}
         </div>
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
+        <CoverLetterToneSelector
+          value={selectedTone}
+          recommendedTone={recommendedTone}
+          onChange={setSelectedTone}
+          className="mt-5"
+        />
         <div className="mt-5 flex flex-wrap gap-2">
           <Button onClick={() => generateCoverLetter()} disabled={loading}>
             {loading && <Loader2 size={14} className="animate-spin" />}
@@ -3474,11 +3491,17 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
           </div>
           <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => generateCoverLetter({ regenerate: true })} disabled={loading}>
             {loading && <Loader2 size={14} className="animate-spin" />}
-            {loading ? "Generating..." : "Regenerate"}
+            {loading ? "Generating..." : `Regenerate in ${selectedToneLabel}`}
           </Button>
         </div>
         {showSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
+        <CoverLetterToneSelector
+          value={selectedTone}
+          recommendedTone={recommendedTone}
+          onChange={setSelectedTone}
+          className="mt-4"
+        />
         <RecruiterConfidenceIndicator label="Cover letter positioning improved" className="mt-3" />
       </div>
 
@@ -3516,6 +3539,49 @@ function CoverLetterWorkspace({ job, profile, score, resume, contacts, coverLett
         </div>
       </div>
     </section>
+  );
+}
+
+function CoverLetterToneSelector({ value, recommendedTone, onChange, className = "" }) {
+  const selected = COVER_LETTER_TONES.find((tone) => tone.value === value) || COVER_LETTER_TONES[0];
+  return (
+    <div className={`rounded-lg bg-slate-50/80 p-3 ring-1 ring-slate-200 ${className}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.1em] text-slate-600">Cover letter tone</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{selected.description}</p>
+        </div>
+        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-brand-700 ring-1 ring-brand-100">
+          {selected.label} selected
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3" role="group" aria-label="Cover letter tone">
+        {COVER_LETTER_TONES.map((tone) => {
+          const active = tone.value === value;
+          const recommended = tone.value === recommendedTone;
+          return (
+            <button
+              key={tone.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onChange(tone.value)}
+              className={`min-h-10 rounded-lg px-3 py-2 text-left text-sm font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${
+                active
+                  ? "bg-brand-700 text-white shadow-sm"
+                  : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-brand-50 hover:text-brand-800"
+              }`}
+            >
+              <span>{tone.label}</span>
+              {recommended && (
+                <span className={`ml-2 text-[10px] font-black uppercase tracking-[0.08em] ${active ? "text-brand-100" : "text-emerald-700"}`}>
+                  Suggested
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

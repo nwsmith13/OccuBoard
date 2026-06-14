@@ -1,4 +1,5 @@
 import { buildEvidencePromptNotes } from "./analysisEvidence.js";
+import { normalizeCoverLetterTone } from "../src/lib/coverLetterTone.js";
 
 export const DEFAULT_MODEL = "gpt-5-mini";
 
@@ -57,6 +58,52 @@ Mitigation strategy rules:
 - For wording gaps, add supported phrasing naturally where it belongs.
 - For seniority/framing gaps, keep tone hands-on, practical, and execution-focused.
 `;
+
+export const RECRUITER_MESSAGE_STRATEGY_RULES = `
+Recruiter message strategy:
+- First identify the role/company communication style before drafting.
+- Startup, founder, founding-team, chief-of-staff, and operator roles should sound direct, human, curious, and high-agency. Use plain language, explain what specifically makes the work interesting, and favor builder/operator framing over corporate application language.
+- Traditional corporate roles should sound polished and professional while remaining conversational.
+- Sales roles should emphasize one or two supported customer, territory, relationship, pipeline, or revenue-adjacent strengths without forcing unsupported metrics.
+- Technical implementation roles should emphasize supported delivery, systems, customer-facing problem solving, adoption, or cross-functional execution.
+- For a true stretch role with a material domain gap, acknowledge the single most important gap briefly and confidently. A useful pattern is: "I don't bring direct [domain] experience yet, but I do bring..." Do not use this pattern for minor tool, wording, or platform-familiarity gaps.
+- Never turn the message into a list of deficiencies. One honest bridge is enough.
+- Include: who the candidate is professionally, why this specific role or company caught their attention, one or two supported transferable strengths, an optional material-gap bridge, and a low-pressure next step.
+- Avoid cover-letter structure, generic claims such as "I believe my skills align," inflated confidence, buzzword stacks, and lengthy explanations.
+- Do not force the candidate's name into the opening when a more natural professional introduction is stronger.
+- Vary the opening and closing so messages do not feel templated.
+`;
+
+export const COVER_LETTER_TONE_RULES = {
+  professional: `
+Cover letter tone: Professional
+- Use polished, concise business writing suitable for corporate, enterprise, and traditional employers.
+- Keep a clear opening, evidence-based middle, and professional close.
+- Sound confident and specific without becoming stiff, ceremonial, or inflated.
+- Keep the final letter between 250 and 350 words.
+`,
+  startup: `
+Cover letter tone: Startup
+- Write with a founder-to-founder or operator-to-operator feel: direct, curious, high-agency, and grounded.
+- Explain what specifically caught the candidate's attention about the company, problem, or role.
+- Use plain language and contractions where natural.
+- Favor concrete builder/operator experience over polished career-coach phrasing.
+- If the fit analysis identifies a material domain gap, acknowledge it once in plain language and bridge immediately to supported transferable experience.
+- Allow a slightly less symmetrical structure so the letter feels personally written rather than templated.
+- Keep the final letter between 180 and 280 words.
+- Avoid "I am excited to apply", "I believe my background aligns", "I bring practical strengths", and generic cover-letter transitions.
+`,
+  conversational: `
+Cover letter tone: Conversational
+- Write warmly and naturally, as a thoughtful applicant communicating with a real person.
+- Use contractions where appropriate and vary sentence length.
+- Keep the structure clear but not mechanically perfect; a short standalone sentence is acceptable when it improves rhythm.
+- Explain interest in the work with specific, plain language.
+- Keep confidence measured and evidence-based.
+- Keep the final letter between 220 and 320 words.
+- Avoid "I am excited to apply", "I believe my background aligns", "I bring practical strengths", and generic career-coach language.
+`,
+};
 
 export const fitSchema = {
   type: "object",
@@ -222,6 +269,8 @@ export function buildPrompt(action, profile, job, options = {}) {
   const fitSummary = options.fitSummary || "No fit analysis provided.";
   const evidencePromptNotes = buildEvidencePromptNotes(profile, job);
   const mitigationPromptContext = formatMitigationPromptContext(options.mitigationPlan);
+  const recruiterMessageStyle = getRecruiterMessageStyle(job, options);
+  const coverLetterTone = normalizeCoverLetterTone(options.coverLetterTone);
   const context = `
 User profile:
 - Name: ${profile?.full_name || "Not provided"}
@@ -393,12 +442,13 @@ ${roleLevelPositioning}
 
 ${MITIGATION_STRATEGY_RULES}
 
+${COVER_LETTER_TONE_RULES[coverLetterTone]}
+
 Rules:
 - Write from the applicant/candidate to the company or contact.
 - Must sound like the applicant, not the company, recruiter, or employer.
 - Be specific to the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}.
-- Keep it concise, human, and direct: 3-5 short paragraphs, under about 350 words.
-- Keep the final letter between 250 and 350 words unless the user requested another length.
+- Keep it concise, human, and direct in 3-5 short paragraphs.
 - Do not use "Dear Hiring Manager" if a contact or company is known.
 - Avoid generic phrasing like "I am writing to express my interest."
 - Avoid dramatic language, "perfect fit", and inflated claims.
@@ -408,16 +458,16 @@ Rules:
 - Do not imply vague measurable claims such as "measurable efficiency gains" unless a real metric is provided.
 - If a metric is available, use it specifically. If no metric is available, state the impact qualitatively without pretending it was measured.
 - Ground every claim in the base resume/profile, fit context, job description, or tailored resume.
-- Preferred structure:
-  1. Opening: interest in the role/company.
-  2. Relevant experience bridge.
-  3. Specific value or differentiator.
-  4. Brief closing CTA.
+- Content priorities, not a rigid template:
+  1. A specific reason the role, company, or problem is interesting.
+  2. A relevant experience bridge.
+  3. A specific value or differentiator.
+  4. A brief closing CTA.
 
 Return:
 - coverLetterText: the complete cover letter text.
 - highlightsUsed: 3-5 truthful strengths or themes used.
-- toneNotes: one short note explaining the tone and positioning.
+- toneNotes: one short note confirming the ${coverLetterTone} tone and positioning choices.
 
 ${naturalnessPass}`;
   }
@@ -452,6 +502,13 @@ ${roleLevelPositioning}
 
 ${MITIGATION_STRATEGY_RULES}
 
+${RECRUITER_MESSAGE_STRATEGY_RULES}
+
+Role-aware direction for this message:
+- Communication style: ${recruiterMessageStyle.label}
+- Tone guidance: ${recruiterMessageStyle.guidance}
+- Material-gap guidance: ${recruiterMessageStyle.materialGapGuidance}
+
 Rules:
 - Write from the user/candidate to a recruiter, hiring manager, or company contact.
 - Use first person as the user/candidate.
@@ -461,27 +518,91 @@ Rules:
 - Never say "I'm reaching out from [Company]".
 - Never say "our role", "our team", or "we are hiring".
 - Make it clear the user is reaching out about the role.
-- Start naturally with: "Hello — my name is ${profile?.full_name || "the candidate"}, and I am interested in the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}."
 - Must use candidate voice throughout.
-- Prefer "my name is ${profile?.full_name || "the candidate"}" instead of "I'm ${profile?.full_name || "the candidate"}."
-- Use clear phrasing like "I am interested in..." when naming the role.
-- Avoid clipped phrasing like "interested in..." without a subject.
-- Usually 80-120 words.
-- 3-5 sentences maximum.
-- Human, professional, practical, not overly enthusiastic.
-- Warm, direct, and human.
+- Open with a natural professional introduction or a specific reason the opportunity caught the candidate's attention.
+- Usually 85-130 words.
+- 4-6 concise sentences maximum.
+- Human, practical, specific, and appropriately confident.
 - Mention the role and company.
-- Mention 2-3 strongest aligned strengths supported by the profile/resume.
-- If noting a gap, keep it brief, confident, and practical.
+- Mention only 1-2 strongest aligned or transferable strengths supported by the profile/resume.
+- If there is a material gap, acknowledge at most one and immediately bridge to supported transferable experience.
+- If there is no material gap, do not invent or manufacture one.
 - Avoid dense lists.
 - Avoid long comma-heavy sentences.
 - Do not sound like a cover letter.
+- Do not use "I believe my skills align", "I am writing to express my interest", or similar generic application language.
 - Do not use "I'd welcome a brief conversation."
 - Do not use wording that sounds like the candidate is granting permission.
-- End with: "Would you be open to connecting for 15-20 minutes this week?"
+- End with a soft, natural CTA such as asking whether the contact would be open to connecting or whether a short conversation would be useful.
 - Do not oversell or invent anything.
 
 ${naturalnessPass}`;
+}
+
+export function getRecruiterMessageStyle(job = {}, options = {}) {
+  const title = String(job?.job_title || "").toLowerCase();
+  const description = String(job?.job_description || "").toLowerCase();
+  const combined = `${title}\n${description}`;
+  const strongStartupTitle = /\b(founder'?s?\s+associate|founding\s+(?:team|operator|associate)|chief\s+of\s+staff|startup\s+operator|business\s+operator)\b/.test(title);
+  const startupSignals = [
+    /\bearly[-\s]?stage\b/,
+    /\bseed[-\s]?(?:stage|funded)?\b/,
+    /\bseries\s+[abc]\b/,
+    /\bzero[-\s]?to[-\s]?one\b|\b0[-\s]?to[-\s]?1\b/,
+    /\bhigh[-\s]?agency\b/,
+    /\bwear\s+many\s+hats\b/,
+    /\bbuild(?:ing)?\s+from\s+scratch\b/,
+    /\bfast[-\s]?moving\s+startup\b/,
+    /\bfounding\s+team\b/,
+    /\bambiguity\b/,
+  ].filter((pattern) => pattern.test(combined)).length;
+  const startupOperator = strongStartupTitle || startupSignals >= 2;
+  const salesRole = /\b(account\s+executive|sales|business\s+development|territory\s+manager|sales\s+development|revenue)\b/.test(title);
+  const technicalImplementationRole = /\b(implementation|solutions?\s+(?:consultant|engineer|architect)|technical\s+(?:consultant|account\s+manager|project\s+manager)|integration)\b/.test(title);
+  const materialGap = hasMaterialRecruiterGap(options);
+  const key = startupOperator
+    ? "startup_operator"
+    : salesRole
+      ? "sales"
+      : technicalImplementationRole
+        ? "technical_implementation"
+        : "professional";
+  const style = {
+    startup_operator: {
+      label: "Startup / founder / operator",
+      guidance: "Write peer-to-peer: direct, conversational, specific, and builder-minded. Explain why the problem, company, or operating environment is compelling; avoid formal application phrasing.",
+    },
+    sales: {
+      label: "Sales / revenue",
+      guidance: "Use confident, concise relationship-building language. Ground the message in supported customer, territory, pipeline, discovery, or commercial strengths and avoid unsupported revenue claims.",
+    },
+    technical_implementation: {
+      label: "Technical implementation",
+      guidance: "Use a practical customer-and-delivery tone. Emphasize supported implementation, integrations, systems problem solving, adoption, and cross-functional execution without overloading the message with technical terms.",
+    },
+    professional: {
+      label: "Polished professional",
+      guidance: "Use a polished professional tone that still sounds like a real person. Lead with specific interest and evidence rather than ceremony or generic enthusiasm.",
+    },
+  }[key];
+
+  return {
+    key,
+    label: style.label,
+    guidance: style.guidance,
+    materialGapGuidance: materialGap
+      ? "A meaningful gap may exist. Acknowledge only the most material domain gap if it would matter to the reader, then bridge immediately to concrete transferable evidence."
+      : "Do not introduce a gap disclaimer unless the supplied fit context clearly identifies a material concern.",
+  };
+}
+
+function hasMaterialRecruiterGap(options = {}) {
+  if (["Maybe", "Skip"].includes(options.fitRecommendation)) return true;
+  return (options.mitigationPlan?.items || []).some((item) => {
+    const severity = String(item?.severity || "").toLowerCase();
+    const confidence = String(item?.confidence || "").toLowerCase();
+    return severity === "critical" || (severity === "moderate" && confidence === "missing");
+  });
 }
 
 function formatMitigationPromptContext(plan = {}) {

@@ -136,9 +136,12 @@ export function validateGeneratedResult(action, result, profile, job) {
     return;
   }
 
-  const hasCandidateInterest = /\bi\s+am\s+interested\s+in\b/i.test(content);
-  const hasNameIntroduction = /\bmy\s+name\s+is\b/i.test(content);
-  if (hasBadVoice || !hasCandidateInterest || !hasNameIntroduction) {
+  const hasCandidateVoice = /\b(?:i|i['\u2019]m|i['\u2019]ve|i\s+have|my)\b/i.test(content);
+  const mentionsOpportunity = [
+    String(job?.job_title || "").trim(),
+    String(job?.company_name || "").trim(),
+  ].filter(Boolean).some((value) => content.toLowerCase().includes(value.toLowerCase()));
+  if (hasBadVoice || !hasCandidateVoice || !mentionsOpportunity) {
     const error = new Error("The generated message used recruiter voice instead of candidate voice. Please regenerate.");
     error.status = 422;
     error.code = "message_voice_validation_failed";
