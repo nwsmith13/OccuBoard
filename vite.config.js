@@ -38,5 +38,14 @@ export default defineConfig(({ mode }) => {
         },
       },
     ],
+    build: {
+      rollupOptions: {
+        input: {
+          main: resolve(rootDir, "index.html"),
+          privacy: resolve(rootDir, "privacy.html"),
+          terms: resolve(rootDir, "terms.html"),
+        },
+      },
+    },
   };
 });

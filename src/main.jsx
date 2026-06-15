@@ -6,6 +6,7 @@ import App from "./App.jsx";
 import { AuthProvider } from "./contexts/AuthContext.jsx";
 import { IntelligenceModeProvider } from "./contexts/IntelligenceModeContext.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
+import { SeoManager } from "./components/seo/SeoManager.jsx";
 import "./styles.css";
 
 posthog.init(import.meta.env.VITE_POSTHOG_PROJECT_TOKEN, {
@@ -26,6 +27,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
       <PostHogPageTracker />
+      <SeoManager />
       <AuthProvider>
         <ToastProvider>
           <IntelligenceModeProvider>
