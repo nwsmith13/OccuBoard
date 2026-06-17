@@ -2,6 +2,8 @@
   ArrowRight,
   Briefcase,
   CalendarCheck,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   ClipboardList,
   FileCheck2,
@@ -10,9 +12,9 @@
   MessageCircleQuestion,
   PanelsTopLeft,
   ShieldCheck,
-  Sparkles,
   Target,
   Users,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -29,118 +31,87 @@ const materialFeatures = [
 ];
 
 const workflowSteps = [
-  ["Add Job", ClipboardList, "Paste the complete job description so OccuBoard can evaluate the role."],
-  ["Evaluate Fit", Target, "Review match strength, evidence, and hiring considerations."],
-  ["Review Recruiter View", Users, "See likely first impressions, concerns, and recruiter confidence."],
+  ["Add a Job", ClipboardList, "Paste the complete job description so OccuBoard can evaluate the role."],
+  ["Analyze Fit", Target, "Review match strength, evidence, and hiring considerations."],
+  ["Review Recruiter Perspective", Users, "See likely first impressions, concerns, and recruiter confidence."],
   ["Recover Considerations", ShieldCheck, "Turn true gaps into supported positioning opportunities."],
   ["Generate Materials", FileCheck2, "Create a tailored resume and optional outreach grounded in the analysis."],
   ["Apply", CalendarCheck, "Submit your application and mark the opportunity applied."],
-  ["Interview Prep", MessageCircleQuestion, "Prepare for interviews with role-specific questions, STAR stories, talking points, and concern responses."],
+  ["Prepare for Interviews", MessageCircleQuestion, "Use role-specific questions, STAR stories, talking points, and concern responses after you apply."],
 ];
 
-const demoSteps = [
-  {
-    label: "Paste Job",
-    icon: ClipboardList,
-    title: "Systems Implementation Specialist",
-    eyebrow: "Job description added",
-    description: "OccuBoard is ready to evaluate the role against your experience.",
-  },
-  {
-    label: "Fit Analysis",
-    icon: Target,
-    title: "82% Competitive Match",
-    eyebrow: "Fit analysis appears",
-    description: "Top Strength: SaaS implementation ownership. Hiring Consideration: Direct industry experience.",
-  },
+const heroTabs = [
+  { id: "recruiter", label: "Recruiter View", icon: Users },
+  { id: "fit", label: "Fit Analysis", icon: Target },
+  { id: "recovery", label: "Recovery Strategy", icon: ShieldCheck },
+  { id: "interview", label: "Interview Prep", icon: MessageCircleQuestion },
+];
+
+const productTourSteps = [
   {
     label: "Recruiter View",
     icon: Users,
-    title: "85% Recruiter Confidence",
-    eyebrow: "Hiring-team perspective",
-    description: "Strongest Hiring Signal: Customer-facing implementation work. Primary Concern: Direct industry experience. Recommended Action: Apply after quick review.",
-  },
-  {
-    label: "Recovery Strategy",
-    icon: ShieldCheck,
-    title: "Strong recovery",
-    eyebrow: "Concern: Direct industry experience",
-    description: "Recovery: Position adjacent SaaS, ERP, and workflow systems experience without overstating domain expertise.",
-  },
-  {
-    label: "Generate Materials",
-    icon: FileText,
-    title: "Application materials generated",
-    eyebrow: "Resume and outreach",
-    description: "Tailored Resume generated. Recruiter Message generated. Cover Letter optional. Interview Prep ready when needed.",
-  },
-  {
-    label: "Applied ✅",
-    icon: CheckCircle2,
-    title: "Application Submitted",
-    eyebrow: "Submission tracked",
-    description: "Submission Tracked. Opportunity Active. Next recommended step: Interview Prep.",
-  },
-  {
-    label: "Interview Prep",
-    icon: MessageCircleQuestion,
-    title: "Application submitted. Now prepare for the interview.",
-    eyebrow: "Role-specific preparation",
-    description: "Likely Questions, Talking Points, Concern Responses, and STAR Stories are ready for review.",
-  },
-];
-
-const heroStates = [
-  {
-    label: "Fit Analysis",
-    title: "Systems Implementation Specialist",
-    icon: Target,
-    metrics: [
-      ["82%", "Competitive Match", "emerald"],
-      ["Top Strength", "SaaS implementation ownership", "slate"],
-    ],
-    details: [
-      ["Hiring Consideration", "Direct industry experience"],
-      ["Recommended Action", "Apply after quick review"],
-    ],
-  },
-  {
-    label: "Recruiter View",
-    title: "Hiring-team perspective",
-    icon: Users,
-    metrics: [
-      ["85%", "Recruiter Confidence", "brand"],
-      ["Strongest Signal", "Customer-facing implementation work", "emerald"],
-    ],
-    details: [
+    title: "See how the application may be received.",
+    description: "Recruiter Confidence, likely first impressions, strongest signal, and primary concern sit together so the next decision feels clear.",
+    rows: [
+      ["Recruiter Confidence", "85%"],
+      ["Strongest Hiring Signal", "SaaS implementation ownership"],
       ["Primary Concern", "Direct industry experience"],
-      ["Recommended Action", "Apply after quick review"],
     ],
   },
   {
     label: "Recovery Strategy",
-    title: "Concern recovery plan",
     icon: ShieldCheck,
-    metrics: [
-      ["Strong", "Recovery Strength", "emerald"],
-      ["3/4", "Considerations Addressed", "brand"],
-    ],
-    details: [
+    title: "Recover concerns without inventing experience.",
+    description: "OccuBoard shows how to position adjacent experience clearly and truthfully.",
+    rows: [
       ["Concern", "Direct industry experience"],
-      ["Recovery", "Position adjacent SaaS, ERP, and workflow systems experience."],
+      ["Recovery Strength", "Strong recovery"],
+      ["Considerations Addressed", "3/4"],
+    ],
+  },
+  {
+    label: "Coverage Matrix",
+    icon: CheckCircle2,
+    title: "See where each concern is addressed.",
+    description: "Track coverage across resume, recruiter outreach, cover letter, and interview preparation.",
+    rows: [
+      ["Resume Coverage", "100%"],
+      ["Recruiter Message Coverage", "75%"],
+      ["Considerations Covered", "4/4"],
+    ],
+  },
+  {
+    label: "Resume Optimization",
+    icon: FileText,
+    title: "Generate materials from the strategy.",
+    description: "The tailored resume strengthens positioning while preserving the user's actual experience.",
+    rows: [
+      ["Initial Fit", "82%"],
+      ["Optimized Estimate", "88%"],
+      ["Improvement", "+6"],
+    ],
+  },
+  {
+    label: "Recruiter Message",
+    icon: Mail,
+    title: "Send concise, role-aware outreach.",
+    description: "Messages stay conversational, specific, and honest about transferable fit.",
+    rows: [
+      ["Tone", "Conversational"],
+      ["Length", "Concise"],
+      ["CTA", "Soft follow-up"],
     ],
   },
   {
     label: "Interview Prep",
-    title: "Role-specific prep kit",
     icon: MessageCircleQuestion,
-    metrics: [
-      ["Likely", "Questions Prepared", "brand"],
-      ["STAR", "Stories Identified", "emerald"],
-    ],
-    details: [
-      ["Talking Points", "Implementation ownership and workflow follow-through"],
-      ["Concern Responses", "Direct industry experience"],
+    title: "Prepare after applying.",
+    description: "Likely questions, STAR stories, talking points, and concern responses are ready when the process moves forward.",
+    rows: [
+      ["Likely Questions", "Prepared"],
+      ["STAR Stories", "3 ready"],
+      ["Concern Responses", "Generated"],
     ],
   },
 ];
@@ -300,18 +271,6 @@ export function LandingPage() {
           <WorkflowPreview />
         </section>
 
-        <section id="product-demo" className="scroll-mt-28 border-y border-brand-100 bg-brand-50/60">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-            <div className="mb-8 max-w-3xl">
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">60-second workflow preview</p>
-              <h2 className="mt-2 text-3xl font-bold">See OccuBoard in action.</h2>
-              <p className="mt-3 leading-7 text-slate-600">
-                Follow how OccuBoard turns one job description into a fit analysis, recruiter perspective, recovery strategy, application materials, and interview prep.
-              </p>
-            </div>
-            <WorkflowDemo />
-          </div>
-        </section>
       </main>
 
       <footer className="border-t border-brand-100 bg-ink px-4 py-12 text-white">
@@ -350,46 +309,182 @@ function ShowcaseGrid({ visual, eyebrow = "", title, description, highlights, re
 }
 
 function IntelligencePreview() {
-  const [activeIndex, setActiveIndex] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 0;
-  });
-  const active = heroStates[activeIndex];
+  const [activeTab, setActiveTab] = useState("recruiter");
+  const [paused, setPaused] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const active = heroTabs.find((tab) => tab.id === activeTab) || heroTabs[0];
   const ActiveIcon = active.icon;
 
   useEffect(() => {
+    if (paused) return undefined;
     if (typeof window === "undefined") return undefined;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reducedMotion) {
-      setActiveIndex(1);
-      return undefined;
-    }
+    if (reducedMotion) return undefined;
     const timer = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % heroStates.length);
-    }, 4200);
+      setActiveTab((current) => {
+        const currentIndex = heroTabs.findIndex((tab) => tab.id === current);
+        return heroTabs[(currentIndex + 1) % heroTabs.length].id;
+      });
+    }, 5000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [paused]);
+
+  const handleSelect = (tabId) => {
+    setActiveTab(tabId);
+    setPaused(true);
+  };
 
   return (
-    <ProductFrame id="intelligence-preview" label={active.label} title={active.title} icon={<ActiveIcon size={21} />}>
-      <div key={active.label} className="transition-opacity duration-300">
-        <div className="grid grid-cols-2 gap-3">
-          {active.metrics.map(([value, label, tone]) => (
-            <HeroMetric key={`${active.label}-${label}`} label={label} value={value} tone={tone} prominent={label === "Recruiter Confidence"} />
-          ))}
+    <div id="intelligence-preview" className="min-w-0 rounded-xl border border-brand-100 bg-white p-3 shadow-soft sm:p-4">
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="tablist" aria-label="Hero product preview">
+        {heroTabs.map(({ id, label, icon: Icon }) => {
+          const selected = id === activeTab;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-black transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${
+                selected ? "bg-brand-700 text-white shadow-card" : "bg-brand-50 text-brand-800 ring-1 ring-brand-100 hover:bg-white hover:shadow-card"
+              }`}
+              onClick={() => handleSelect(id)}
+            >
+              <Icon size={15} />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="rounded-lg border border-brand-100 bg-gradient-to-b from-white to-brand-50/70 p-4 shadow-card sm:p-5">
+        <div className="flex items-center justify-between gap-3 border-b border-brand-100 pb-4">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">{active.label}</p>
+            <p className="mt-1 break-words font-bold text-ink">Live application intelligence preview</p>
+          </div>
+          <ActiveIcon className="shrink-0 text-brand-500" size={21} />
         </div>
-        <div className="mt-3 grid gap-3">
-          {active.details.map(([label, value], index) => (
-            <PreviewDetail key={`${active.label}-${label}`} label={label} value={value} tone={index === active.details.length - 1 ? "green" : "slate"} />
-          ))}
+        <HeroPreviewPanel activeTab={activeTab} />
+        <div className="mt-4 flex flex-col gap-3 border-t border-brand-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-1.5" aria-label="Hero preview states">
+            {heroTabs.map((tab) => (
+              <span key={tab.id} className={`h-1.5 rounded-full transition-all ${tab.id === activeTab ? "w-8 bg-brand-600" : "w-2 bg-brand-100"}`} />
+            ))}
+          </div>
+          <Button type="button" variant="secondary" className="justify-center text-xs" onClick={() => setTourOpen(true)}>
+            Explore Full Product Tour
+          </Button>
         </div>
-        <div className="mt-4 flex gap-1.5" aria-label="Hero preview states">
-          {heroStates.map((state, index) => (
-            <span key={state.label} className={`h-1.5 rounded-full transition-all ${index === activeIndex ? "w-8 bg-brand-600" : "w-2 bg-brand-100"}`} />
+      </div>
+      {tourOpen ? <ProductTourModal onClose={() => setTourOpen(false)} /> : null}
+    </div>
+  );
+}
+
+function HeroPreviewPanel({ activeTab }) {
+  if (activeTab === "fit") {
+    return (
+      <div className="mt-4 grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-[0.9fr_1.1fr]">
+          <PreviewMetric label="Competitive Match" value="82%" tone="emerald" />
+          <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">Recommendation</p>
+            <p className="mt-1 text-lg font-black text-ink">Worth pursuing</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">Good alignment with one clear positioning note.</p>
+          </div>
+        </div>
+        <PreviewPanelRows rows={[
+          ["Strengths", "Implementation ownership"],
+          ["Strengths", "Customer onboarding"],
+          ["Strengths", "Workflow optimization"],
+          ["Considerations", "Direct industry experience"],
+        ]} />
+      </div>
+    );
+  }
+
+  if (activeTab === "recovery") {
+    return (
+      <div className="mt-4 grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <InsightRow label="Concern" value="Direct industry experience" tone="amber" />
+          <PreviewMetric label="Recovery Strength" value="Strong" tone="emerald" />
+        </div>
+        <div className="rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
+          <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">Recovery Strategy</p>
+          <p className="mt-1 text-sm font-bold leading-6 text-emerald-900">
+            Position adjacent SaaS, ERP, and workflow systems experience without overstating domain expertise.
+          </p>
+        </div>
+        <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-600">Considerations Addressed</p>
+            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-black text-brand-700">3/4</span>
+          </div>
+          <RecoveryBar percent={75} label="Recovery coverage" />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === "interview") {
+    return (
+      <div className="mt-4 grid gap-3">
+        <div className="rounded-lg bg-brand-50 p-4 ring-1 ring-brand-100">
+          <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-700">Likely Questions</p>
+          <div className="mt-3 grid gap-2">
+            {[
+              "Tell me about an implementation project that required stakeholder alignment.",
+              "How do you manage rollout readiness?",
+              "Describe a time you improved adoption of a new process.",
+            ].map((question) => (
+              <div key={question} className="rounded-lg bg-white p-3 text-sm font-semibold leading-5 text-ink ring-1 ring-brand-100">
+                {question}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1.3fr_0.7fr]">
+          <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">Talking Points</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {["Customer-facing implementations", "ERP coordination", "Workflow improvement"].map((point) => (
+                <span key={point} className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">{point}</span>
+              ))}
+            </div>
+          </div>
+          <PreviewMetric label="STAR Stories Ready" value="3" tone="emerald" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 grid gap-3">
+      <div className="grid gap-3 sm:grid-cols-[0.9fr_1.1fr]">
+        <div className="rounded-lg bg-brand-50 p-4 ring-2 ring-brand-100 shadow-card">
+          <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-700">Recruiter Confidence</p>
+          <p className="mt-1 text-5xl font-black text-brand-900">85%</p>
+          <p className="mt-2 text-xs leading-5 text-brand-800">Likelihood this application is positioned strongly enough to move forward.</p>
+        </div>
+        <div className="grid gap-3">
+          <InsightRow label="Strongest Hiring Signal" value="SaaS Implementation Ownership" tone="green" />
+          <InsightRow label="Primary Concern" value="Direct Industry Experience" tone="amber" />
+          <InsightRow label="Recommended Action" value="Apply After Quick Review" tone="blue" />
+        </div>
+      </div>
+      <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+        <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">Recruiters May Notice First</p>
+        <div className="mt-2 grid gap-2">
+          {["Customer-facing implementation ownership", "Systems coordination experience", "Stakeholder communication"].map((item) => (
+            <div key={item} className="flex gap-2 rounded-lg bg-slate-50 p-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-100">
+              <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={15} />
+              {item}
+            </div>
           ))}
         </div>
       </div>
-    </ProductFrame>
+    </div>
   );
 }
 
@@ -547,142 +642,89 @@ function WorkflowPreview() {
   );
 }
 
-function WorkflowDemo() {
-  const [activeStep, setActiveStep] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const active = demoSteps[activeStep];
+function ProductTourModal({ onClose }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const active = productTourSteps[activeIndex];
   const ActiveIcon = active.icon;
+  const isFirst = activeIndex === 0;
+  const isLast = activeIndex === productTourSteps.length - 1;
 
-  useEffect(() => {
-    if (paused) return undefined;
-    if (typeof window === "undefined") return undefined;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const desktop = window.matchMedia("(min-width: 1024px)").matches;
-    if (reducedMotion || !desktop) return undefined;
-    const timer = window.setInterval(() => {
-      setActiveStep((current) => (current + 1) % demoSteps.length);
-    }, 4500);
-    return () => window.clearInterval(timer);
-  }, [paused]);
-
-  const handleStepSelect = (index) => {
-    setActiveStep(index);
-    setPaused(true);
-  };
+  const goPrevious = () => setActiveIndex((index) => Math.max(0, index - 1));
+  const goNext = () => setActiveIndex((index) => Math.min(productTourSteps.length - 1, index + 1));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-      <div className="rounded-lg border border-brand-100 bg-white p-4 shadow-soft sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Workflow steps</p>
-            <p className="mt-1 font-bold text-ink">Generate materials, apply, then prepare</p>
+    <div className="fixed inset-0 z-[90] bg-ink/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="product-tour-title">
+      <div className="mx-auto flex min-h-full max-w-5xl items-center justify-center">
+        <div className="w-full overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-2xl">
+          <div className="flex items-start justify-between gap-4 border-b border-brand-100 p-4 sm:p-5">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Product tour</p>
+              <h2 id="product-tour-title" className="mt-1 text-2xl font-black text-ink">Explore OccuBoard&apos;s application copilot</h2>
+            </div>
+            <button
+              type="button"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-50 text-slate-600 ring-1 ring-slate-100 transition hover:bg-white hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+              onClick={onClose}
+              aria-label="Close product tour"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">{activeStep + 1} of {demoSteps.length}</span>
-        </div>
-        <div className="grid gap-2">
-          {demoSteps.map(({ label, icon: Icon }, index) => {
-            const selected = index === activeStep;
-            return (
-              <button
-                key={label}
-                type="button"
-                className={`group flex w-full gap-3 rounded-lg p-3 text-left ring-1 transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${
-                  selected ? "bg-brand-700 text-white ring-brand-700 shadow-card" : "bg-slate-50 text-ink ring-slate-100 hover:bg-white hover:shadow-card"
-                }`}
-                aria-pressed={selected}
-                onClick={() => handleStepSelect(index)}
-              >
-                <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${selected ? "bg-white/15 text-white" : index === 5 ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : "bg-white text-brand-700 ring-1 ring-brand-100"}`}>
-                <Icon size={17} />
-                </span>
-                <span className="min-w-0">
-                  <span className={`block text-sm font-black ${selected ? "text-white" : "text-ink"}`}>{label}</span>
-                  <span className={`mt-1 block text-xs leading-5 ${selected ? "text-brand-50" : "text-slate-600"}`}>{demoStepSummary(index)}</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div className="rounded-lg border border-brand-100 bg-white p-4 shadow-soft sm:p-5">
-        <div className="flex items-center justify-between gap-3 border-b border-brand-100 pb-4">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">{active.eyebrow}</p>
-            <p className="mt-1 font-bold text-ink">{active.label}</p>
+          <div className="grid gap-0 lg:grid-cols-[0.35fr_0.65fr]">
+            <div className="border-b border-brand-100 bg-brand-50/70 p-4 lg:border-b-0 lg:border-r sm:p-5">
+              <div className="grid gap-2">
+                {productTourSteps.map(({ label, icon: Icon }, index) => {
+                  const selected = index === activeIndex;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      className={`flex items-center gap-3 rounded-lg p-3 text-left ring-1 transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${
+                        selected ? "bg-brand-700 text-white ring-brand-700 shadow-card" : "bg-white text-ink ring-brand-100 hover:shadow-card"
+                      }`}
+                      aria-pressed={selected}
+                      onClick={() => setActiveIndex(index)}
+                    >
+                      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${selected ? "bg-white/15 text-white" : "bg-brand-50 text-brand-700 ring-1 ring-brand-100"}`}>
+                        <Icon size={17} />
+                      </span>
+                      <span className="text-sm font-black">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="p-4 sm:p-6">
+              <div className="rounded-xl border border-brand-100 bg-gradient-to-b from-white to-brand-50/70 p-4 shadow-card sm:p-5">
+                <div className="flex items-start justify-between gap-4 border-b border-brand-100 pb-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">{active.label}</p>
+                    <h3 className="mt-1 text-2xl font-black text-ink">{active.title}</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{active.description}</p>
+                  </div>
+                  <ActiveIcon className="shrink-0 text-brand-500" size={24} />
+                </div>
+                <div className="mt-4">
+                  <PreviewPanelRows rows={active.rows} />
+                </div>
+              </div>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-bold text-slate-500">{activeIndex + 1} of {productTourSteps.length}</p>
+                <div className="flex gap-2">
+                  <Button type="button" variant="secondary" disabled={isFirst} onClick={goPrevious}>
+                    <ChevronLeft size={17} /> Previous
+                  </Button>
+                  {isLast ? (
+                    <Button type="button" onClick={onClose}>Done</Button>
+                  ) : (
+                    <Button type="button" onClick={goNext}>Next <ChevronRight size={17} /></Button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-          <ActiveIcon className="text-brand-500" size={21} />
         </div>
-        <DemoPreview step={active} index={activeStep} />
       </div>
-    </div>
-  );
-}
-
-function demoStepSummary(index) {
-  return [
-    "Add the role context.",
-    "Evaluate fit and evidence.",
-    "See recruiter perception.",
-    "Recover true concerns.",
-    "Generate application assets.",
-    "Submission tracked.",
-    "Prepare after applying.",
-  ][index];
-}
-
-function DemoPreview({ step, index }) {
-  return (
-    <div className="mt-4 grid gap-3">
-      <div className={`rounded-lg p-4 ring-1 ${index === 5 ? "bg-emerald-50 ring-emerald-100" : index === 3 ? "bg-amber-50 ring-amber-100" : "bg-brand-50 ring-brand-100"}`}>
-        <p className={`text-[11px] font-black uppercase tracking-[0.1em] ${index === 5 ? "text-emerald-700" : index === 3 ? "text-amber-700" : "text-brand-700"}`}>{step.eyebrow}</p>
-        <p className={`mt-1 text-xl font-black ${index === 5 ? "text-emerald-900" : index === 3 ? "text-amber-900" : "text-brand-900"}`}>{step.title}</p>
-        <p className={`mt-2 text-sm leading-6 ${index === 5 ? "text-emerald-800" : index === 3 ? "text-amber-800" : "text-brand-900"}`}>{step.description}</p>
-      </div>
-      {index === 0 && (
-        <PreviewPanelRows rows={[
-          ["Job title", "Systems Implementation Specialist"],
-          ["Status", "Job description added"],
-          ["Next step", "Evaluate realistic fit"],
-        ]} />
-      )}
-      {index === 1 && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <PreviewMetric label="Competitive Match" value="82%" tone="emerald" />
-          <PreviewDetail label="Hiring Consideration" value="Direct industry experience" />
-        </div>
-      )}
-      {index === 2 && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <InsightRow label="Strongest Hiring Signal" value="Customer-facing implementation work" tone="green" />
-          <InsightRow label="Recommended Action" value="Apply after quick review" tone="blue" />
-        </div>
-      )}
-      {index === 3 && <RecoveryRow concern="Direct industry experience" status="Strong recovery" percent={76} tone="green" />}
-      {index === 4 && (
-        <PreviewPanelRows rows={[
-          ["Tailored Resume", "Generated"],
-          ["Recruiter Message", "Generated"],
-          ["Cover Letter", "Optional"],
-          ["Interview Prep", "Ready when needed"],
-        ]} />
-      )}
-      {index === 5 && (
-        <PreviewPanelRows rows={[
-          ["Application Submitted", "Submission Tracked"],
-          ["Current status", "Applied"],
-          ["Opportunity status", "Active"],
-          ["Next recommended step", "Interview Prep"],
-        ]} />
-      )}
-      {index === 6 && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <InsightRow label="Likely Questions" value="Implementation ownership, rollout validation, platform adoption" tone="blue" />
-          <InsightRow label="Talking Points" value="SaaS systems, customer-facing operations, workflow follow-through" tone="green" />
-          <InsightRow label="Concern Responses" value="Direct industry experience" tone="amber" />
-          <InsightRow label="STAR Stories" value="Onboarding, systems coordination, customer rollout" tone="blue" />
-        </div>
-      )}
     </div>
   );
 }
@@ -722,19 +764,6 @@ function PreviewMetric({ label, value, tone }) {
   return (
     <div className={`rounded-lg p-3 ring-1 ${colors}`}>
       <p className="text-3xl font-black">{value}</p>
-      <p className="mt-1 text-xs font-bold">{label}</p>
-    </div>
-  );
-}
-
-function HeroMetric({ label, value, tone, prominent = false }) {
-  if (tone === "slate") return <PreviewDetail label={value} value={label} />;
-  const colors = tone === "emerald"
-    ? "bg-emerald-50 text-emerald-800 ring-emerald-100"
-    : "bg-brand-50 text-brand-800 ring-brand-100";
-  return (
-    <div className={`rounded-lg p-3 ring-1 ${colors} ${prominent ? "shadow-card ring-2" : ""}`}>
-      <p className={prominent ? "text-4xl font-black" : "text-3xl font-black"}>{value}</p>
       <p className="mt-1 text-xs font-bold">{label}</p>
     </div>
   );
