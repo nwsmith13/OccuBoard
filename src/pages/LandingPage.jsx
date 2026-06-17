@@ -14,6 +14,7 @@ import {
   Target,
   Users,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Logo } from "../components/layout/Logo.jsx";
 import { Button } from "../components/ui/Button.jsx";
@@ -37,19 +38,61 @@ const workflowSteps = [
 ];
 
 const demoSteps = [
-  ["Paste job description", ClipboardList, "Start with the full job post so the analysis has real context."],
-  ["Fit analysis appears", Target, "OccuBoard shows match strength, evidence, and hiring considerations."],
-  ["Recruiter View highlights likely concerns", Users, "See what hiring teams may notice, value, or question."],
-  ["Recovery strategy strengthens positioning", ShieldCheck, "Turn meaningful concerns into supported, truthful positioning."],
-  ["Resume and recruiter message generated", FileText, "Create materials that carry the analysis through the application."],
-  ["User marks application as Applied", CheckCircle2, "Track submission once the package is ready."],
-  ["Interview Prep becomes the next recommended step", MessageCircleQuestion, "Prepare role-specific questions, talking points, and STAR stories."],
+  {
+    label: "Paste Job",
+    icon: ClipboardList,
+    title: "Systems Implementation Specialist",
+    eyebrow: "Job description added",
+    description: "OccuBoard is ready to evaluate the role against your experience.",
+  },
+  {
+    label: "Fit Analysis",
+    icon: Target,
+    title: "82% Competitive Match",
+    eyebrow: "Fit analysis appears",
+    description: "Top Strength: SaaS implementation ownership. Hiring Consideration: Direct industry experience.",
+  },
+  {
+    label: "Recruiter View",
+    icon: Users,
+    title: "85% Recruiter Confidence",
+    eyebrow: "Hiring-team perspective",
+    description: "Strongest Hiring Signal: Customer-facing implementation work. Primary Concern: Direct industry experience. Recommended Action: Apply after quick review.",
+  },
+  {
+    label: "Recovery Strategy",
+    icon: ShieldCheck,
+    title: "Strong recovery",
+    eyebrow: "Concern: Direct industry experience",
+    description: "Recovery: Position adjacent SaaS, ERP, and workflow systems experience without overstating domain expertise.",
+  },
+  {
+    label: "Generate Materials",
+    icon: FileText,
+    title: "Application materials generated",
+    eyebrow: "Resume and outreach",
+    description: "Tailored Resume generated. Recruiter Message generated. Cover Letter optional. Interview Prep ready when needed.",
+  },
+  {
+    label: "Applied ✓",
+    icon: CheckCircle2,
+    title: "Application marked applied",
+    eyebrow: "Submission tracked",
+    description: "Next recommended step: Interview Prep.",
+  },
+  {
+    label: "Interview Prep",
+    icon: MessageCircleQuestion,
+    title: "Interview Prep Kit",
+    eyebrow: "Role-specific preparation",
+    description: "Likely Questions, Talking Points, Concern Responses, and STAR Stories are ready for review.",
+  },
 ];
 
 export function LandingPage() {
   return (
-    <div className="w-full overflow-x-hidden bg-white text-ink">
-      <header className="sticky top-3 z-50 mx-3 mt-3 flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-brand-100/80 bg-white/85 px-4 py-3 shadow-card backdrop-blur-xl sm:mx-6 sm:px-6 lg:mx-auto">
+    <div className="w-full overflow-x-hidden bg-white pt-20 text-ink sm:pt-28">
+      <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-brand-100/80 bg-white/85 px-4 py-3 shadow-card backdrop-blur-xl sm:left-6 sm:right-6 sm:px-6">
         <Logo className="h-9 sm:h-16" />
         <nav className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Link className="hidden text-xs font-semibold text-slate-600 hover:text-brand-800 min-[420px]:inline sm:text-sm" to="/login">Login</Link>
@@ -199,7 +242,7 @@ export function LandingPage() {
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">60-second workflow preview</p>
               <h2 className="mt-2 text-3xl font-bold">See OccuBoard in action.</h2>
               <p className="mt-3 leading-7 text-slate-600">
-                From job description to application strategy, OccuBoard shows the fit, the concerns, the recovery plan, and the next step.
+                Follow how OccuBoard turns one job description into a fit analysis, recruiter perspective, recovery strategy, application materials, and interview prep.
               </p>
             </div>
             <WorkflowDemo />
@@ -404,54 +447,153 @@ function WorkflowPreview() {
 }
 
 function WorkflowDemo() {
+  const [activeStep, setActiveStep] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const active = demoSteps[activeStep];
+  const ActiveIcon = active.icon;
+
+  useEffect(() => {
+    if (paused) return undefined;
+    if (typeof window === "undefined") return undefined;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const desktop = window.matchMedia("(min-width: 1024px)").matches;
+    if (reducedMotion || !desktop) return undefined;
+    const timer = window.setInterval(() => {
+      setActiveStep((current) => (current + 1) % demoSteps.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [paused]);
+
+  const handleStepSelect = (index) => {
+    setActiveStep(index);
+    setPaused(true);
+  };
+
   return (
     <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
       <div className="rounded-lg border border-brand-100 bg-white p-4 shadow-soft sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Demo storyboard</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Workflow steps</p>
             <p className="mt-1 font-bold text-ink">Generate materials, apply, then prepare</p>
           </div>
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Applied</span>
+          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">{activeStep + 1} of {demoSteps.length}</span>
         </div>
-        <div className="grid gap-3">
-          {demoSteps.map(([title, Icon, description], index) => (
-            <div key={title} className="group flex gap-3 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100 transition duration-150 hover:bg-white hover:shadow-card">
-              <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${index === 5 ? "bg-emerald-600 text-white" : index === 6 ? "bg-brand-700 text-white" : "bg-white text-brand-700 ring-1 ring-brand-100"}`}>
+        <div className="grid gap-2">
+          {demoSteps.map(({ label, icon: Icon }, index) => {
+            const selected = index === activeStep;
+            return (
+              <button
+                key={label}
+                type="button"
+                className={`group flex w-full gap-3 rounded-lg p-3 text-left ring-1 transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${
+                  selected ? "bg-brand-700 text-white ring-brand-700 shadow-card" : "bg-slate-50 text-ink ring-slate-100 hover:bg-white hover:shadow-card"
+                }`}
+                aria-pressed={selected}
+                onClick={() => handleStepSelect(index)}
+              >
+                <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${selected ? "bg-white/15 text-white" : index === 5 ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : "bg-white text-brand-700 ring-1 ring-brand-100"}`}>
                 <Icon size={17} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-black text-ink">{title}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-600">{description}</p>
-              </div>
-            </div>
-          ))}
+                </span>
+                <span className="min-w-0">
+                  <span className={`block text-sm font-black ${selected ? "text-white" : "text-ink"}`}>{label}</span>
+                  <span className={`mt-1 block text-xs leading-5 ${selected ? "text-brand-50" : "text-slate-600"}`}>{demoStepSummary(index)}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="rounded-lg border border-brand-100 bg-white p-4 shadow-soft sm:p-5">
         <div className="flex items-center justify-between gap-3 border-b border-brand-100 pb-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Next Recommended Step</p>
-            <p className="mt-1 font-bold text-ink">Interview Prep</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">{active.eyebrow}</p>
+            <p className="mt-1 font-bold text-ink">{active.label}</p>
           </div>
-          <MessageCircleQuestion className="text-brand-500" size={21} />
+          <ActiveIcon className="text-brand-500" size={21} />
         </div>
-        <div className="mt-4 grid gap-3">
-          <div className="rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
-            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">Application marked applied</p>
-            <p className="mt-1 text-lg font-black text-emerald-900">Submission tracked</p>
-            <p className="mt-2 text-sm leading-6 text-emerald-800">OccuBoard keeps the opportunity active and shifts guidance toward interview readiness.</p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <InsightRow label="Likely Questions" value="Implementation ownership, rollout validation, platform adoption" tone="blue" />
-            <InsightRow label="Talking Points" value="SaaS systems, customer-facing operations, workflow follow-through" tone="green" />
-          </div>
-          <div className="rounded-lg bg-brand-50 p-3 ring-1 ring-brand-100">
-            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-700">Prepared after applying</p>
-            <p className="mt-1 text-sm font-bold text-brand-900">Role-specific questions and talking points become the next focus after submission.</p>
-          </div>
-        </div>
+        <DemoPreview step={active} index={activeStep} />
       </div>
+    </div>
+  );
+}
+
+function demoStepSummary(index) {
+  return [
+    "Add the role context.",
+    "Evaluate fit and evidence.",
+    "See recruiter perception.",
+    "Recover true concerns.",
+    "Generate application assets.",
+    "Track the submission.",
+    "Prepare after applying.",
+  ][index];
+}
+
+function DemoPreview({ step, index }) {
+  return (
+    <div className="mt-4 grid gap-3">
+      <div className={`rounded-lg p-4 ring-1 ${index === 5 ? "bg-emerald-50 ring-emerald-100" : index === 3 ? "bg-amber-50 ring-amber-100" : "bg-brand-50 ring-brand-100"}`}>
+        <p className={`text-[11px] font-black uppercase tracking-[0.1em] ${index === 5 ? "text-emerald-700" : index === 3 ? "text-amber-700" : "text-brand-700"}`}>{step.eyebrow}</p>
+        <p className={`mt-1 text-xl font-black ${index === 5 ? "text-emerald-900" : index === 3 ? "text-amber-900" : "text-brand-900"}`}>{step.title}</p>
+        <p className={`mt-2 text-sm leading-6 ${index === 5 ? "text-emerald-800" : index === 3 ? "text-amber-800" : "text-brand-900"}`}>{step.description}</p>
+      </div>
+      {index === 0 && (
+        <PreviewPanelRows rows={[
+          ["Job title", "Systems Implementation Specialist"],
+          ["Status", "Job description added"],
+          ["Next step", "Evaluate realistic fit"],
+        ]} />
+      )}
+      {index === 1 && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <PreviewMetric label="Competitive Match" value="82%" tone="emerald" />
+          <PreviewDetail label="Hiring Consideration" value="Direct industry experience" />
+        </div>
+      )}
+      {index === 2 && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <InsightRow label="Strongest Hiring Signal" value="Customer-facing implementation work" tone="green" />
+          <InsightRow label="Recommended Action" value="Apply after quick review" tone="blue" />
+        </div>
+      )}
+      {index === 3 && <RecoveryRow concern="Direct industry experience" status="Strong recovery" percent={76} tone="green" />}
+      {index === 4 && (
+        <PreviewPanelRows rows={[
+          ["Tailored Resume", "Generated"],
+          ["Recruiter Message", "Generated"],
+          ["Cover Letter", "Optional"],
+          ["Interview Prep", "Ready when needed"],
+        ]} />
+      )}
+      {index === 5 && (
+        <PreviewPanelRows rows={[
+          ["Application marked applied", "Submission tracked"],
+          ["Current status", "Applied"],
+          ["Next recommended step", "Interview Prep"],
+        ]} />
+      )}
+      {index === 6 && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <InsightRow label="Likely Questions" value="Implementation ownership, rollout validation, platform adoption" tone="blue" />
+          <InsightRow label="Talking Points" value="SaaS systems, customer-facing operations, workflow follow-through" tone="green" />
+          <InsightRow label="Concern Responses" value="Direct industry experience" tone="amber" />
+          <InsightRow label="STAR Stories" value="Onboarding, systems coordination, customer rollout" tone="blue" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PreviewPanelRows({ rows }) {
+  return (
+    <div className="grid gap-3">
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex items-center justify-between gap-3 rounded-lg bg-white p-3 ring-1 ring-brand-100">
+          <span className="text-xs font-black uppercase tracking-[0.1em] text-brand-600">{label}</span>
+          <span className="text-right text-sm font-bold text-ink">{value}</span>
+        </div>
+      ))}
     </div>
   );
 }
