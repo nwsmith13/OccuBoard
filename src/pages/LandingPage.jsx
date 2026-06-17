@@ -1,5 +1,4 @@
 import {
-  AlertCircle,
   ArrowRight,
   Briefcase,
   CalendarCheck,
@@ -7,12 +6,9 @@ import {
   ClipboardList,
   FileCheck2,
   FileText,
-  Gauge,
-  Lightbulb,
   Mail,
   MessageCircleQuestion,
   PanelsTopLeft,
-  Send,
   ShieldCheck,
   Sparkles,
   Target,
@@ -37,13 +33,23 @@ const workflowSteps = [
   ["Review Recruiter View", Users, "See likely first impressions, concerns, and recruiter confidence."],
   ["Recover Considerations", ShieldCheck, "Turn true gaps into supported positioning opportunities."],
   ["Generate Materials", FileCheck2, "Create a tailored resume and optional outreach grounded in the analysis."],
-  ["Prepare & Apply", CalendarCheck, "Prepare interview materials, export the package, and track the opportunity."],
+  ["Apply & Prepare", CalendarCheck, "Submit your application, mark it applied, then prepare for interviews with role-specific questions and talking points."],
+];
+
+const demoSteps = [
+  ["Paste job description", ClipboardList, "Start with the full job post so the analysis has real context."],
+  ["Fit analysis appears", Target, "OccuBoard shows match strength, evidence, and hiring considerations."],
+  ["Recruiter View highlights likely concerns", Users, "See what hiring teams may notice, value, or question."],
+  ["Recovery strategy strengthens positioning", ShieldCheck, "Turn meaningful concerns into supported, truthful positioning."],
+  ["Resume and recruiter message generated", FileText, "Create materials that carry the analysis through the application."],
+  ["User marks application as Applied", CheckCircle2, "Track submission once the package is ready."],
+  ["Interview Prep becomes the next recommended step", MessageCircleQuestion, "Prepare role-specific questions, talking points, and STAR stories."],
 ];
 
 export function LandingPage() {
   return (
     <div className="w-full overflow-x-hidden bg-white text-ink">
-      <header className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
+      <header className="sticky top-3 z-50 mx-3 mt-3 flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-brand-100/80 bg-white/85 px-4 py-3 shadow-card backdrop-blur-xl sm:mx-6 sm:px-6 lg:mx-auto">
         <Logo className="h-9 sm:h-16" />
         <nav className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Link className="hidden text-xs font-semibold text-slate-600 hover:text-brand-800 min-[420px]:inline sm:text-sm" to="/login">Login</Link>
@@ -78,7 +84,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="know-before-you-apply" className="scroll-mt-6 bg-white">
+        <section id="know-before-you-apply" className="scroll-mt-28 bg-white">
           <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
             <div className="mb-8 max-w-3xl">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Know Before You Apply</p>
@@ -101,7 +107,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="strategy" className="scroll-mt-6 bg-brand-50/60">
+        <section id="strategy" className="scroll-mt-28 bg-brand-50/60">
           <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
             <ShowcaseGrid
               reverse
@@ -119,7 +125,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="coverage" className="scroll-mt-6 bg-white">
+        <section id="coverage" className="scroll-mt-28 bg-white">
           <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
             <ShowcaseGrid
               visual={<CoveragePreview />}
@@ -135,7 +141,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="materials" className="scroll-mt-6 bg-white">
+        <section id="materials" className="scroll-mt-28 bg-white">
           <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
             <div className="mb-8 max-w-3xl">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Build Better Application Materials</p>
@@ -159,7 +165,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="application-workspace" className="scroll-mt-6 border-y border-brand-100 bg-brand-50/70">
+        <section id="application-workspace" className="scroll-mt-28 border-y border-brand-100 bg-brand-50/70">
           <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[0.7fr_1fr] lg:items-center">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Application Workspace</p>
@@ -179,12 +185,25 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="how-it-works" className="scroll-mt-6 mx-auto max-w-7xl px-4 py-16 sm:px-6">
+        <section id="how-it-works" className="scroll-mt-28 mx-auto max-w-7xl px-4 py-16 sm:px-6">
           <div className="mb-8 max-w-2xl">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">How It Works</p>
             <h2 className="mt-2 text-3xl font-bold">From job description to application strategy.</h2>
           </div>
           <WorkflowPreview />
+        </section>
+
+        <section id="product-demo" className="scroll-mt-28 border-y border-brand-100 bg-brand-50/60">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+            <div className="mb-8 max-w-3xl">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">60-second workflow preview</p>
+              <h2 className="mt-2 text-3xl font-bold">See OccuBoard in action.</h2>
+              <p className="mt-3 leading-7 text-slate-600">
+                From job description to application strategy, OccuBoard shows the fit, the concerns, the recovery plan, and the next step.
+              </p>
+            </div>
+            <WorkflowDemo />
+          </div>
         </section>
       </main>
 
@@ -380,6 +399,59 @@ function WorkflowPreview() {
           ) : null}
         </div>
       ))}
+    </div>
+  );
+}
+
+function WorkflowDemo() {
+  return (
+    <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+      <div className="rounded-lg border border-brand-100 bg-white p-4 shadow-soft sm:p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Demo storyboard</p>
+            <p className="mt-1 font-bold text-ink">Generate materials, apply, then prepare</p>
+          </div>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Applied</span>
+        </div>
+        <div className="grid gap-3">
+          {demoSteps.map(([title, Icon, description], index) => (
+            <div key={title} className="group flex gap-3 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100 transition duration-150 hover:bg-white hover:shadow-card">
+              <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${index === 5 ? "bg-emerald-600 text-white" : index === 6 ? "bg-brand-700 text-white" : "bg-white text-brand-700 ring-1 ring-brand-100"}`}>
+                <Icon size={17} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-black text-ink">{title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="rounded-lg border border-brand-100 bg-white p-4 shadow-soft sm:p-5">
+        <div className="flex items-center justify-between gap-3 border-b border-brand-100 pb-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Next Recommended Step</p>
+            <p className="mt-1 font-bold text-ink">Interview Prep</p>
+          </div>
+          <MessageCircleQuestion className="text-brand-500" size={21} />
+        </div>
+        <div className="mt-4 grid gap-3">
+          <div className="rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
+            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">Application marked applied</p>
+            <p className="mt-1 text-lg font-black text-emerald-900">Submission tracked</p>
+            <p className="mt-2 text-sm leading-6 text-emerald-800">OccuBoard keeps the opportunity active and shifts guidance toward interview readiness.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <InsightRow label="Likely Questions" value="Implementation ownership, rollout validation, platform adoption" tone="blue" />
+            <InsightRow label="Talking Points" value="SaaS systems, customer-facing operations, workflow follow-through" tone="green" />
+          </div>
+          <div className="rounded-lg bg-brand-50 p-3 ring-1 ring-brand-100">
+            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-700">Prepared after applying</p>
+            <p className="mt-1 text-sm font-bold text-brand-900">Role-specific questions and talking points become the next focus after submission.</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
