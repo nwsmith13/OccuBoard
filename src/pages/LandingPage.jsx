@@ -1,4 +1,4 @@
-import {
+﻿import {
   ArrowRight,
   Briefcase,
   CalendarCheck,
@@ -30,11 +30,12 @@ const materialFeatures = [
 
 const workflowSteps = [
   ["Add Job", ClipboardList, "Paste the complete job description so OccuBoard can evaluate the role."],
-  ["Evaluate Realistic Fit", Target, "Review match strength, evidence, and hiring considerations."],
+  ["Evaluate Fit", Target, "Review match strength, evidence, and hiring considerations."],
   ["Review Recruiter View", Users, "See likely first impressions, concerns, and recruiter confidence."],
   ["Recover Considerations", ShieldCheck, "Turn true gaps into supported positioning opportunities."],
   ["Generate Materials", FileCheck2, "Create a tailored resume and optional outreach grounded in the analysis."],
-  ["Apply & Prepare", CalendarCheck, "Submit your application, mark it applied, then prepare for interviews with role-specific questions and talking points."],
+  ["Apply", CalendarCheck, "Submit your application and mark the opportunity applied."],
+  ["Interview Prep", MessageCircleQuestion, "Prepare for interviews with role-specific questions, STAR stories, talking points, and concern responses."],
 ];
 
 const demoSteps = [
@@ -74,18 +75,73 @@ const demoSteps = [
     description: "Tailored Resume generated. Recruiter Message generated. Cover Letter optional. Interview Prep ready when needed.",
   },
   {
-    label: "Applied ✓",
+    label: "Applied ✅",
     icon: CheckCircle2,
-    title: "Application marked applied",
+    title: "Application Submitted",
     eyebrow: "Submission tracked",
-    description: "Next recommended step: Interview Prep.",
+    description: "Submission Tracked. Opportunity Active. Next recommended step: Interview Prep.",
   },
   {
     label: "Interview Prep",
     icon: MessageCircleQuestion,
-    title: "Interview Prep Kit",
+    title: "Application submitted. Now prepare for the interview.",
     eyebrow: "Role-specific preparation",
     description: "Likely Questions, Talking Points, Concern Responses, and STAR Stories are ready for review.",
+  },
+];
+
+const heroStates = [
+  {
+    label: "Fit Analysis",
+    title: "Systems Implementation Specialist",
+    icon: Target,
+    metrics: [
+      ["82%", "Competitive Match", "emerald"],
+      ["Top Strength", "SaaS implementation ownership", "slate"],
+    ],
+    details: [
+      ["Hiring Consideration", "Direct industry experience"],
+      ["Recommended Action", "Apply after quick review"],
+    ],
+  },
+  {
+    label: "Recruiter View",
+    title: "Hiring-team perspective",
+    icon: Users,
+    metrics: [
+      ["85%", "Recruiter Confidence", "brand"],
+      ["Strongest Signal", "Customer-facing implementation work", "emerald"],
+    ],
+    details: [
+      ["Primary Concern", "Direct industry experience"],
+      ["Recommended Action", "Apply after quick review"],
+    ],
+  },
+  {
+    label: "Recovery Strategy",
+    title: "Concern recovery plan",
+    icon: ShieldCheck,
+    metrics: [
+      ["Strong", "Recovery Strength", "emerald"],
+      ["3/4", "Considerations Addressed", "brand"],
+    ],
+    details: [
+      ["Concern", "Direct industry experience"],
+      ["Recovery", "Position adjacent SaaS, ERP, and workflow systems experience."],
+    ],
+  },
+  {
+    label: "Interview Prep",
+    title: "Role-specific prep kit",
+    icon: MessageCircleQuestion,
+    metrics: [
+      ["Likely", "Questions Prepared", "brand"],
+      ["STAR", "Stories Identified", "emerald"],
+    ],
+    details: [
+      ["Talking Points", "Implementation ownership and workflow follow-through"],
+      ["Concern Responses", "Direct industry experience"],
+    ],
   },
 ];
 
@@ -122,6 +178,14 @@ export function LandingPage() {
                 <Link to="/signup"><Button>Analyze Your First Job <ArrowRight size={18} /></Button></Link>
                 <a href="#how-it-works"><Button variant="secondary">See How It Works</Button></a>
               </div>
+              <div className="mt-6 flex max-w-3xl flex-wrap gap-2">
+                {["Recruiter Confidence Analysis", "Hiring Consideration Detection", "Truthful Recovery Strategy", "Interview Preparation", "Application Tracking"].map((item) => (
+                  <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-brand-800 shadow-sm ring-1 ring-brand-100">
+                    <CheckCircle2 size={13} className="text-emerald-600" />
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
             <IntelligencePreview />
           </div>
@@ -131,15 +195,15 @@ export function LandingPage() {
           <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
             <div className="mb-8 max-w-3xl">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Know Before You Apply</p>
-              <h2 className="mt-2 text-3xl font-bold">Know how your application may be evaluated.</h2>
+              <h2 className="mt-2 text-3xl font-bold">See what recruiters may notice before you apply.</h2>
               <p className="mt-3 leading-7 text-slate-600">
-                Go beyond keyword matching. See where your experience aligns, what may concern a recruiter, and whether the opportunity is worth pursuing.
+                OccuBoard evaluates strengths, concerns, recruiter confidence, and likely first impressions so you can understand how your application may be received before you submit it.
               </p>
             </div>
             <ShowcaseGrid
               visual={<RecruiterViewPreview />}
-              title="See what recruiters may see before you apply."
-              description="OccuBoard analyzes strengths, hiring considerations, recruiter confidence, and likely first impressions so you can understand how your application may be evaluated."
+              title="Understand recruiter perception before you submit."
+              description="See the strongest hiring signal, the primary concern, recruiter confidence, and the recommended action in one focused view."
               highlights={[
                 ["Strongest Hiring Signal", "SaaS implementation ownership"],
                 ["Primary Concern", "Direct industry experience"],
@@ -157,12 +221,12 @@ export function LandingPage() {
               visual={<RecoveryPreview />}
               eyebrow="Turn Insight Into Strategy"
               title="Turn hiring concerns into positioning opportunities."
-              description="OccuBoard identifies concerns and shows how transferable experience, supporting evidence, and stronger positioning can improve application strength without inventing experience."
+              description="OccuBoard identifies concerns and shows how transferable experience, supporting evidence, and stronger positioning can improve application strength without inventing experience. It shows how concerns are addressed without fabricating qualifications."
               highlights={[
                 ["Recovery Strength", "Strong recovery"],
                 ["Considerations Addressed", "3 of 4"],
                 ["Recovery Status", "Direct industry experience partially recovered"],
-                ["Recovery Explanation", "Position adjacent SaaS systems experience without overstating domain expertise."],
+                ["Recovery Explanation", "Position adjacent SaaS, ERP, and workflow systems experience without overstating domain expertise."],
               ]}
             />
           </div>
@@ -254,7 +318,7 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold">Know what to strengthen before you apply.</h2>
-            <p className="mt-2 text-brand-100">Turn your next job description into a realistic fit assessment and focused application strategy.</p>
+            <p className="mt-2 text-brand-100">Turn your next job description into a realistic fit assessment, recruiter perspective, recovery strategy, and application plan.</p>
           </div>
           <Link to="/signup"><Button variant="secondary">Analyze Your First Job</Button></Link>
         </div>
@@ -286,18 +350,43 @@ function ShowcaseGrid({ visual, eyebrow = "", title, description, highlights, re
 }
 
 function IntelligencePreview() {
+  const [activeIndex, setActiveIndex] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 0;
+  });
+  const active = heroStates[activeIndex];
+  const ActiveIcon = active.icon;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) {
+      setActiveIndex(1);
+      return undefined;
+    }
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % heroStates.length);
+    }, 4200);
+    return () => window.clearInterval(timer);
+  }, []);
+
   return (
-    <ProductFrame id="intelligence-preview" label="Application Intelligence" title="Systems Implementation Specialist" icon={<Sparkles size={21} />}>
-      <div className="grid grid-cols-2 gap-3">
-        <PreviewMetric label="Competitive Match" value="82%" tone="emerald" />
-        <PreviewMetric label="Recruiter Confidence" value="85%" tone="brand" />
-      </div>
-      <div className="mt-3 grid gap-3">
-        <PreviewDetail label="Top Strength" value="SaaS implementation ownership" />
-        <PreviewDetail label="Hiring Consideration" value="Direct industry experience" />
-        <div className="rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100">
-          <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">Recommended Action</p>
-          <p className="mt-1 text-sm font-bold text-emerald-900">Apply after quick review</p>
+    <ProductFrame id="intelligence-preview" label={active.label} title={active.title} icon={<ActiveIcon size={21} />}>
+      <div key={active.label} className="transition-opacity duration-300">
+        <div className="grid grid-cols-2 gap-3">
+          {active.metrics.map(([value, label, tone]) => (
+            <HeroMetric key={`${active.label}-${label}`} label={label} value={value} tone={tone} prominent={label === "Recruiter Confidence"} />
+          ))}
+        </div>
+        <div className="mt-3 grid gap-3">
+          {active.details.map(([label, value], index) => (
+            <PreviewDetail key={`${active.label}-${label}`} label={label} value={value} tone={index === active.details.length - 1 ? "green" : "slate"} />
+          ))}
+        </div>
+        <div className="mt-4 flex gap-1.5" aria-label="Hero preview states">
+          {heroStates.map((state, index) => (
+            <span key={state.label} className={`h-1.5 rounded-full transition-all ${index === activeIndex ? "w-8 bg-brand-600" : "w-2 bg-brand-100"}`} />
+          ))}
         </div>
       </div>
     </ProductFrame>
@@ -307,17 +396,21 @@ function IntelligencePreview() {
 function RecruiterViewPreview() {
   return (
     <ProductFrame label="Recruiter View" title="Hiring-team perspective" icon={<Users size={21} />}>
-      <div className="rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
+      <div className="rounded-lg bg-brand-50 p-4 ring-2 ring-brand-100 shadow-card">
+        <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-700">Recruiter Confidence</p>
+        <p className="mt-1 text-5xl font-black text-brand-900">85%</p>
+        <p className="mt-2 text-xs leading-5 text-brand-800">Likelihood the application is positioned strongly enough to move forward.</p>
+      </div>
+      <div className="mt-3 rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
         <p className="text-xs font-black uppercase tracking-[0.1em] text-emerald-700">Recommended Action</p>
         <p className="mt-1 text-lg font-black text-emerald-900">Apply after quick review</p>
         <p className="mt-2 text-xs leading-5 text-emerald-800">Competitive application with one positioning note to review before submitting.</p>
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <PreviewMetric label="Competitive Match" value="82%" tone="emerald" />
-        <PreviewMetric label="Recruiter Confidence" value="85%" tone="brand" />
+        <InsightRow label="Strongest Hiring Signal" value="SaaS implementation ownership" tone="green" />
       </div>
       <div className="mt-3 grid gap-3">
-        <InsightRow label="Strongest Hiring Signal" value="SaaS implementation ownership" tone="green" />
         <InsightRow label="Primary Concern" value="Direct industry experience" tone="amber" />
         <InsightRow label="What recruiters may notice first" value="Operational systems background and customer-facing implementation work." tone="blue" />
       </div>
@@ -328,7 +421,15 @@ function RecruiterViewPreview() {
 function RecoveryPreview() {
   return (
     <ProductFrame label="Recovery" title="Hiring consideration recovery" icon={<ShieldCheck size={21} />}>
-      <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+      <div className="rounded-lg bg-amber-50 p-3 ring-1 ring-amber-100">
+        <p className="text-[11px] font-black uppercase tracking-[0.1em] text-amber-700">Concern</p>
+        <p className="mt-1 text-sm font-bold text-amber-900">Direct industry experience</p>
+      </div>
+      <div className="mt-3 rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100">
+        <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">Recovery</p>
+        <p className="mt-1 text-sm font-bold leading-6 text-emerald-900">Position adjacent SaaS, ERP, and workflow systems experience without overstating domain expertise.</p>
+      </div>
+      <div className="mt-3 rounded-lg bg-white p-3 ring-1 ring-brand-100">
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-600">Highest Impact Recovery</p>
           <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Fully addressed</span>
@@ -417,7 +518,7 @@ function MaterialsPreview() {
 
 function WorkflowPreview() {
   return (
-    <div className="grid gap-3 lg:grid-cols-6">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
       {workflowSteps.map(([title, Icon, description], index) => (
         <div key={title} className="relative">
           <Card className="h-full">
@@ -436,7 +537,7 @@ function WorkflowPreview() {
             </div>
           </Card>
           {index < workflowSteps.length - 1 ? (
-            <div className="hidden lg:absolute lg:right-[-13px] lg:top-1/2 lg:z-10 lg:block lg:-translate-y-1/2 lg:text-brand-400">
+            <div className="hidden xl:absolute xl:right-[-13px] xl:top-1/2 xl:z-10 xl:block xl:-translate-y-1/2 xl:text-brand-400">
               <ArrowRight size={22} />
             </div>
           ) : null}
@@ -525,7 +626,7 @@ function demoStepSummary(index) {
     "See recruiter perception.",
     "Recover true concerns.",
     "Generate application assets.",
-    "Track the submission.",
+    "Submission tracked.",
     "Prepare after applying.",
   ][index];
 }
@@ -568,8 +669,9 @@ function DemoPreview({ step, index }) {
       )}
       {index === 5 && (
         <PreviewPanelRows rows={[
-          ["Application marked applied", "Submission tracked"],
+          ["Application Submitted", "Submission Tracked"],
           ["Current status", "Applied"],
+          ["Opportunity status", "Active"],
           ["Next recommended step", "Interview Prep"],
         ]} />
       )}
@@ -625,11 +727,27 @@ function PreviewMetric({ label, value, tone }) {
   );
 }
 
-function PreviewDetail({ label, value }) {
+function HeroMetric({ label, value, tone, prominent = false }) {
+  if (tone === "slate") return <PreviewDetail label={value} value={label} />;
+  const colors = tone === "emerald"
+    ? "bg-emerald-50 text-emerald-800 ring-emerald-100"
+    : "bg-brand-50 text-brand-800 ring-brand-100";
   return (
-    <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
-      <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-bold text-slate-800">{value}</p>
+    <div className={`rounded-lg p-3 ring-1 ${colors} ${prominent ? "shadow-card ring-2" : ""}`}>
+      <p className={prominent ? "text-4xl font-black" : "text-3xl font-black"}>{value}</p>
+      <p className="mt-1 text-xs font-bold">{label}</p>
+    </div>
+  );
+}
+
+function PreviewDetail({ label, value, tone = "slate" }) {
+  const colors = tone === "green"
+    ? "bg-emerald-50 ring-emerald-100 text-emerald-900"
+    : "bg-slate-50 ring-slate-100 text-slate-800";
+  return (
+    <div className={`rounded-lg p-3 ring-1 ${colors}`}>
+      <p className={`text-[11px] font-black uppercase tracking-[0.1em] ${tone === "green" ? "text-emerald-700" : "text-slate-500"}`}>{label}</p>
+      <p className="mt-1 text-sm font-bold">{value}</p>
     </div>
   );
 }
