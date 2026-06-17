@@ -2,17 +2,13 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "redirects": [
     {
-      "source": "http://occuboard.io/:path*",
-      "destination": "https://www.occuboard.io/:path*",
-      "permanent": true
-    },
-    {
-      "source": "https://occuboard.io/:path*",
-      "destination": "https://www.occuboard.io/:path*",
-      "permanent": true
-    },
-    {
-      "source": "http://www.occuboard.io/:path*",
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "occuboard.io"
+        }
+      ],
       "destination": "https://www.occuboard.io/:path*",
       "permanent": true
     },
