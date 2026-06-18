@@ -116,6 +116,8 @@ const productTourSteps = [
 ];
 
 export function LandingPage() {
+  const [tourOpen, setTourOpen] = useState(false);
+
   return (
     <div className="w-full overflow-x-hidden bg-white pt-20 text-ink sm:pt-24 2xl:pt-28">
       <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-brand-100/80 bg-white/85 px-4 py-2 shadow-card backdrop-blur-xl sm:left-6 sm:right-6 sm:px-5 2xl:px-6 2xl:py-3">
@@ -162,25 +164,29 @@ export function LandingPage() {
         </section>
 
         <section id="know-before-you-apply" className="scroll-mt-28 bg-white">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-10 2xl:py-14">
-            <div className="mb-6 max-w-3xl 2xl:mb-8">
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Know Before You Apply</p>
-              <h2 className="mt-2 text-3xl font-bold">See what recruiters may notice before you apply.</h2>
-              <p className="mt-3 leading-7 text-slate-600">
-                OccuBoard evaluates strengths, concerns, recruiter confidence, and likely first impressions so you can understand how your application may be received before you submit it.
-              </p>
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-9 2xl:py-12">
+            <div className="grid gap-5 rounded-xl border border-brand-100 bg-brand-50/60 p-4 shadow-soft sm:p-5 lg:grid-cols-[0.75fr_1.25fr_auto] lg:items-center">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Recruiter Perspective</p>
+                <h2 className="mt-1 text-2xl font-bold text-ink">Know what may stand out before you apply.</h2>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  ["Recruiter Confidence", "85%", "Positioned strongly enough to move forward."],
+                  ["Strongest Signal", "Customer onboarding", "Product adoption and stakeholder communication."],
+                  ["Primary Concern", "Healthcare experience", "Recovered with supported adjacent evidence."],
+                ].map(([label, value, description]) => (
+                  <div key={label} className="rounded-lg border border-brand-100 bg-white p-3 shadow-card">
+                    <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">{label}</p>
+                    <p className="mt-1 text-lg font-black text-ink">{value}</p>
+                    <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">{description}</p>
+                  </div>
+                ))}
+              </div>
+              <Button type="button" variant="secondary" className="w-fit justify-center whitespace-nowrap" onClick={() => setTourOpen(true)}>
+                Explore Product Tour
+              </Button>
             </div>
-            <ShowcaseGrid
-              visual={<RecruiterViewPreview />}
-              title="Understand recruiter perception before you submit."
-              description="See the strongest hiring signal, the primary concern, recruiter confidence, and the recommended action in one focused view."
-              highlights={[
-                ["Strongest Hiring Signal", "Customer onboarding and product adoption experience"],
-                ["Primary Concern", "Limited direct healthcare experience"],
-                ["Recruiter Confidence", "85%"],
-                ["Recommended Action", "Apply after quick review"],
-              ]}
-            />
           </div>
         </section>
 
@@ -282,6 +288,7 @@ export function LandingPage() {
         </div>
       </footer>
       <PublicFooter />
+      {tourOpen ? <ProductTourModal onClose={() => setTourOpen(false)} /> : null}
     </div>
   );
 }
@@ -504,31 +511,6 @@ function HeroPreviewPanel({ activeTab }) {
         </div>
       </div>
     </div>
-  );
-}
-
-function RecruiterViewPreview() {
-  return (
-    <ProductFrame label="Recruiter Perspective" title="Hiring-team perspective" icon={<Users size={21} />}>
-      <div className="rounded-lg bg-brand-50 p-3 ring-2 ring-brand-100 shadow-card 2xl:p-4">
-        <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-700">Recruiter Confidence</p>
-        <p className="mt-1 text-4xl font-black text-brand-900 2xl:text-5xl">85%</p>
-        <p className="mt-1.5 text-xs leading-5 text-brand-800 2xl:mt-2">Likelihood the application is positioned strongly enough to move forward.</p>
-      </div>
-      <div className="mt-2.5 rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100 2xl:mt-3 2xl:p-4">
-        <p className="text-xs font-black uppercase tracking-[0.1em] text-emerald-700">Recommended Action</p>
-        <p className="mt-1 text-base font-black text-emerald-900 2xl:text-lg">Apply after quick review</p>
-        <p className="mt-1.5 text-xs leading-5 text-emerald-800 2xl:mt-2">Competitive application with one positioning note to review before submitting.</p>
-      </div>
-      <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2 2xl:mt-3 2xl:gap-3">
-        <PreviewMetric label="Competitive Match" value="82%" tone="emerald" />
-        <InsightRow label="Strongest Hiring Signal" value="Customer onboarding and product adoption experience" tone="green" />
-      </div>
-      <div className="mt-2.5 grid gap-2.5 2xl:mt-3 2xl:gap-3">
-        <InsightRow label="Primary Concern" value="Limited direct healthcare experience" tone="amber" />
-        <InsightRow label="What recruiters may notice first" value="Customer-facing ownership, stakeholder communication, and retention improvement." tone="blue" />
-      </div>
-    </ProductFrame>
   );
 }
 
