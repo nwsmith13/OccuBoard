@@ -21,6 +21,7 @@ import { buildFollowUpCalendarEvent, buildGoogleCalendarUrl, buildInterviewCalen
 import { exportCoverLetterDocx, exportCoverLetterPdf } from "../../lib/coverLetterExport.js";
 import { COVER_LETTER_TONES, getRecommendedCoverLetterTone, normalizeCoverLetterTone } from "../../lib/coverLetterTone.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
+import { exportInterviewCheatSheetPdf, exportInterviewPrepPacketPdf, exportInterviewQuestionsPdf, exportRecruiterMessagePdf, exportResearchNotesPdf, exportStarStoriesPdf } from "../../lib/interviewPrepExport.js";
 import { hasValidInterviewPrep, normalizeInterviewPrepContent } from "../../lib/interviewPrep.js";
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
 import { getJobAiStatus, isCoverLetter, isCoverLetterSkipped, isRecruiterMessage } from "../../lib/jobAiStatus.js";
@@ -48,6 +49,18 @@ const emptyJob = {
   followup_date: "",
   notes: "",
 };
+
+const applicationStageOptions = [
+  "Saved",
+  "Applied",
+  "Recruiter Contacted",
+  "Phone Screen",
+  "Interview",
+  "Final Interview",
+  "Offer",
+  "Rejected",
+  "Closed",
+];
 
 export function JobsPage() {
   const { user } = useAuth();
@@ -341,6 +354,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const [tasks, setTasks] = useState(() => loadJobCommandTasks(initialJob.id));
   const [markAppliedOpen, setMarkAppliedOpen] = useState(false);
   const [editJobOpen, setEditJobOpen] = useState(false);
+  const [statusUpdateOpen, setStatusUpdateOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [jobEditDraft, setJobEditDraft] = useState(() => getJobEditDraft(initialJob));
@@ -511,10 +525,12 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   async function handleMoveStage(nextStage) {
     if (!nextStage || nextStage === getDisplayStage(job.status)) return;
     try {
+      const previousStage = getDisplayStage(job.status);
       const patch = { status: nextStage };
       if (nextStage === "Applied" && !job.applied_date) patch.applied_date = todayIso();
       const updated = await updateJob(user, job.id, patch);
       if (updated) mergeJobUpdate(updated);
+      await logJobActivity?.(user, job.id, "application_stage_changed", { previousStage, newStage: nextStage, detail: `Stage changed from ${previousStage} to ${nextStage}` });
       toast.success(`Stage moved to ${nextStage}.`);
     } catch {
       toast.error("Could not move stage.");
@@ -713,6 +729,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   packageDownloaded={packageDownloaded}
                   onTabChange={requestTabChange}
                   onMarkApplied={() => setMarkAppliedOpen(true)}
+                  onUpdateStatus={() => setStatusUpdateOpen(true)}
                   onSetFollowUp={() => {
                     requestTabChange("overview");
                     setOverviewPanels((current) => ({ ...current, followup: true }));
@@ -722,6 +739,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
               </div>
               <ApplicationActionsMenu
                 archived={isArchivedJob(job)}
+                onUpdateStatus={() => setStatusUpdateOpen(true)}
                 onEdit={() => setEditJobOpen(true)}
                 onArchive={handleArchive}
                 onDelete={() => setDeleteConfirmOpen(true)}
@@ -759,6 +777,19 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   setEditJobOpen(false);
                 }}
                 onSave={saveJobEdits}
+              />
+            </div>
+          )}
+          {statusUpdateOpen && (
+            <div className="mx-auto mb-4 max-w-6xl">
+              <StatusUpdatePanel
+                currentStage={getDisplayStage(job.status)}
+                saving={false}
+                onChange={async (nextStage) => {
+                  await handleMoveStage(nextStage);
+                  setStatusUpdateOpen(false);
+                }}
+                onCancel={() => setStatusUpdateOpen(false)}
               />
             </div>
           )}
@@ -1024,12 +1055,13 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   );
 }
 
-function JobHeaderCta({ activeTab, job, score, resume, coverLetter, coverLetterResolved, prep, packageDownloaded, onTabChange, onMarkApplied, onSetFollowUp }) {
+function JobHeaderCta({ activeTab, job, score, resume, coverLetter, coverLetterResolved, prep, packageDownloaded, onTabChange, onMarkApplied, onUpdateStatus, onSetFollowUp }) {
   const config = getWorkflowHeaderCta({ job, score, resume, coverLetter, coverLetterResolved, prep, packageDownloaded, activeTab });
   return (
     <div className="flex justify-end">
       <Button className="min-h-9 px-4 text-sm whitespace-nowrap" variant={config.variant} onClick={() => {
         if (config.tab === "__mark_applied") onMarkApplied?.();
+        else if (config.tab === "__update_status") onUpdateStatus?.();
         else if (config.tab === "__set_followup") onSetFollowUp?.();
         else onTabChange?.(config.tab);
       }}>
@@ -1042,18 +1074,18 @@ function JobHeaderCta({ activeTab, job, score, resume, coverLetter, coverLetterR
 function getWorkflowHeaderCta({ job, score, resume, coverLetter, coverLetterResolved, prep, packageDownloaded, activeTab }) {
   const stage = getDisplayStage(job?.status);
   const isSaved = stage === "Saved";
-  if (stage === "Applied") {
-    if (prep) return { label: "Prepare for Interview", tab: "interview", variant: "primary" };
-    if (!getFollowUpDate(job)) return { label: "Set Follow-Up", tab: "__set_followup", variant: "primary" };
-    return { label: "View Application", tab: "overview", variant: "secondary" };
-  }
+  if (!isSaved) return { label: "Update Status", tab: "__update_status", variant: "secondary" };
   if (!score) return { label: "Analysis", tab: "fit", variant: "primary" };
   if (!resume) return { label: "Resume", tab: "resume", variant: "primary" };
   if (!(coverLetter || coverLetterResolved)) return { label: "Cover Letter", tab: "coverLetter", variant: "primary" };
   if ((stage === "Interview" || stage === "Final Interview" || job?.interview_date) && !prep) return { label: "Interview Prep", tab: "interview", variant: "primary" };
   if (packageDownloaded && isSaved) return { label: "Mark Applied", tab: "__mark_applied", variant: "primary" };
-  if (activeTab !== "export") return { label: "Export Package", tab: "export", variant: "primary" };
+  if (activeTab === "export" || packageReadyForStatus(stage, packageDownloaded)) return { label: "Update Status", tab: "__update_status", variant: "secondary" };
   return { label: "Export Package", tab: "export", variant: "primary" };
+}
+
+function packageReadyForStatus(stage, packageDownloaded) {
+  return packageDownloaded || !["Saved"].includes(stage);
 }
 
 function CommandTasksWorkspace({ tasks, setTasks, onAdd }) {
@@ -1361,7 +1393,39 @@ function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
   );
 }
 
-function ApplicationActionsMenu({ archived, onEdit, onArchive, onDelete }) {
+function StatusUpdatePanel({ currentStage, onChange, onCancel }) {
+  return (
+    <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Update Status</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">Move this application</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Current stage: <span className="font-bold text-ink">{currentStage}</span></p>
+        </div>
+        <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={onCancel}>Cancel</Button>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {applicationStageOptions.map((stage) => {
+          const active = stage === currentStage;
+          return (
+            <button
+              key={stage}
+              type="button"
+              className={`rounded-lg px-3 py-2 text-left text-sm font-bold ring-1 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${active ? "bg-brand-700 text-white ring-brand-700" : "bg-brand-50 text-slate-700 ring-brand-100 hover:bg-brand-100 hover:text-brand-950"}`}
+              onClick={() => !active && onChange(stage)}
+              disabled={active}
+              aria-pressed={active}
+            >
+              {stage}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ApplicationActionsMenu({ archived, onUpdateStatus, onEdit, onArchive, onDelete }) {
   return (
     <details className="relative shrink-0">
       <summary
@@ -1373,6 +1437,17 @@ function ApplicationActionsMenu({ archived, onEdit, onArchive, onDelete }) {
         <span>Actions</span>
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-lg bg-white p-1.5 shadow-soft ring-1 ring-brand-100">
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-brand-50 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
+          onClick={(event) => {
+            event.currentTarget.closest("details")?.removeAttribute("open");
+            onUpdateStatus();
+          }}
+        >
+          <ArrowRightCircle size={16} aria-hidden="true" />
+          Update Status
+        </button>
         <button
           type="button"
           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-brand-50 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200"
@@ -1499,7 +1574,7 @@ function StageMoveControl({ value, onChange }) {
         onChange={(event) => onChange(event.target.value)}
         className="min-w-0 rounded-md border border-brand-100 bg-white px-2 py-1 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
       >
-        {stages.map((stage) => <option key={stage}>{stage}</option>)}
+        {applicationStageOptions.map((stage) => <option key={stage}>{stage}</option>)}
       </select>
     </label>
   );
@@ -2070,18 +2145,15 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   const hasPackageResume = Boolean(resume?.content);
   const hasPackageCoverLetter = Boolean(coverLetter?.content);
   const hasPackagePrepContent = Boolean(prepContent);
-  const hasPackageQuestions = Boolean(prepContent?.questions?.length);
-  const hasPackageStories = Boolean(prepContent?.starStories?.length);
   const defaultPackageSelections = useMemo(
     () =>
       getDefaultPackageSelections({
         hasResume: hasPackageResume,
         hasCoverLetter: hasPackageCoverLetter,
         hasPrepContent: hasPackagePrepContent,
-        hasQuestions: hasPackageQuestions,
-        hasStories: hasPackageStories,
+        hasRecruiterMessage: Boolean(recruiterMessage?.content),
       }),
-    [hasPackageResume, hasPackageCoverLetter, hasPackagePrepContent, hasPackageQuestions, hasPackageStories],
+    [hasPackageResume, hasPackageCoverLetter, hasPackagePrepContent, recruiterMessage?.content],
   );
   const [packageSelections, setPackageSelections] = useState(defaultPackageSelections);
   const packageItems = useMemo(() => getPackageBuilderItems({ resume, coverLetter, recruiterMessage, prepContent, selections: packageSelections }), [resume, coverLetter, recruiterMessage, prepContent, packageSelections]);
@@ -2211,24 +2283,12 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
           await onLogActivity?.(user, job.id, "cover_letter_exported_docx", { fileType: "DOCX", packageExport: true });
         }
         if (item.key === "recruiterMessage") {
-          downloadTextArtifact(`${packageFileName}-recruiter-message.txt`, buildRecruiterMessageExportText({ job, message: recruiterMessage.content }));
-          await onLogActivity?.(user, job.id, "recruiter_message_exported", { fileType: "TXT", packageExport: true });
+          await exportRecruiterMessagePdf({ profile, job, message: recruiterMessage.content });
+          await onLogActivity?.(user, job.id, "recruiter_message_exported", { fileType: "PDF", packageExport: true });
         }
-        if (item.key === "interviewCheatSheet") {
-          downloadInterviewCheatSheet(cheatSheetPayload);
-          await onLogActivity?.(user, job.id, "interview_cheat_sheet_exported", { fileType: "HTML", packageExport: true });
-        }
-        if (item.key === "interviewQuestions") {
-          downloadTextArtifact(`${packageFileName}-interview-questions.txt`, buildInterviewQuestionsExportText({ job, questions: prepContent?.questions || [] }));
-          await onLogActivity?.(user, job.id, "interview_questions_exported", { fileType: "TXT", packageExport: true });
-        }
-        if (item.key === "starStories") {
-          downloadTextArtifact(`${packageFileName}-star-stories.txt`, buildStarStoriesExportText({ job, stories: prepContent?.starStories || [] }));
-          await onLogActivity?.(user, job.id, "interview_stories_exported", { fileType: "TXT", packageExport: true });
-        }
-        if (item.key === "researchNotes") {
-          downloadTextArtifact(`${packageFileName}-research-notes.txt`, buildResearchNotesExportText({ job, focusAreas: prepContent?.focusAreas || [], questionsToAsk: prepContent?.questionsToAsk || [] }));
-          await onLogActivity?.(user, job.id, "interview_research_exported", { fileType: "TXT", packageExport: true });
+        if (item.key === "interviewPrepPacket") {
+          await exportInterviewPrepPacketPdf({ ...cheatSheetPayload, profile });
+          await onLogActivity?.(user, job.id, "interview_prep_packet_exported", { fileType: "PDF", packageExport: true });
         }
       }
 
@@ -2265,17 +2325,6 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         </p>
         {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
       </div>
-
-        <ApplicationChecklist
-          job={job}
-          score={score}
-          resume={resume}
-          coverLetter={coverLetter}
-          coverLetterSkipped={coverLetterSkipped}
-          recruiterMessage={recruiterMessage}
-          prep={prep}
-          onboardingCompleted={onboarding.completed}
-        />
 
       {!onboarding.completed && !onboarding.hasExport && (
         <ExportOnboardingHelp
@@ -2321,9 +2370,9 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
           aria-expanded={advancedOpen}
           aria-controls="advanced-individual-downloads"
         >
-          <span>
-            <span className="block text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Advanced</span>
-            <span className="block text-sm font-bold text-ink">Advanced Resume Options & individual downloads</span>
+            <span>
+            <span className="block text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Individual files</span>
+            <span className="block text-sm font-bold text-ink">Download Individually</span>
           </span>
           <ChevronDown size={16} className={`shrink-0 text-slate-500 transition ${advancedOpen ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
@@ -2366,13 +2415,29 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
             </MaterialCard>
 
             <MaterialCard title="Recruiter Message" status={recruiterMessage ? "Generated" : "Not generated"} description={recruiterMessage ? "Copy your outreach note when you are ready to contact someone." : "Draft this after your application materials are ready."}>
-              {recruiterMessage ? <CopyButton text={recruiterMessage.content} /> : <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToMessage}>Draft Recruiter Message</Button>}
+              {recruiterMessage ? (
+                <div className="flex flex-wrap gap-2">
+                  <CopyButton text={recruiterMessage.content} />
+                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportRecruiterMessagePdf({ profile, job, message: recruiterMessage.content })}>PDF</Button>
+                </div>
+              ) : <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToMessage}>Draft Recruiter Message</Button>}
+            </MaterialCard>
+
+            <MaterialCard title="Interview Prep" status={prepContent ? "Prepared" : "Not prepared"} description={prepContent ? "Download interview prep assets together or individually." : "Prepare interview materials before downloading these assets."}>
+              {prepContent ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportInterviewPrepPacketPdf({ job, profile, score, content: prepContent, interviewDetails: getInterviewDetails(job, contacts), questions: prepContent?.questions || [], stories: prepContent?.starStories || [], focusAreas: prepContent?.focusAreas || [], questionsToAsk: prepContent?.questionsToAsk || [], concerns: getInterviewConcernAreas(score) })}>Prep Packet PDF</Button>
+                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportInterviewCheatSheetPdf({ job, profile, score, content: prepContent, interviewDetails: getInterviewDetails(job, contacts), questions: prepContent?.questions || [], stories: prepContent?.starStories || [], focusAreas: prepContent?.focusAreas || [], questionsToAsk: prepContent?.questionsToAsk || [], concerns: getInterviewConcernAreas(score) })}>Cheat Sheet PDF</Button>
+                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportInterviewQuestionsPdf({ profile, job, questions: prepContent?.questions || [] })}>Questions PDF</Button>
+                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportStarStoriesPdf({ profile, job, stories: prepContent?.starStories || [] })}>STAR Stories PDF</Button>
+                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportResearchNotesPdf({ profile, job, focusAreas: prepContent?.focusAreas || [], questionsToAsk: prepContent?.questionsToAsk || [] })}>Research Notes PDF</Button>
+                </div>
+              ) : <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToInterview}>Prepare Interview Prep</Button>}
             </MaterialCard>
           </div>
         )}
       </section>
 
-      {onboarding.completed && <ApplicationActivityPlaceholder />}
     </section>
   );
 }
@@ -2430,18 +2495,6 @@ function ApplicationChecklist({ job, score, resume, coverLetter, coverLetterSkip
           </div>
         ))}
       </div>
-    </section>
-  );
-}
-
-function ApplicationActivityPlaceholder() {
-  return (
-    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
-      <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Activity</p>
-      <h3 className="mt-1 text-lg font-bold text-ink">No activity recorded yet.</h3>
-      <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-        Future updates such as application submission, interviews, recruiter conversations, and status changes will appear here.
-      </p>
     </section>
   );
 }
@@ -2543,7 +2596,7 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
 
       <div className="mt-4 grid gap-3">
         <div className="grid gap-3">
-          {["Application Documents", "Interview Prep Kit", "Communication"].map((group) => (
+          {["Application Documents", "Communication", "Interview Prep Kit"].map((group) => (
             <div key={group} className="rounded-xl bg-brand-50/60 p-3 ring-1 ring-brand-100">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-black uppercase tracking-[0.1em] text-slate-600">{group}</p>
@@ -2597,34 +2650,21 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
   );
 }
 
-function getDefaultPackageSelections({ hasResume, hasCoverLetter, hasPrepContent, hasQuestions, hasStories }) {
+function getDefaultPackageSelections({ hasResume, hasCoverLetter, hasPrepContent, hasRecruiterMessage }) {
   return {
     resumePdf: hasResume,
-    resumeDocx: false,
     coverLetterPdf: hasCoverLetter,
-    coverLetterDocx: false,
-    recruiterMessage: false,
-    interviewCheatSheet: hasPrepContent,
-    interviewQuestions: hasQuestions,
-    starStories: hasStories,
-    researchNotes: false,
+    recruiterMessage: hasRecruiterMessage,
+    interviewPrepPacket: hasPrepContent,
   };
 }
 
 function getPackageBuilderItems({ resume, coverLetter, recruiterMessage, prepContent }) {
-  const hasQuestions = Array.isArray(prepContent?.questions) && prepContent.questions.length > 0;
-  const hasStories = Array.isArray(prepContent?.starStories) && prepContent.starStories.length > 0;
-  const hasResearch = (Array.isArray(prepContent?.focusAreas) && prepContent.focusAreas.length > 0) || (Array.isArray(prepContent?.questionsToAsk) && prepContent.questionsToAsk.length > 0);
   return [
     { key: "resumePdf", label: "Resume PDF", group: "Application Documents", available: Boolean(resume?.content), missingLabel: "Generate resume first" },
     { key: "coverLetterPdf", label: "Cover Letter PDF", group: "Application Documents", available: Boolean(coverLetter?.content), missingLabel: "Draft cover letter first" },
-    { key: "resumeDocx", label: "Resume DOCX", group: "Application Documents", available: Boolean(resume?.content), missingLabel: "Generate resume first" },
-    { key: "coverLetterDocx", label: "Cover Letter DOCX", group: "Application Documents", available: Boolean(coverLetter?.content), missingLabel: "Draft cover letter first" },
-    { key: "interviewCheatSheet", label: "Interview Cheat Sheet", group: "Interview Prep Kit", available: Boolean(prepContent), missingLabel: "Prepare interview first" },
-    { key: "interviewQuestions", label: "Interview Questions", group: "Interview Prep Kit", available: hasQuestions, missingLabel: "Prepare interview first" },
-    { key: "starStories", label: "STAR Stories", group: "Interview Prep Kit", available: hasStories, missingLabel: "Prepare interview first" },
-    { key: "researchNotes", label: "Research Notes", group: "Interview Prep Kit", available: hasResearch, missingLabel: "Prepare interview first" },
-    { key: "recruiterMessage", label: "Recruiter Message", group: "Communication", available: Boolean(recruiterMessage?.content), missingLabel: "Draft message first" },
+    { key: "recruiterMessage", label: "Recruiter Message PDF", group: "Communication", available: Boolean(recruiterMessage?.content), missingLabel: "Draft message first" },
+    { key: "interviewPrepPacket", label: "Interview Prep Packet PDF", group: "Interview Prep Kit", available: Boolean(prepContent), missingLabel: "Prepare interview first" },
   ];
 }
 
@@ -2656,11 +2696,11 @@ function trackPackageBuilderExport({ selectedItems = [], job, resume, score, use
     return "cover_letter";
   }
   if (documentType === "recruiter_message") {
-    trackEvent("recruiter_message_exported", { ...baseProperties, format: "txt" });
+    trackEvent("recruiter_message_exported", { ...baseProperties, format: "pdf" });
     return "recruiter_message";
   }
   if (documentType === "cheat_sheet") {
-    trackEvent("cheat_sheet_exported", { ...baseProperties, format: "html" });
+    trackEvent("cheat_sheet_exported", { ...baseProperties, format: "pdf" });
     return "cheat_sheet";
   }
   if (documentType === "interview_prep") {
@@ -2680,16 +2720,14 @@ function getExportDocumentType(key) {
   if (key === "resumePdf" || key === "resumeDocx") return "resume";
   if (key === "coverLetterPdf" || key === "coverLetterDocx") return "cover_letter";
   if (key === "recruiterMessage") return "recruiter_message";
-  if (key === "interviewCheatSheet") return "cheat_sheet";
-  if (["interviewQuestions", "starStories", "researchNotes"].includes(key)) return "interview_prep";
+  if (key === "interviewPrepPacket") return "interview_prep";
   return "";
 }
 
 function getExportItemFormat(key) {
   if (key.endsWith("Pdf")) return "pdf";
   if (key.endsWith("Docx")) return "docx";
-  if (key === "interviewCheatSheet") return "html";
-  if (["recruiterMessage", "interviewQuestions", "starStories", "researchNotes"].includes(key)) return "txt";
+  if (["interviewPrepPacket", "recruiterMessage"].includes(key)) return "pdf";
   return "unknown";
 }
 
@@ -2697,64 +2735,6 @@ function getPackageFileBaseName(job) {
   const company = slugifyReadable(getDisplayCompanyName(job), 38);
   const title = slugifyReadable(getDisplayJobTitle(job), 48);
   return `${company}_${title}_ApplicationPackage`;
-}
-
-function downloadTextArtifact(fileName, content) {
-  const blob = new window.Blob([content], { type: "text/plain;charset=utf-8" });
-  const link = document.createElement("a");
-  link.href = window.URL.createObjectURL(blob);
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(link.href);
-}
-
-function buildRecruiterMessageExportText({ job, message }) {
-  return [
-    `${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`,
-    "",
-    "Recruiter Message",
-    "",
-    message,
-  ].filter(Boolean).join("\n");
-}
-
-function buildInterviewQuestionsExportText({ job, questions = [] }) {
-  const lines = questions.map((question, index) => {
-    const label = question.question || question.title || question;
-    const guidance = question.answerDirection || question.guidance || question.preparationGuidance || "";
-    return [`${index + 1}. ${label}`, guidance ? `   Guidance: ${guidance}` : ""].filter(Boolean).join("\n");
-  });
-  return [`${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`, "", "Interview Questions", "", ...lines].join("\n");
-}
-
-function buildStarStoriesExportText({ job, stories = [] }) {
-  const lines = stories.map((story, index) => [
-    `${index + 1}. ${story.title || "STAR Story"}`,
-    `Situation: ${story.situation || "Not drafted yet."}`,
-    `Task: ${story.task || "Not drafted yet."}`,
-    `Action: ${story.action || "Not drafted yet."}`,
-    `Result: ${story.result || "Not drafted yet."}`,
-    story.bestUsedFor ? `Best used for: ${Array.isArray(story.bestUsedFor) ? story.bestUsedFor.join(", ") : story.bestUsedFor}` : "",
-  ].filter(Boolean).join("\n"));
-  return [`${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`, "", "STAR Stories", "", ...lines].join("\n\n");
-}
-
-function buildResearchNotesExportText({ job, focusAreas = [], questionsToAsk = [] }) {
-  const focusLines = focusAreas.map((area) => `- ${area.title || area.emphasize || area}`);
-  const questionLines = questionsToAsk.map((question) => `- ${question}`);
-  return [
-    `${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`,
-    "",
-    "Research Notes",
-    "",
-    "Likely Focus Areas",
-    ...(focusLines.length ? focusLines : ["- No focus areas generated yet."]),
-    "",
-    "Questions To Ask",
-    ...(questionLines.length ? questionLines : ["- No questions generated yet."]),
-  ].join("\n");
 }
 
 function MaterialCard({ title, status, description, children }) {
@@ -3893,13 +3873,14 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
     else toast.error("Could not open cheat sheet.");
   }
 
-  function downloadCheatSheet() {
-    const downloaded = downloadInterviewCheatSheet(cheatSheetPayload);
-    if (downloaded) {
-      trackEvent("cheat_sheet_exported", { format: "html", source: "application_page", job_id: job.id, user_id: user?.id });
+  async function downloadCheatSheet() {
+    try {
+      await exportInterviewCheatSheetPdf({ ...cheatSheetPayload, profile });
+      trackEvent("cheat_sheet_exported", { format: "pdf", source: "application_page", job_id: job.id, user_id: user?.id });
       toast.success("\u2713 Cheat Sheet Downloaded");
+    } catch {
+      toast.error("Could not download cheat sheet.");
     }
-    else toast.error("Could not download cheat sheet.");
   }
 
   function scrollToConcerns() {
@@ -5025,19 +5006,6 @@ function printInterviewCheatSheet({ job, score, content, interviewDetails, quest
   return true;
 }
 
-function downloadInterviewCheatSheet(payload) {
-  const html = buildInterviewCheatSheetHtml(payload);
-  const blob = new window.Blob([html], { type: "text/html;charset=utf-8" });
-  const link = document.createElement("a");
-  link.href = window.URL.createObjectURL(blob);
-  link.download = `interview-cheat-sheet-${slugify(getDisplayJobTitle(payload.job))}.html`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(link.href);
-  return true;
-}
-
 function buildInterviewCheatSheetHtml({ job, score, content, interviewDetails, questions, stories, focusAreas, questionsToAsk, concerns }) {
   const topStrengths = [
     ...(Array.isArray(score?.strengths) ? score.strengths : []),
@@ -5110,14 +5078,6 @@ function escapeHtml(value = "") {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-}
-
-function slugify(value = "") {
-  return String(value || "interview")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80) || "interview";
 }
 
 function slugifyReadable(value = "", maxLength = 48) {
