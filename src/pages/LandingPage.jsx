@@ -757,9 +757,9 @@ function PreviewPanelRows({ rows }) {
   return (
     <div className="grid gap-3">
       {rows.map(([label, value]) => (
-        <div key={label} className="flex items-center justify-between gap-3 rounded-lg bg-white p-3 ring-1 ring-brand-100">
-          <span className="text-xs font-black uppercase tracking-[0.1em] text-brand-600">{label}</span>
-          <span className="text-right text-sm font-bold text-ink">{value}</span>
+        <div key={label} className="flex flex-col gap-1.5 rounded-lg bg-white p-3 ring-1 ring-brand-100 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <span className="min-w-[8.5rem] shrink-0 whitespace-nowrap text-left text-xs font-black uppercase tracking-[0.1em] text-brand-600">{label}</span>
+          <span className="min-w-0 text-left text-sm font-bold leading-5 text-ink sm:text-right">{value}</span>
         </div>
       ))}
     </div>
