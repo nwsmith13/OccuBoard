@@ -44,7 +44,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   const [aiState, setAiState] = useState({ loading: "", error: "", latest: null, confirm: "" });
   const [limitAction, setLimitAction] = useState("");
   const [upgrading, setUpgrading] = useState(false);
-  const [intensity, setIntensity] = useState("Balanced");
+  const [intensity, setIntensity] = useState("Moderate");
   const [manualIntensity, setManualIntensity] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState("");
   const showSlowHint = useSlowLoading(Boolean(aiState.loading));
@@ -302,7 +302,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
               setIntensity(event.target.value);
             }}
           >
-            {["Conservative", "Balanced", "Aggressive"].map((option) => <option key={option}>{option}</option>)}
+            {["Conservative", "Moderate", "Aggressive"].map((option) => <option key={option}>{option}</option>)}
           </select>
         </div>
         {!compact && (
@@ -427,10 +427,11 @@ function getLoadingLabel(action) {
 
 function getIntensityDescription(value) {
   return {
-    Conservative: "Minimal rewriting. Preserve original structure.",
-    Balanced: "Optimize wording and alignment while preserving career identity.",
-    Aggressive: "Stronger reframing and ATS optimization without inventing experience.",
-  }[value];
+    Conservative: "Preserve most original skills and lightly reorder toward the role.",
+    Balanced: "Prioritize the job description while preserving related skills that show broader experience and adaptability.",
+    Moderate: "Recommended. Prioritize the job description while preserving related skills that show broader experience and adaptability.",
+    Aggressive: "Optimize closely to the job description while retaining high-value adjacent skills.",
+  }[value] || "Recommended. Prioritize the job description while preserving related skills that show broader experience and adaptability.";
 }
 
 function TailoringSettingsDisclosure({ intensity, latestScore, onChange }) {
@@ -464,7 +465,7 @@ function TailoringSettingsDisclosure({ intensity, latestScore, onChange }) {
             value={intensity}
             onChange={(event) => onChange(event.target.value)}
           >
-            {["Conservative", "Balanced", "Aggressive"].map((option) => <option key={option}>{option}</option>)}
+            {["Conservative", "Moderate", "Aggressive"].map((option) => <option key={option}>{option}</option>)}
           </select>
         </div>
       )}

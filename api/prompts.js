@@ -12,6 +12,7 @@ Global rules:
 - NEVER invent certifications, degrees, dates, tools, or skills unsupported by the user's profile or base resume.
 - Tailor truthfully only.
 - Prioritize ATS-friendly clarity.
+- Do not over-optimize by removing useful adjacent skills, technologies, or experiences simply because they are not explicitly listed in the job description. Preserve supporting skills that strengthen the candidate's credibility, adaptability, technical breadth, customer-facing experience, or familiarity with related business systems.
 - Keep outputs concise, practical, and actionable.
 - Preserve the user's professional tone.
 - Do not add auto-apply instructions.
@@ -58,6 +59,28 @@ Mitigation strategy rules:
 - For wording gaps, add supported phrasing naturally where it belongs.
 - For seniority/framing gaps, keep tone hands-on, practical, and execution-focused.
 `;
+
+export function preserveAdjacentSkillsForRole(roleType, originalSkills = "", jdSkills = "", intensity = "Moderate") {
+  const normalizedIntensity = normalizeTailoringIntensity(intensity);
+  return `
+Adjacent skill preservation for ${roleType || "this role"}:
+- Classify skills, tools, and experience into three tiers before drafting:
+  1. Direct Match: explicitly mentioned or strongly implied by the job description.
+  2. Adjacent / Supporting: not directly listed, but relevant to the role type, industry, technical environment, customer-facing responsibilities, or business systems around the role.
+  3. Low-Relevance: unrelated, distracting, or unsupported for the target role narrative.
+- Always prioritize Direct Match skills.
+- Do not over-optimize by removing useful adjacent skills, technologies, or experiences simply because they are not explicitly listed in the job description. Preserve supporting skills that strengthen the candidate's credibility, adaptability, technical breadth, customer-facing experience, or familiarity with related business systems.
+- Preserve Adjacent / Supporting skills when they demonstrate technical breadth, SaaS implementation, customer-facing technical consulting, workflow/process knowledge, CRM/GTM systems experience, APIs, integrations, SSO, data mapping, troubleshooting, ability to learn across systems, or ability to work across customer/business/technical teams.
+- Only remove Low-Relevance skills that do not support the target role narrative.
+- Conservative: preserve most original skills and lightly reorder toward the job description.
+- Moderate: prioritize job-description matches while keeping strong adjacent/supporting skills. Moderate is recommended because it balances JD alignment with broader credibility and adaptability.
+- Aggressive: optimize closely to the job description, but still retain high-value adjacent skills when they improve credibility.
+- Current intensity to apply: ${normalizedIntensity}.
+- Original skill/tool evidence to preserve when relevant: ${originalSkills || "Use the base resume as the source of truth."}
+- Job-description skill signals: ${jdSkills || "Use the job description as the direct-match source."}
+- For Solutions Engineer, Implementation Specialist, Technical CSM, TAM, Solutions Consultant, Sales Engineer, Customer Success, and SaaS Implementation roles, preserve credible adjacent systems such as Salesforce, HubSpot, Jira, Asana, APIs, SAML/SSO, data mapping, workflow automation, HTML/CSS/JS, analytics, CRM/GTM tools, project management systems, integration tools, and related workflow platforms when supported by the base resume.
+`;
+}
 
 export const RECRUITER_MESSAGE_STRATEGY_RULES = `
 Recruiter message strategy:
@@ -262,8 +285,34 @@ export function getSchema(action) {
   return messageSchema;
 }
 
+function normalizeTailoringIntensity(value = "Moderate") {
+  if (/balanced/i.test(value)) return "Moderate";
+  if (/conservative/i.test(value)) return "Conservative";
+  if (/aggressive/i.test(value)) return "Aggressive";
+  return "Moderate";
+}
+
+function inferResumeRoleType(job = {}) {
+  const text = `${job.job_title || ""} ${job.job_description || ""}`.toLowerCase();
+  if (/\b(solutions engineer|sales engineer|solution consultant|solutions consultant|technical consultant|technical account manager|tam)\b/.test(text)) return "customer-facing technical / solutions role";
+  if (/\b(implementation|onboarding|professional services|deployment|rollout)\b/.test(text)) return "SaaS implementation / onboarding role";
+  if (/\b(customer success|client success|customer support|technical support|account manager)\b/.test(text)) return "customer success / technical support role";
+  if (/\b(founder|operator|chief of staff|startup|generalist)\b/.test(text)) return "startup operator / generalist role";
+  return "target role";
+}
+
+function summarizeSkillSignals(text = "") {
+  const signals = [
+    "Salesforce", "HubSpot", "Podio", "Pipedrive", "Jira", "Asana", "API", "APIs", "SAML/SSO", "SSO", "data mapping",
+    "workflow automation", "HTML", "CSS", "JavaScript", "Klaviyo", "Google Analytics", "CRM", "GTM", "demos",
+    "demo", "technical discovery", "integrations", "implementation", "onboarding", "troubleshooting", "analytics",
+  ];
+  const lower = String(text).toLowerCase();
+  return signals.filter((signal) => lower.includes(signal.toLowerCase())).join(", ");
+}
+
 export function buildPrompt(action, profile, job, options = {}) {
-  const intensity = options.tailoringIntensity || "Balanced";
+  const intensity = normalizeTailoringIntensity(options.tailoringIntensity);
   const manualIntensityOverride = options.manualIntensityOverride ? "Yes" : "No";
   const fitRecommendation = options.fitRecommendation || "Unknown";
   const fitSummary = options.fitSummary || "No fit analysis provided.";
@@ -271,6 +320,13 @@ export function buildPrompt(action, profile, job, options = {}) {
   const mitigationPromptContext = formatMitigationPromptContext(options.mitigationPlan);
   const recruiterMessageStyle = getRecruiterMessageStyle(job, options);
   const coverLetterTone = normalizeCoverLetterTone(options.coverLetterTone);
+  const roleType = inferResumeRoleType(job);
+  const adjacentSkillPreservation = preserveAdjacentSkillsForRole(
+    roleType,
+    summarizeSkillSignals(profile?.base_resume_text),
+    summarizeSkillSignals(job?.job_description),
+    intensity,
+  );
   const context = `
 User profile:
 - Name: ${profile?.full_name || "Not provided"}
@@ -369,6 +425,8 @@ ${roleLevelPositioning}
 
 ${MITIGATION_STRATEGY_RULES}
 
+${adjacentSkillPreservation}
+
 Required sections:
 1. Contact/Header
 2. Tailored Professional Summary
@@ -388,8 +446,8 @@ Rules:
 - If Education is missing from the base resume, omit Education instead of fabricating it.
 - Preserve the candidate's actual degree, school, and education wording exactly when present in the base resume.
 - Conservative: minimal rewriting, preserve original structure heavily, emphasize only clear truthful alignment.
-- Balanced: moderate optimization, reorder bullets and improve ATS alignment while preserving career identity.
-- Aggressive: stronger reframing of transferable skills, still truthful and no fabricated claims.
+- Moderate: prioritize job-description matches while preserving strong adjacent/supporting skills that show broader experience and adaptability. This is the recommended default balance.
+- Aggressive: stronger reframing and ATS optimization, still truthful and no fabricated claims; do not make the candidate look less experienced by stripping high-value adjacent skills.
 - If the latest fit recommendation is Skip and manual tailoring intensity override is No, use Conservative behavior even if another intensity appears in context.
 - When fit is weak, do not rewrite the summary to sound like a direct industry expert.
 - Avoid repeated phrases like "ready to apply my skills to X field."
@@ -401,6 +459,8 @@ Rules:
 - Prefer one strong phrase over repeating the same idea across summary, skills, and bullets.
 - Prioritize the user's real experience over keyword stuffing.
 - For coordinator/support/analyst roles, keep the resume practical and hands-on; highlight documentation, training, user support, troubleshooting, onboarding, and follow-through when supported.
+- Core Skills section: aim for 10-14 strong skills. Blend direct JD matches with adjacent/supporting skills. Do not reduce this section to only exact JD keywords. Prefer grouped or balanced wording when helpful.
+- Tools & Technologies section: preserve relevant platform breadth. Keep related CRM, GTM, project management, technical, integration, AI, analytics, and workflow tools when they support the role. Do not remove tools like Salesforce, HubSpot, Jira, Asana, APIs, SAML/SSO, data mapping, HTML/CSS/JS, workflow automation, analytics, or GTM tools when they strengthen a SaaS/customer-facing technical role and are supported by the base resume.
 - Keep it concise and directly usable.
 
 ${naturalnessPass}`;
