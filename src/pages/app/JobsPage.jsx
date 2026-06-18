@@ -673,8 +673,8 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   }
 
   return (
-    <div className={pageMode ? "min-h-[calc(100dvh-5rem)]" : "fixed inset-0 z-50 bg-ink/35 p-0 lg:p-4"} onMouseDown={pageMode ? undefined : requestClose}>
-      <section className={`${pageMode ? "min-h-[calc(100dvh-5rem)]" : "mx-auto h-[100dvh] max-w-[1600px] lg:h-[calc(100dvh-2rem)] lg:w-[96vw] lg:rounded-lg"} flex flex-col overflow-hidden bg-white shadow-soft`} onMouseDown={(event) => event.stopPropagation()}>
+    <div className={pageMode ? "min-h-[calc(100dvh-5rem)] w-full min-w-0" : "fixed inset-0 z-50 bg-ink/35 p-0 lg:p-4"} onMouseDown={pageMode ? undefined : requestClose}>
+      <section className={`${pageMode ? "min-h-[calc(100dvh-5rem)] w-full min-w-0" : "mx-auto h-[100dvh] max-w-[1600px] overflow-hidden lg:h-[calc(100dvh-2rem)] lg:w-[96vw] lg:rounded-lg"} flex flex-col bg-white shadow-soft`} onMouseDown={(event) => event.stopPropagation()}>
         <header className="shrink-0 border-b border-brand-100 bg-white/95 shadow-sm backdrop-blur">
           <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
             <div className="flex items-start justify-between gap-4">
@@ -734,9 +734,9 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col md:flex-row">
           <WorkspaceRail activeTab={activeTab} completed={completedSteps} score={latestScore} job={job} onSelect={requestTabChange} />
-          <main ref={contentPanelRef} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+          <main ref={contentPanelRef} className="min-h-0 w-full min-w-0 flex-1 overflow-x-auto overflow-y-auto p-4 sm:p-5 lg:p-6">
           {markAppliedOpen && (
             <div className="mx-auto mb-4 max-w-6xl">
               <MarkAppliedPanel
@@ -762,7 +762,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
             </div>
           )}
           {activeTab === "overview" && (
-            <div className="mx-auto grid max-w-6xl gap-5">
+            <div className="mx-auto grid w-full min-w-0 max-w-6xl gap-5">
               <NextBestActionCard
                 action={nextBestAction}
                 onAction={handleNextBestAction}

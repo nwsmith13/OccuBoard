@@ -175,7 +175,7 @@ export function AppLayout() {
         {sidebar}
         <main className="min-w-0 flex-1">
           <Header title={current?.label ?? "Dashboard"} billing={billing} onMenu={() => setMobileOpen(true)} onCommand={() => setCommandOpen(true)} />
-          <div className="mx-auto max-w-7xl px-6 py-6">
+          <div className="mx-auto w-full min-w-0 max-w-7xl px-6 py-6">
             {showOnboardingRibbon && (
               <>
                 <GettingStartedRibbon state={onboardingState} dismissed={trackerDismissed} />
@@ -202,7 +202,7 @@ export function AppLayout() {
             </div>
           </div>
         )}
-        <main className="px-4 py-5">
+        <main className="min-w-0 px-4 py-5">
           {showOnboardingRibbon && (
             <>
               <GettingStartedRibbon state={onboardingState} dismissed={trackerDismissed} />
