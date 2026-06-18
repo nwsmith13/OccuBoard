@@ -117,9 +117,9 @@ const productTourSteps = [
 
 export function LandingPage() {
   return (
-    <div className="w-full overflow-x-hidden bg-white pt-20 text-ink sm:pt-28">
-      <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-brand-100/80 bg-white/85 px-4 py-3 shadow-card backdrop-blur-xl sm:left-6 sm:right-6 sm:px-6">
-        <Logo className="h-9 sm:h-16" />
+    <div className="w-full overflow-x-hidden bg-white pt-20 text-ink sm:pt-24 2xl:pt-28">
+      <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-brand-100/80 bg-white/85 px-4 py-2 shadow-card backdrop-blur-xl sm:left-6 sm:right-6 sm:px-5 2xl:px-6 2xl:py-3">
+        <Logo className="h-9 sm:h-12 2xl:h-16" />
         <nav className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Link className="hidden text-xs font-semibold text-slate-600 hover:text-brand-800 min-[420px]:inline sm:text-sm" to="/login">Login</Link>
           <Link to="/signup">
@@ -130,25 +130,25 @@ export function LandingPage() {
 
       <main>
         <section id="hero" className="border-y border-brand-100 bg-gradient-to-b from-brand-50 to-white">
-          <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-10 overflow-hidden px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-center lg:py-20">
+          <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-8 overflow-hidden px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-center lg:gap-7 lg:py-8 2xl:gap-10 2xl:py-20">
             <div className="min-w-0">
-              <p className="mb-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-brand-700 shadow-card">
+              <p className="mb-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-brand-700 shadow-card lg:mb-3 lg:py-1.5 2xl:mb-4 2xl:py-2">
                 AI-powered job application copilot
               </p>
-              <h1 className="max-w-3xl text-4xl font-bold tracking-normal text-ink sm:text-6xl">
+              <h1 className="max-w-3xl text-4xl font-bold tracking-normal text-ink sm:text-5xl lg:text-[3.05rem] lg:leading-[1.03] 2xl:text-6xl">
                 Understand the role. Strengthen your application. Apply with confidence.
               </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600 lg:mt-3 lg:text-base lg:leading-7 2xl:mt-6 2xl:text-lg 2xl:leading-8">
                 OccuBoard analyzes each job against your real experience, identifies hiring considerations, and helps you build a truthful strategy for your resume, recruiter outreach, and interview preparation.
               </p>
-              <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-brand-800">
+              <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-brand-800 lg:mt-3">
                 No invented experience. No generic keyword stuffing. Just clearer positioning grounded in what you have actually done.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="mt-8 flex flex-wrap gap-3 lg:mt-5 2xl:mt-8">
                 <Link to="/signup"><Button>Analyze Your First Job <ArrowRight size={18} /></Button></Link>
                 <a href="#how-it-works"><Button variant="secondary">See How It Works</Button></a>
               </div>
-              <div className="mt-6 flex max-w-3xl flex-wrap gap-2">
+              <div className="mt-6 flex max-w-3xl flex-wrap gap-2 lg:mt-4">
                 {["Recruiter Confidence Analysis", "Hiring Consideration Detection", "Truthful Recovery Strategy", "Interview Preparation", "Application Tracking"].map((item) => (
                   <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-brand-800 shadow-sm ring-1 ring-brand-100">
                     <CheckCircle2 size={13} className="text-emerald-600" />
@@ -162,7 +162,7 @@ export function LandingPage() {
         </section>
 
         <section id="know-before-you-apply" className="scroll-mt-28 bg-white">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-12 2xl:py-14">
             <div className="mb-8 max-w-3xl">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Know Before You Apply</p>
               <h2 className="mt-2 text-3xl font-bold">See what recruiters may notice before you apply.</h2>
@@ -185,7 +185,7 @@ export function LandingPage() {
         </section>
 
         <section id="strategy" className="scroll-mt-28 bg-brand-50/60">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-12 2xl:py-14">
             <ShowcaseGrid
               reverse
               visual={<RecoveryPreview />}
@@ -203,7 +203,7 @@ export function LandingPage() {
         </section>
 
         <section id="coverage" className="scroll-mt-28 bg-white">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-12 2xl:py-14">
             <ShowcaseGrid
               visual={<CoveragePreview />}
               title="See how every concern is addressed."
@@ -219,7 +219,7 @@ export function LandingPage() {
         </section>
 
         <section id="materials" className="scroll-mt-28 bg-white">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-12 2xl:py-14">
             <div className="mb-8 max-w-3xl">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Build Better Application Materials</p>
               <h2 className="mt-2 text-3xl font-bold">Carry the strategy through every application material.</h2>
@@ -243,7 +243,7 @@ export function LandingPage() {
         </section>
 
         <section id="application-workspace" className="scroll-mt-28 border-y border-brand-100 bg-brand-50/70">
-          <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[0.7fr_1fr] lg:items-center">
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[0.7fr_1fr] lg:items-center lg:py-12 2xl:py-14">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Application Workspace</p>
               <h2 className="mt-2 text-3xl font-bold">Keep everything together once your strategy is ready.</h2>
@@ -262,7 +262,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="how-it-works" className="scroll-mt-28 mx-auto max-w-7xl px-4 py-16 sm:px-6">
+        <section id="how-it-works" className="scroll-mt-28 mx-auto max-w-7xl px-4 py-12 sm:px-6 2xl:py-16">
           <div className="mb-8 max-w-2xl">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">How It Works</p>
             <h2 className="mt-2 text-3xl font-bold">From job description to application strategy.</h2>
@@ -334,8 +334,8 @@ function IntelligencePreview() {
   };
 
   return (
-    <div id="intelligence-preview" className="min-w-0 rounded-xl border border-brand-100 bg-white p-3 shadow-soft sm:p-4">
-      <div className="mb-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="tablist" aria-label="Hero product preview">
+    <div id="intelligence-preview" className="min-w-0 rounded-xl border border-brand-100 bg-white p-2.5 shadow-soft sm:p-3 2xl:p-4">
+      <div className="mb-2.5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap 2xl:mb-3" role="tablist" aria-label="Hero product preview">
         {heroTabs.map(({ id, label, icon: Icon }) => {
           const selected = id === activeTab;
           return (
@@ -344,7 +344,7 @@ function IntelligencePreview() {
               type="button"
               role="tab"
               aria-selected={selected}
-              className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-black transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${
+              className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-black transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 2xl:min-h-10 2xl:gap-2 2xl:px-3 2xl:py-2 2xl:text-xs ${
                 selected ? "bg-brand-700 text-white shadow-card" : "bg-brand-50 text-brand-800 ring-1 ring-brand-100 hover:bg-white hover:shadow-card"
               }`}
               onClick={() => handleSelect(id)}
@@ -355,25 +355,20 @@ function IntelligencePreview() {
           );
         })}
       </div>
-      <div className="rounded-lg border border-brand-100 bg-gradient-to-b from-white to-brand-50/70 p-4 shadow-card sm:p-5">
-        <div className="flex items-center justify-between gap-3 border-b border-brand-100 pb-4">
+      <div className="rounded-lg border border-brand-100 bg-gradient-to-b from-white to-brand-50/70 p-3 shadow-card sm:p-4 2xl:p-5">
+        <div className="flex items-center justify-between gap-3 border-b border-brand-100 pb-3 2xl:pb-4">
           <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">{active.label}</p>
             <p className="mt-1 break-words font-bold text-ink">Live application intelligence preview</p>
           </div>
-          <ActiveIcon className="shrink-0 text-brand-500" size={21} />
+          <div className="flex shrink-0 items-center gap-2">
+            <ActiveIcon className="text-brand-500" size={21} />
+            <Button type="button" variant="secondary" className="min-h-8 justify-center px-2.5 text-[11px]" onClick={() => setTourOpen(true)}>
+              Tour
+            </Button>
+          </div>
         </div>
         <HeroPreviewPanel activeTab={activeTab} />
-        <div className="mt-4 flex flex-col gap-3 border-t border-brand-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-1.5" aria-label="Hero preview states">
-            {heroTabs.map((tab) => (
-              <span key={tab.id} className={`h-1.5 rounded-full transition-all ${tab.id === activeTab ? "w-8 bg-brand-600" : "w-2 bg-brand-100"}`} />
-            ))}
-          </div>
-          <Button type="button" variant="secondary" className="justify-center text-xs" onClick={() => setTourOpen(true)}>
-            Explore Full Product Tour
-          </Button>
-        </div>
       </div>
       {tourOpen ? <ProductTourModal onClose={() => setTourOpen(false)} /> : null}
     </div>
@@ -383,14 +378,14 @@ function IntelligencePreview() {
 function HeroPreviewPanel({ activeTab }) {
   if (activeTab === "resume") {
     return (
-      <div className="mt-4 grid gap-3">
+      <div className="mt-3 grid gap-2.5 2xl:mt-4 2xl:gap-3">
         <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr]">
           <PreviewMetric label="Resume Optimized" value="+6" tone="emerald" />
-          <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+          <div className="rounded-lg bg-white p-2.5 ring-1 ring-brand-100 2xl:p-3">
             <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">Strengthened</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {["Customer onboarding ownership", "Stakeholder communication", "Product adoption outcomes", "Process improvement language"].map((item) => (
-                <span key={item} className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">{item}</span>
+              {["Onboarding ownership", "Stakeholder communication", "Product adoption", "Process improvement"].map((item) => (
+                <span key={item} className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-bold text-brand-800 ring-1 ring-brand-100 2xl:px-2.5 2xl:py-1 2xl:text-xs">{item}</span>
               ))}
             </div>
           </div>
@@ -403,7 +398,7 @@ function HeroPreviewPanel({ activeTab }) {
             tone="green"
           />
         </div>
-        <div className="rounded-lg bg-brand-50 p-3 ring-1 ring-brand-100">
+        <div className="rounded-lg bg-brand-50 p-2.5 ring-1 ring-brand-100 2xl:p-3">
           <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-700">Truthful positioning note</p>
           <p className="mt-1 text-sm font-bold leading-6 text-brand-900">No invented healthcare experience. No fabricated certifications. No generic keyword stuffing.</p>
         </div>
@@ -413,25 +408,25 @@ function HeroPreviewPanel({ activeTab }) {
 
   if (activeTab === "recovery") {
     return (
-      <div className="mt-4 grid gap-3">
+      <div className="mt-3 grid gap-2.5 2xl:mt-4 2xl:gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <InsightRow label="Concern" value="Limited direct healthcare experience" tone="amber" />
           <PreviewMetric label="Recovery Strength" value="Strong" tone="emerald" />
         </div>
-        <div className="rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
+        <div className="rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100 2xl:p-4">
           <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">What OccuBoard Changed</p>
           <p className="mt-1 text-sm font-bold leading-6 text-emerald-900">
             Strengthened transferable customer success and adoption experience across the resume, recruiter outreach, and interview talking points.
           </p>
         </div>
-        <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+        <div className="rounded-lg bg-white p-2.5 ring-1 ring-brand-100 2xl:p-3">
           <div className="mb-2 flex items-center justify-between gap-3">
             <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-600">Considerations Addressed</p>
             <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-black text-brand-700">3 of 4</span>
           </div>
           <RecoveryBar percent={75} label="Recovery coverage" />
         </div>
-        <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
+        <div className="rounded-lg bg-slate-50 p-2.5 ring-1 ring-slate-100 2xl:p-3">
           <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-500">Truthfulness reminder</p>
           <p className="mt-1 text-sm font-bold text-slate-800">Recovered with supported experience, not invented claims.</p>
         </div>
@@ -441,10 +436,10 @@ function HeroPreviewPanel({ activeTab }) {
 
   if (activeTab === "interview") {
     return (
-      <div className="mt-4 grid gap-3">
-        <div className="rounded-lg bg-brand-50 p-4 ring-1 ring-brand-100">
+      <div className="mt-3 grid gap-2.5 2xl:mt-4 2xl:gap-3">
+        <div className="rounded-lg bg-brand-50 p-3 ring-1 ring-brand-100 2xl:p-4">
           <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-700">Likely Question</p>
-          <p className="mt-1 text-lg font-black leading-6 text-brand-950">Tell me about a time you improved customer adoption of a product or process.</p>
+          <p className="mt-1 text-base font-black leading-6 text-brand-950 2xl:text-lg">Tell me about a time you improved customer adoption of a product or process.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <InsightRow label="Why They Ask It" value="They want to understand ownership, communication, and follow-through." tone="blue" />
@@ -465,8 +460,8 @@ function HeroPreviewPanel({ activeTab }) {
 
   if (activeTab === "package") {
     return (
-      <div className="mt-4 grid gap-3">
-        <div className="rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
+      <div className="mt-3 grid gap-2.5 2xl:mt-4 2xl:gap-3">
+        <div className="rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100 2xl:p-4">
           <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">Application Package Ready</p>
           <p className="mt-1 text-xl font-black text-emerald-950">Ready to apply with a focused package.</p>
           <p className="mt-2 text-sm font-semibold leading-6 text-emerald-800">Recommended next step: Apply, then prepare for interviews.</p>
@@ -484,11 +479,11 @@ function HeroPreviewPanel({ activeTab }) {
   }
 
   return (
-    <div className="mt-4 grid gap-3">
+      <div className="mt-3 grid gap-2.5 2xl:mt-4 2xl:gap-3">
       <div className="grid gap-3 sm:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-lg bg-brand-50 p-4 ring-2 ring-brand-100 shadow-card">
+        <div className="rounded-lg bg-brand-50 p-3 ring-2 ring-brand-100 shadow-card 2xl:p-4">
           <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-700">Recruiter Confidence</p>
-          <p className="mt-1 text-5xl font-black text-brand-900">85%</p>
+          <p className="mt-1 text-4xl font-black text-brand-900 2xl:text-5xl">85%</p>
           <p className="mt-2 text-xs leading-5 text-brand-800">Likelihood this application is positioned strongly enough to move forward.</p>
         </div>
         <div className="grid gap-3">
@@ -497,7 +492,7 @@ function HeroPreviewPanel({ activeTab }) {
           <InsightRow label="Recommended Action" value="Apply After Quick Review" tone="blue" />
         </div>
       </div>
-      <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
+      <div className="rounded-lg bg-white p-2.5 ring-1 ring-brand-100 2xl:p-3">
         <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">Recruiters May Notice First</p>
         <div className="mt-2 grid gap-2">
           {["Customer-facing ownership", "Stakeholder communication", "Retention improvement"].map((item) => (
@@ -677,13 +672,13 @@ function ProductTourModal({ onClose }) {
   const goNext = () => setActiveIndex((index) => Math.min(productTourSteps.length - 1, index + 1));
 
   return (
-    <div className="fixed inset-0 z-[90] bg-ink/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="product-tour-title">
-      <div className="mx-auto flex min-h-full max-w-5xl items-center justify-center">
-        <div className="w-full overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-2xl">
-          <div className="flex items-start justify-between gap-4 border-b border-brand-100 p-4 sm:p-5">
+    <div className="fixed inset-0 z-[90] bg-ink/55 p-3 backdrop-blur-sm sm:p-4" role="dialog" aria-modal="true" aria-labelledby="product-tour-title">
+      <div className="mx-auto flex min-h-full max-w-4xl items-center justify-center 2xl:max-w-5xl">
+        <div className="flex max-h-[calc(100vh-1.5rem)] w-full flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)]">
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-brand-100 p-3 sm:p-4 2xl:p-5">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">Product tour</p>
-              <h2 id="product-tour-title" className="mt-1 text-2xl font-black text-ink">Explore OccuBoard&apos;s application copilot</h2>
+              <h2 id="product-tour-title" className="mt-1 text-xl font-black text-ink sm:text-2xl">Explore OccuBoard&apos;s application copilot</h2>
             </div>
             <button
               type="button"
@@ -694,8 +689,8 @@ function ProductTourModal({ onClose }) {
               <X size={18} />
             </button>
           </div>
-          <div className="grid gap-0 lg:grid-cols-[0.35fr_0.65fr]">
-            <div className="border-b border-brand-100 bg-brand-50/70 p-4 lg:border-b-0 lg:border-r sm:p-5">
+          <div className="grid min-h-0 flex-1 gap-0 overflow-y-auto lg:grid-cols-[0.32fr_0.68fr] 2xl:grid-cols-[0.35fr_0.65fr]">
+            <div className="border-b border-brand-100 bg-brand-50/70 p-3 lg:border-b-0 lg:border-r sm:p-4 2xl:p-5">
               <div className="grid gap-2">
                 {productTourSteps.map(({ label, icon: Icon }, index) => {
                   const selected = index === activeIndex;
@@ -703,36 +698,36 @@ function ProductTourModal({ onClose }) {
                     <button
                       key={label}
                       type="button"
-                      className={`flex items-center gap-3 rounded-lg p-3 text-left ring-1 transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${
+                      className={`flex items-center gap-2.5 rounded-lg p-2.5 text-left ring-1 transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 2xl:gap-3 2xl:p-3 ${
                         selected ? "bg-brand-700 text-white ring-brand-700 shadow-card" : "bg-white text-ink ring-brand-100 hover:shadow-card"
                       }`}
                       aria-pressed={selected}
                       onClick={() => setActiveIndex(index)}
                     >
-                      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${selected ? "bg-white/15 text-white" : "bg-brand-50 text-brand-700 ring-1 ring-brand-100"}`}>
+                      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg 2xl:h-9 2xl:w-9 ${selected ? "bg-white/15 text-white" : "bg-brand-50 text-brand-700 ring-1 ring-brand-100"}`}>
                         <Icon size={17} />
                       </span>
-                      <span className="text-sm font-black">{label}</span>
+                      <span className="text-xs font-black 2xl:text-sm">{label}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
-            <div className="p-4 sm:p-6">
-              <div className="rounded-xl border border-brand-100 bg-gradient-to-b from-white to-brand-50/70 p-4 shadow-card sm:p-5">
-                <div className="flex items-start justify-between gap-4 border-b border-brand-100 pb-4">
+            <div className="p-3 sm:p-4 2xl:p-6">
+              <div className="rounded-xl border border-brand-100 bg-gradient-to-b from-white to-brand-50/70 p-3 shadow-card sm:p-4 2xl:p-5">
+                <div className="flex items-start justify-between gap-4 border-b border-brand-100 pb-3 2xl:pb-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">{active.label}</p>
-                    <h3 className="mt-1 text-2xl font-black text-ink">{active.title}</h3>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{active.description}</p>
+                    <h3 className="mt-1 text-xl font-black text-ink 2xl:text-2xl">{active.title}</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 lg:leading-5 2xl:leading-6">{active.description}</p>
                   </div>
                   <ActiveIcon className="shrink-0 text-brand-500" size={24} />
                 </div>
-                <div className="mt-4">
+                <div className="mt-3 2xl:mt-4">
                   <PreviewPanelRows rows={active.rows} />
                 </div>
               </div>
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between 2xl:mt-5">
                 <p className="text-sm font-bold text-slate-500">{activeIndex + 1} of {productTourSteps.length}</p>
                 <div className="flex gap-2">
                   <Button type="button" variant="secondary" disabled={isFirst} onClick={goPrevious}>
@@ -755,10 +750,10 @@ function ProductTourModal({ onClose }) {
 
 function PreviewPanelRows({ rows }) {
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-2 2xl:gap-3">
       {rows.map(([label, value]) => (
-        <div key={label} className="flex flex-col gap-1.5 rounded-lg bg-white p-3 ring-1 ring-brand-100 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <span className="min-w-[8.5rem] shrink-0 whitespace-nowrap text-left text-xs font-black uppercase tracking-[0.1em] text-brand-600">{label}</span>
+        <div key={label} className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5 ring-1 ring-brand-100 sm:flex-row sm:items-start sm:justify-between sm:gap-3 2xl:gap-4 2xl:p-3">
+          <span className="min-w-[7.25rem] shrink-0 whitespace-nowrap text-left text-[11px] font-black uppercase tracking-[0.08em] text-brand-600 2xl:min-w-[8.5rem] 2xl:text-xs 2xl:tracking-[0.1em]">{label}</span>
           <span className="min-w-0 text-left text-sm font-bold leading-5 text-ink sm:text-right">{value}</span>
         </div>
       ))}
@@ -768,15 +763,15 @@ function PreviewPanelRows({ rows }) {
 
 function ProductFrame({ id, label, title, icon, children }) {
   return (
-    <div id={id} className="min-w-0 rounded-lg border border-brand-100 bg-white p-4 shadow-soft sm:p-5">
-      <div className="flex items-center justify-between gap-3 border-b border-brand-100 pb-4">
+    <div id={id} className="min-w-0 rounded-lg border border-brand-100 bg-white p-3 shadow-soft sm:p-4 2xl:p-5">
+      <div className="flex items-center justify-between gap-3 border-b border-brand-100 pb-3 2xl:pb-4">
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">{label}</p>
           <p className="mt-1 break-words font-bold text-ink">{title}</p>
         </div>
         <span className="shrink-0 text-brand-500">{icon}</span>
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-3 2xl:mt-4">{children}</div>
     </div>
   );
 }
@@ -786,8 +781,8 @@ function PreviewMetric({ label, value, tone }) {
     ? "bg-emerald-50 text-emerald-800 ring-emerald-100"
     : "bg-brand-50 text-brand-800 ring-brand-100";
   return (
-    <div className={`rounded-lg p-3 ring-1 ${colors}`}>
-      <p className="text-3xl font-black">{value}</p>
+    <div className={`rounded-lg p-2.5 ring-1 2xl:p-3 ${colors}`}>
+      <p className="text-2xl font-black 2xl:text-3xl">{value}</p>
       <p className="mt-1 text-xs font-bold">{label}</p>
     </div>
   );
@@ -798,7 +793,7 @@ function PreviewDetail({ label, value, tone = "slate" }) {
     ? "bg-emerald-50 ring-emerald-100 text-emerald-900"
     : "bg-slate-50 ring-slate-100 text-slate-800";
   return (
-    <div className={`rounded-lg p-3 ring-1 ${colors}`}>
+    <div className={`rounded-lg p-2.5 ring-1 2xl:p-3 ${colors}`}>
       <p className={`text-[11px] font-black uppercase tracking-[0.1em] ${tone === "green" ? "text-emerald-700" : "text-slate-500"}`}>{label}</p>
       <p className="mt-1 text-sm font-bold">{value}</p>
     </div>
@@ -812,7 +807,7 @@ function InsightRow({ label, value, tone }) {
     green: "bg-emerald-50 text-emerald-900 ring-emerald-100",
   };
   return (
-    <div className={`rounded-lg p-3 ring-1 ${colors[tone] || colors.blue}`}>
+    <div className={`rounded-lg p-2.5 ring-1 2xl:p-3 ${colors[tone] || colors.blue}`}>
       <p className="text-[11px] font-black uppercase tracking-[0.1em] opacity-75">{label}</p>
       <p className="mt-1 text-sm font-bold leading-5">{value}</p>
     </div>
