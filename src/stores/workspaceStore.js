@@ -18,6 +18,7 @@ import {
   updateResumeVersion,
 } from "../lib/workspaceApi.js";
 import { createDefaultBillingState, fetchBillingState, incrementUsage, setUsageValue } from "../lib/billing.js";
+import { hasValidInterviewPrep } from "../lib/interviewPrep.js";
 import { trackEvent, trackProductMilestone } from "../lib/productAnalytics.js";
 
 const localAiUsageCountedKey = "occuboard.aiUsageCountedJobs";
@@ -298,7 +299,7 @@ function getAiPoweredJobIds(data = {}) {
   const ids = new Set();
   data.jobScores?.forEach((item) => item.job_id && ids.add(item.job_id));
   data.resumeVersions?.forEach((item) => item.job_id && ids.add(item.job_id));
-  data.interviewPrep?.forEach((item) => item.job_id && ids.add(item.job_id));
+  data.interviewPrep?.filter(hasValidInterviewPrep).forEach((item) => item.job_id && ids.add(item.job_id));
   data.messages
     ?.filter((item) => ["Recruiter Message", "Outreach Message", "Cover Letter"].includes(item.type || "Recruiter Message"))
     .forEach((item) => item.job_id && ids.add(item.job_id));

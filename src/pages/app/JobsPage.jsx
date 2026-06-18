@@ -21,6 +21,7 @@ import { buildFollowUpCalendarEvent, buildGoogleCalendarUrl, buildInterviewCalen
 import { exportCoverLetterDocx, exportCoverLetterPdf } from "../../lib/coverLetterExport.js";
 import { COVER_LETTER_TONES, getRecommendedCoverLetterTone, normalizeCoverLetterTone } from "../../lib/coverLetterTone.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
+import { hasValidInterviewPrep, normalizeInterviewPrepContent } from "../../lib/interviewPrep.js";
 import { formatActivityDetails, formatActivityLabel, formatRelativeTime, getActivityColor, getActivityGroup, getActivityIcon } from "../../lib/jobActivity.js";
 import { getJobAiStatus, isCoverLetter, isCoverLetterSkipped, isRecruiterMessage } from "../../lib/jobAiStatus.js";
 import { buildMitigationPlan, getAppliedMitigations } from "../../lib/mitigationPlan.js";
@@ -1183,7 +1184,7 @@ function RecentActivityOverview({ events = [], onViewAll }) {
 function InterviewReadinessOverview({ job, contacts, score, prep, onOpenInterview }) {
   const stage = getDisplayStage(job.status);
   const isInterviewStage = ["Interview", "Final Interview"].includes(stage);
-  const content = prep?.content || null;
+  const content = hasValidInterviewPrep(prep) ? normalizeInterviewPrepContent(prep.content) : null;
   const practicedCount = Array.isArray(prep?.practiced_questions) ? prep.practiced_questions.length : 0;
   const readiness = content ? getInterviewReadinessScore({
     content,
@@ -2065,7 +2066,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [error, setError] = useState("");
   const showSlowHint = useSlowLoading(coverLoading);
-  const prepContent = prep?.content;
+  const prepContent = hasValidInterviewPrep(prep) ? normalizeInterviewPrepContent(prep.content) : null;
   const defaultPackageSelections = useMemo(() => getDefaultPackageSelections({ resume, coverLetter, recruiterMessage, prepContent }), [resume, coverLetter, recruiterMessage, prepContent]);
   const [packageSelections, setPackageSelections] = useState(defaultPackageSelections);
   const packageItems = useMemo(() => getPackageBuilderItems({ resume, coverLetter, recruiterMessage, prepContent, selections: packageSelections }), [resume, coverLetter, recruiterMessage, prepContent, packageSelections]);
@@ -3611,7 +3612,7 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
   const [statusHelpDismissed, setStatusHelpDismissed] = useState(false);
   const concernsSectionRef = useRef(null);
   const showPrepSlowHint = useSlowLoading(loading);
-  const content = prep?.content;
+  const content = hasValidInterviewPrep(prep) ? normalizeInterviewPrepContent(prep.content) : null;
   const onboarding = buildOnboardingState({ profile, resumeUploads, jobs, jobScores, resumeVersions, interviewPrep });
   const questionStatuses = getQuestionStatusMap(prep);
   const practiced = new Set(Object.entries(questionStatuses).filter(([, status]) => ["practiced", "confident"].includes(status)).map(([index]) => Number(index)));
@@ -3652,7 +3653,10 @@ function InterviewPrepWorkspace({ job, profile, score, resume, contacts, prep, u
         latestResume: resume?.content,
         contacts: contacts.map((contact) => ({ name: contact.name, title: contact.title, source: contact.source })),
       });
-      await onSavePrep(user, job, { ...prep, content: result });
+      const savedPrep = await onSavePrep(user, job, { ...prep, content: result });
+      if (!hasValidInterviewPrep(savedPrep)) {
+        throw new Error("Interview prep was generated, but the saved record did not include prep content. Please try again.");
+      }
       setThankYouDraft(result.thankYouMessage || "");
       setLastSavedThankYou(result.thankYouMessage || "");
       setDraftNotes(prep?.answer_notes ?? {});
@@ -5396,17 +5400,7 @@ function hasRecruiterViewReadinessData({ score, resume, coverLetter, recruiterMe
 }
 
 function hasInterviewPrepData(prep) {
-  if (!prep) return false;
-  const content = prep.content || {};
-  return Boolean(
-    prep.id ||
-    content.summary ||
-    content.companySnapshot ||
-    (Array.isArray(content.focusAreas) && content.focusAreas.length) ||
-    (Array.isArray(content.questions) && content.questions.length) ||
-    (Array.isArray(content.starStories) && content.starStories.length) ||
-    (Array.isArray(content.questionsToAsk) && content.questionsToAsk.length)
-  );
+  return hasValidInterviewPrep(prep);
 }
 
 function hasApplicationPackageReady({ score, resume, coverLetter, coverLetterResolved } = {}) {

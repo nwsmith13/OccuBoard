@@ -1,5 +1,6 @@
 import { seedActivityLogs, seedJobActivityLogs, seedJobScores, seedJobs, seedMessages, seedProfile, seedResumeVersions } from "../data/seedData.js";
 import { deriveCompanyDomain } from "./companyIdentity.js";
+import { hasValidInterviewPrep, normalizeInterviewPrepContent, normalizeInterviewPrepRecord } from "./interviewPrep.js";
 import { getDisplayCompanyName, getDisplayJobTitle, getTailoredResumeTitle } from "./jobDisplay.js";
 import { createEmptyProfile } from "./profile.js";
 import { getSupabaseClient, hasSupabaseConfig } from "./supabase.js";
@@ -138,7 +139,7 @@ export async function fetchWorkspace(user) {
     const resumeUploads = isMissingTableError(uploadsResult.error) ? [] : uploadsResult.data ?? [];
     const jobActivityLogs = isMissingTableError(jobActivityResult.error) ? [] : jobActivityResult.data ?? [];
     const jobContacts = isMissingTableError(jobContactsResult.error) ? readLocal(keys.jobContacts, []) : jobContactsResult.data ?? [];
-    const interviewPrep = isMissingTableError(interviewPrepResult.error) ? readLocal(keys.interviewPrep, []) : interviewPrepResult.data ?? [];
+    const interviewPrep = isMissingTableError(interviewPrepResult.error) ? [] : (interviewPrepResult.data ?? []).map(normalizeInterviewPrepRecord).filter(hasValidInterviewPrep);
     if (scoresResult.error && !isMissingTableError(scoresResult.error)) throw scoresResult.error;
     if (messagesResult.error && !isMissingTableError(messagesResult.error)) throw messagesResult.error;
     if (uploadsResult.error && !isMissingTableError(uploadsResult.error)) throw uploadsResult.error;
@@ -173,7 +174,7 @@ export async function fetchWorkspace(user) {
     activityLogs: readLocal(keys.activityLogs, seedActivityLogs),
     jobActivityLogs: readLocal(keys.jobActivityLogs, seedJobActivityLogs),
     jobContacts: readLocal(keys.jobContacts, []),
-    interviewPrep: readLocal(keys.interviewPrep, []),
+    interviewPrep: readLocal(keys.interviewPrep, []).map(normalizeInterviewPrepRecord).filter(hasValidInterviewPrep),
     resumeVersions: readLocal(keys.resumeVersions, seedResumeVersions),
     jobScores: readLocal(keys.jobScores, seedJobScores),
     messages: readLocal(keys.messages, seedMessages),
@@ -632,11 +633,12 @@ export async function markJobContacted(user, contact) {
 }
 
 export async function saveInterviewPrep(user, job, prep) {
+  const content = normalizeInterviewPrepContent(prep.content ?? prep);
   const payload = {
     id: prep.id,
     user_id: user?.id ?? "local-demo-user",
     job_id: job.id,
-    content: prep.content ?? prep,
+    content,
     practiced_questions: prep.practiced_questions ?? [],
     answer_notes: prep.answer_notes ?? {},
     created_at: prep.created_at || now(),
@@ -649,11 +651,13 @@ export async function saveInterviewPrep(user, job, prep) {
       : supabase.from("interview_prep").insert(payload);
     const { data, error } = await query.select("*").single();
     if (error) {
-      if (isMissingTableError(error) || isMissingColumnError(error)) return saveLocalInterviewPrep(user, job, prep);
+      if (isMissingTableError(error) || isMissingColumnError(error)) {
+        throw new Error("Interview Prep could not be saved because the interview_prep table is not available in Supabase. Apply supabase/interview_prep_migration.sql and try again.");
+      }
       throw error;
     }
     if (!prep.skipActivity) await logJobActivity(user, job.id, "interview_prep_generated", { title: getDisplayJobTitle(job), company: getDisplayCompanyName(job) });
-    return data;
+    return normalizeInterviewPrepRecord(data);
   }
   return saveLocalInterviewPrep(user, job, prep);
 }
@@ -711,11 +715,12 @@ async function saveLocalJobContact(user, job, contact, options = {}) {
 
 async function saveLocalInterviewPrep(user, job, prep) {
   const items = readLocal(keys.interviewPrep, []);
+  const content = normalizeInterviewPrepContent(prep.content ?? prep);
   const saved = {
     id: prep.id || crypto.randomUUID(),
     user_id: user?.id ?? "local-demo-user",
     job_id: job.id,
-    content: prep.content ?? prep,
+    content,
     practiced_questions: prep.practiced_questions ?? [],
     answer_notes: prep.answer_notes ?? {},
     created_at: prep.created_at || now(),
@@ -723,7 +728,7 @@ async function saveLocalInterviewPrep(user, job, prep) {
   };
   writeLocal(keys.interviewPrep, [saved, ...items.filter((item) => item.id !== saved.id && item.job_id !== job.id)]);
   if (!prep.skipActivity) await logJobActivity(user, job.id, "interview_prep_generated", { title: getDisplayJobTitle(job), company: getDisplayCompanyName(job) });
-  return saved;
+  return normalizeInterviewPrepRecord(saved);
 }
 
 function normalizeContactPayload(user, job, contact = {}) {

@@ -16,6 +16,7 @@ import { getFollowUpStatus, normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus, isCoverLetterSkipped } from "../../lib/jobAiStatus.js";
 import { getJobMomentumValue } from "../../lib/jobMomentum.js";
+import { hasValidInterviewPrep } from "../../lib/interviewPrep.js";
 import { buildOnboardingState, getOnboardingRecruiterViewReviews } from "../../lib/onboarding.js";
 import { getMissingProfileItems, getProfileCompleteness } from "../../lib/profile.js";
 import { trackEvent, trackProductMilestone } from "../../lib/productAnalytics.js";
@@ -646,7 +647,7 @@ function getSearchProgress({ jobs = [], resumeVersions = [], interviewPrep = [] 
     applications: jobs.length,
     resumes: resumeVersions.length,
     recruiterViews: reviewedJobIds.size,
-    interviewKits: interviewPrep.filter((prep) => prep?.content && Object.keys(prep.content).length).length,
+    interviewKits: interviewPrep.filter(hasValidInterviewPrep).length,
   };
 }
 

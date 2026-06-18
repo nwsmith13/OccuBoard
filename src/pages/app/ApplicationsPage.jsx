@@ -10,6 +10,7 @@ import { formatDate, todayIso } from "../../lib/date.js";
 import { normalizeStage } from "../../lib/followUp.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "../../lib/jobDisplay.js";
 import { getJobAiStatus, isCoverLetter, isCoverLetterSkipped } from "../../lib/jobAiStatus.js";
+import { hasValidInterviewPrep } from "../../lib/interviewPrep.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { getNextBestAction } from "../../utils/nextBestAction.js";
 import { JobDetail } from "./JobsPage.jsx";
@@ -559,7 +560,7 @@ function getApplicationCardModel(job, { jobScores = [], resumeVersions = [], mes
   const coverLetterSkipped = isCoverLetterSkipped(job);
   const coverLetterResolved = hasCoverLetter || coverLetterSkipped || !asksForCoverLetter(job.job_description);
   const action = getNextBestAction(job, { score, aiStatus: status, messages, hasCoverLetter: coverLetterResolved, coverLetterSkipped });
-  const interviewPrepScore = prep?.content ? getApplicationInterviewPrepScore(prep) : null;
+  const interviewPrepScore = hasValidInterviewPrep(prep) ? getApplicationInterviewPrepScore(prep) : null;
   return {
     job,
     score,

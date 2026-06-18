@@ -1,4 +1,5 @@
 import { getResumeExportHistory } from "./resumeExport.js";
+import { hasValidInterviewPrep } from "./interviewPrep.js";
 
 export const onboardingStorageKey = "occuboard-onboarding-dismissed";
 export const onboardingTrackerDismissedKey = "occuboard-onboarding-tracker-dismissed";
@@ -197,15 +198,4 @@ function hasValidAnalysis(score) {
   const value = Number(score.score ?? score);
   if (Number.isFinite(value) && value > 0) return true;
   return Boolean(score.summary || score.recommendation || score.strengths?.length || score.gaps?.length || score.keywords?.length);
-}
-
-function hasValidInterviewPrep(prep) {
-  if (!prep) return false;
-  const content = prep.content || {};
-  return Boolean(
-    (Array.isArray(content.questions) && content.questions.length) ||
-    (Array.isArray(content.starStories) && content.starStories.length) ||
-    (Array.isArray(content.focusAreas) && content.focusAreas.length) ||
-    content.thankYouMessage,
-  );
 }
