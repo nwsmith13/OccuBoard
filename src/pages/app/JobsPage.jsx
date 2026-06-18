@@ -676,8 +676,8 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     <div className={pageMode ? "min-h-[calc(100dvh-5rem)] w-full min-w-0" : "fixed inset-0 z-50 bg-ink/35 p-0 lg:p-4"} onMouseDown={pageMode ? undefined : requestClose}>
       <section className={`${pageMode ? "min-h-[calc(100dvh-5rem)] w-full min-w-0" : "mx-auto h-[100dvh] max-w-[1600px] overflow-hidden lg:h-[calc(100dvh-2rem)] lg:w-[96vw] lg:rounded-lg"} flex flex-col bg-white shadow-soft`} onMouseDown={(event) => event.stopPropagation()}>
         <header className="shrink-0 border-b border-brand-100 bg-white/95 shadow-sm backdrop-blur">
-          <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
-            <div className="flex items-start justify-between gap-4">
+          <div className="flex w-full min-w-0 flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
+            <div className="flex min-w-0 items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3">
                 <CompanyLogo companyName={getDisplayCompanyName(job)} companyDomain={job.company_domain} companyLogoUrl={job.company_logo_url} sourceUrl={job.source_url} size="lg" className="mt-0.5" />
                 <div className="min-w-0">
@@ -686,8 +686,8 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                     <PriorityBadge priority={job.priority} />
                     <FitScoreBadge score={latestScore} />
                   </div>
-                  <h2 className="mt-2 text-lg font-bold text-ink sm:text-xl">{getDisplayJobTitle(job)}</h2>
-                  <p className="mt-0.5 text-sm font-semibold text-brand-800">{getDisplayCompanyName(job)}</p>
+                  <h2 className="mt-2 break-words text-lg font-bold text-ink [overflow-wrap:anywhere] sm:text-xl">{getDisplayJobTitle(job)}</h2>
+                  <p className="mt-0.5 break-words text-sm font-semibold text-brand-800 [overflow-wrap:anywhere]">{getDisplayCompanyName(job)}</p>
                   <RecruiterConfidenceHeroSummary score={latestScore} profile={profile} resume={latestResume} coverLetter={readinessCoverLetter} recruiterMessage={latestMessage} />
                 </div>
               </div>
@@ -786,7 +786,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 onOpenInterview={() => requestTabChange("interview")}
               />
 
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+              <div className="grid w-full min-w-0 max-w-full gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
                 <RecentActivityOverview events={timelineEvents} onViewAll={() => requestTabChange("activity")} />
                 <InterviewReadinessOverview
                   job={job}
@@ -797,21 +797,21 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 />
               </div>
 
-              <div className="grid gap-3">
+              <div className="grid w-full min-w-0 max-w-full gap-3">
                 <OverviewDisclosure
                   title="Role Snapshot"
                   summary={`${getDisplayStage(job.status)} · ${latestScore ? `${Math.round(Number(latestScore.score))}% fit` : "Fit not analyzed"} · saved ${formatDate(job.date_saved)}`}
                   open={overviewPanels.role}
                   onToggle={() => toggleOverviewPanel("role")}
                 >
-                  <div className="flex justify-end">
+                  <div className="flex min-w-0 justify-end">
                     {job.source_url && (
-                      <a className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-900" href={job.source_url} target="_blank" rel="noreferrer">
+                      <a className="inline-flex min-w-0 max-w-full items-center gap-2 break-words text-sm font-semibold text-brand-700 hover:text-brand-900 [overflow-wrap:anywhere]" href={job.source_url} target="_blank" rel="noreferrer">
                         Open source link <ExternalLink size={15} />
                       </a>
                     )}
                   </div>
-                  <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <dl className="mt-3 grid w-full min-w-0 max-w-full gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <Detail label="Location" value={`${job.location || "Not listed"} | ${job.remote_type || "Not set"}`} />
                     <Detail label="Salary" value={job.salary_range || "Not listed"} />
                     <Detail label="Date saved" value={formatDate(job.date_saved)} />
@@ -828,8 +828,8 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   open={overviewPanels.description}
                   onToggle={() => toggleOverviewPanel("description")}
                 >
-                  <div className="max-h-[420px] overflow-y-auto rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">
-                    <p className="whitespace-pre-wrap">{job.job_description || "No description saved."}</p>
+                  <div className="max-h-[420px] w-full min-w-0 max-w-full overflow-y-auto rounded-lg bg-brand-50 p-4 text-sm leading-6 text-slate-700">
+                    <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{job.job_description || "No description saved."}</p>
                   </div>
                 </OverviewDisclosure>
 
@@ -843,7 +843,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   <Button className="mt-3 min-h-8 px-3 text-xs" onClick={saveCommandNotes}>Save notes</Button>
                 </OverviewDisclosure>
 
-                <div ref={followUpSectionRef}>
+                <div ref={followUpSectionRef} className="min-w-0 max-w-full">
                   <OverviewDisclosure
                     title="Follow-Up"
                     summary={getFollowUpLabel(job) || "No follow-up scheduled."}
@@ -855,7 +855,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
+              <div className="flex w-full min-w-0 max-w-full flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
                 <StageMoveControl value={getDisplayStage(job.status)} onChange={handleMoveStage} />
                 {onEdit && <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>}
               </div>
@@ -1081,22 +1081,22 @@ function CommandTasksWorkspace({ tasks, setTasks, onAdd }) {
 
 function OverviewDisclosure({ title, summary, open, onToggle, children }) {
   return (
-    <section className="rounded-xl bg-white/90 shadow-sm ring-1 ring-brand-100">
+    <section className="w-full min-w-0 max-w-full rounded-xl bg-white/90 shadow-sm ring-1 ring-brand-100">
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-brand-50/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+        className="flex w-full min-w-0 items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-brand-50/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
         onClick={onToggle}
         aria-expanded={open}
       >
         <span className="min-w-0">
           <span className="block text-sm font-black text-ink">{title}</span>
-          <span className="mt-0.5 block truncate text-xs font-semibold text-slate-500">{summary}</span>
+          <span className="mt-0.5 block truncate break-words text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{summary}</span>
         </span>
         <span className="shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">
           {open ? "Collapse" : "Expand"}
         </span>
       </button>
-      {open && <div className="border-t border-brand-100 px-4 py-4">{children}</div>}
+      {open && <div className="w-full min-w-0 max-w-full border-t border-brand-100 px-4 py-4">{children}</div>}
     </section>
   );
 }
@@ -1110,11 +1110,11 @@ function ApplicationPackageOverview({ job, score, resume, coverLetter, coverLett
   ];
   const packageReady = assets.every((asset) => asset.ready);
   return (
-    <section className="rounded-xl bg-white/90 p-3 shadow-sm ring-1 ring-brand-100 sm:p-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <section className="w-full min-w-0 max-w-full rounded-xl bg-white/90 p-3 shadow-sm ring-1 ring-brand-100 sm:p-4">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Assets</p>
-          <h3 className="mt-1 text-lg font-bold text-ink">{isTrackedApplicationStatus(job?.status) && packageReady ? "Assets available" : getAssetProgressLabel(assets)}</h3>
+          <h3 className="mt-1 break-words text-lg font-bold text-ink">{isTrackedApplicationStatus(job?.status) && packageReady ? "Assets available" : getAssetProgressLabel(assets)}</h3>
         </div>
         {packageReady && (
           <span className="w-fit whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100">
@@ -1122,7 +1122,7 @@ function ApplicationPackageOverview({ job, score, resume, coverLetter, coverLett
           </span>
         )}
       </div>
-      <div className="mt-3 grid gap-2 md:grid-cols-2">
+      <div className="mt-3 grid w-full min-w-0 max-w-full gap-2 md:grid-cols-2">
         {assets.map((asset) => <CommandPackageRow key={asset.title} {...asset} />)}
       </div>
     </section>
@@ -1131,14 +1131,14 @@ function ApplicationPackageOverview({ job, score, resume, coverLetter, coverLett
 
 function CommandPackageRow({ title, status, actionLabel, onAction, ready }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2 rounded-lg bg-brand-50/60 px-3 py-2.5 ring-1 ring-brand-100 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-2 rounded-lg bg-brand-50/60 px-3 py-2.5 ring-1 ring-brand-100 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-center gap-3">
         <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ring-1 ${ready ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-white text-slate-400 ring-brand-100"}`}>
           {ready ? "\u2713" : "\u25CB"}
         </span>
         <div className="min-w-0">
-          <h4 className="text-sm font-bold text-ink">{title}</h4>
-          <p className={`mt-0.5 text-xs font-black ${ready ? "text-emerald-700" : "text-slate-500"}`}>{status}</p>
+          <h4 className="break-words text-sm font-bold text-ink">{title}</h4>
+          <p className={`mt-0.5 break-words text-xs font-black [overflow-wrap:anywhere] ${ready ? "text-emerald-700" : "text-slate-500"}`}>{status}</p>
         </div>
       </div>
       <button type="button" className="inline-flex w-fit max-w-full items-center rounded-md px-0.5 text-xs font-bold text-brand-700 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200" onClick={onAction}>
@@ -1151,17 +1151,17 @@ function CommandPackageRow({ title, status, actionLabel, onAction, ready }) {
 function RecentActivityOverview({ events = [], onViewAll }) {
   const recent = [...events].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
   return (
-    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+    <section className="w-full min-w-0 max-w-full rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Recent Activity</p>
-          <h3 className="mt-1 text-lg font-bold text-ink">Latest movement</h3>
+          <h3 className="mt-1 break-words text-lg font-bold text-ink">Latest movement</h3>
         </div>
         <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onViewAll}>View all activity</Button>
       </div>
-      <div className="mt-4 grid gap-2">
+      <div className="mt-4 grid w-full min-w-0 max-w-full gap-2">
         {recent.map((event) => (
-          <div key={`${event.id || event.type}-${event.created_at}`} className="flex items-start gap-3 rounded-lg bg-brand-50/70 px-3 py-2">
+          <div key={`${event.id || event.type}-${event.created_at}`} className="flex w-full min-w-0 max-w-full items-start gap-3 rounded-lg bg-brand-50/70 px-3 py-2">
             <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full ring-1 ${getActivityColor(event.type)}`}>
               {(() => {
                 const Icon = getTimelineIcon(event.type);
@@ -1169,8 +1169,8 @@ function RecentActivityOverview({ events = [], onViewAll }) {
               })()}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-ink">{formatActivityLabel(event)}</p>
-              <p className="text-xs font-semibold text-slate-500">{formatRelativeTime(event.created_at) || formatDateTime(event.created_at)}</p>
+              <p className="break-words text-sm font-bold text-ink [overflow-wrap:anywhere]">{formatActivityLabel(event)}</p>
+              <p className="break-words text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{formatRelativeTime(event.created_at) || formatDateTime(event.created_at)}</p>
             </div>
           </div>
         ))}
@@ -1195,26 +1195,26 @@ function InterviewReadinessOverview({ job, contacts, score, prep, onOpenIntervie
 
   if (!content && !isInterviewStage) {
     return (
-      <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+      <section className="w-full min-w-0 max-w-full rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Readiness</p>
-        <h3 className="mt-1 text-lg font-bold text-ink">Prep will unlock when needed</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-600">When this role moves into interview stage, the command center will surface prep actions here.</p>
+        <h3 className="mt-1 break-words text-lg font-bold text-ink">Prep will unlock when needed</h3>
+        <p className="mt-2 break-words text-sm leading-6 text-slate-600">When this role moves into interview stage, the command center will surface prep actions here.</p>
       </section>
     );
   }
 
   return (
-    <section className="rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+    <section className="w-full min-w-0 max-w-full rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100 sm:p-5">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Interview Readiness</p>
-          <h3 className="mt-1 text-lg font-bold text-ink">{readiness ? readiness.label : "Prepare for interview"}</h3>
+          <h3 className="mt-1 break-words text-lg font-bold text-ink">{readiness ? readiness.label : "Prepare for interview"}</h3>
         </div>
         {readiness && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100">{readiness.label}</span>}
       </div>
-      <div className="mt-3 grid gap-2 text-sm text-slate-600">
-        {job.interview_date && <p><span className="font-bold text-slate-800">Interview:</span> {formatDate(job.interview_date)}</p>}
-        <p><span className="font-bold text-slate-800">Status:</span> {readiness ? readiness.description : "Prep has not been generated yet."}</p>
+      <div className="mt-3 grid min-w-0 gap-2 text-sm text-slate-600">
+        {job.interview_date && <p className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-slate-800">Interview:</span> {formatDate(job.interview_date)}</p>}
+        <p className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-slate-800">Status:</span> {readiness ? readiness.description : "Prep has not been generated yet."}</p>
       </div>
       <Button className="mt-4 min-h-8 px-3 text-xs" variant={readiness ? "secondary" : "primary"} onClick={onOpenInterview}>
         Open Interview Prep
@@ -1250,8 +1250,8 @@ function NextBestActionCard({ action, onAction, onExport, onMarkApplied, onSkipC
   const shellTone = getNextBestActionShellTone(action.tone, action.actionType);
 
   return (
-    <section className={`rounded-xl border-l-4 p-4 shadow-card ring-1 ${shellTone.shell}`}>
-      <div className="flex items-start gap-3">
+    <section className={`w-full min-w-0 max-w-full rounded-xl border-l-4 p-4 shadow-card ring-1 ${shellTone.shell}`}>
+      <div className="flex min-w-0 items-start gap-3">
         <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 ${shellTone.icon}`}>
           <Icon size={17} aria-hidden="true" />
         </span>
@@ -1260,8 +1260,8 @@ function NextBestActionCard({ action, onAction, onExport, onMarkApplied, onSkipC
             <p className={`text-xs font-black uppercase tracking-[0.14em] ${shellTone.label}`}>Next Best Action</p>
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ring-1 ${shellTone.badge}`}>Priority {action.priority}</span>
           </div>
-          <h3 className="mt-1 text-lg font-black text-ink">{isReadyToApply ? "Ready to apply" : action.label}</h3>
-          <p className="mt-1 text-sm leading-5 text-slate-600">
+          <h3 className="mt-1 break-words text-lg font-black text-ink [overflow-wrap:anywhere]">{isReadyToApply ? "Ready to apply" : action.label}</h3>
+          <p className="mt-1 break-words text-sm leading-5 text-slate-600 [overflow-wrap:anywhere]">
             {isReadyToApply ? "Everything needed for submission is complete. Export your package or mark this role as applied after submission." : action.description}
           </p>
           {isReadyToApply ? (
@@ -1894,45 +1894,45 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
   }
 
   return (
-    <div className="mt-3 rounded-lg bg-brand-50/70 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="font-bold">Next follow-up</h3>
-          <p className="mt-1 text-sm text-slate-600">{label || "Add a follow-up date so this role comes back to your attention."}</p>
+    <div className="mt-3 w-full min-w-0 max-w-full rounded-lg bg-brand-50/70 p-4">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="break-words font-bold">Next follow-up</h3>
+          <p className="mt-1 break-words text-sm text-slate-600 [overflow-wrap:anywhere]">{label || "Add a follow-up date so this role comes back to your attention."}</p>
         </div>
         {label && <span className={`rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${getFollowUpTone(status)}`}>{label}</span>}
       </div>
 
-      <div className="mt-4 grid gap-3">
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
-          <label className="grid gap-1 text-sm font-semibold text-ink">
+      <div className="mt-4 grid w-full min-w-0 max-w-full gap-3">
+        <div className="grid w-full min-w-0 max-w-full gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
+          <label className="grid min-w-0 gap-1 text-sm font-semibold text-ink">
             Follow-up date
             <input
               ref={followUpDateRef}
               type="date"
               value={date || ""}
               onChange={(event) => setDate(event.target.value)}
-              className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+              className="min-w-0 rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
             />
           </label>
-          <label className="grid gap-1 text-sm font-semibold text-ink">
+          <label className="grid min-w-0 gap-1 text-sm font-semibold text-ink">
             Reminder time
             <input
               type="time"
               value={followUpTime}
               onChange={(event) => setFollowUpTime(event.target.value || "09:00")}
-              className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+              className="min-w-0 rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
             />
           </label>
         </div>
-        <label className="grid gap-1 text-sm font-semibold text-ink">
+        <label className="grid min-w-0 gap-1 text-sm font-semibold text-ink">
           Follow-up note
           <textarea
             rows="2"
             value={note || ""}
             onChange={(event) => setNote(event.target.value)}
             placeholder="Add a short reminder for future you."
-            className="rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm leading-6 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+            className="min-w-0 rounded-lg border border-brand-100 bg-white px-3 py-2 text-sm leading-6 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
           />
         </label>
         {hasUnsavedFollowUp && <p className="-mt-1 text-xs font-semibold text-amber-700">Unsaved changes</p>}
@@ -1951,7 +1951,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
       </div>
       {showFollowUpSlowHint && <p className="mt-3 rounded-lg bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800">This can take a moment.</p>}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
         <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Snooze</span>
         <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => snooze(addDaysIso(1))}>Tomorrow</Button>
         <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => snooze(addDaysIso(3))}>3 days</Button>
@@ -1964,7 +1964,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
             snooze(event.target.value);
           }}
           aria-label="Custom snooze date"
-          className="min-h-8 rounded-lg border border-brand-100 bg-white px-2 text-xs outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+          className="min-h-8 min-w-0 rounded-lg border border-brand-100 bg-white px-2 text-xs outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
         />
       </div>
       <div className="mt-4">
@@ -1973,12 +1973,12 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
         </Button>
         {!date && <p className="mt-2 text-xs font-semibold text-slate-500">Set a date first to create a calendar reminder.</p>}
         {calendarOpen && date && (
-          <div className="mt-3 rounded-lg bg-white/75 p-3 ring-1 ring-brand-100">
-            <p className="text-xs text-slate-500">Create a 15-minute reminder from this follow-up date.</p>
+          <div className="mt-3 w-full min-w-0 max-w-full rounded-lg bg-white/75 p-3 ring-1 ring-brand-100">
+            <p className="break-words text-xs text-slate-500">Create a 15-minute reminder from this follow-up date.</p>
             <div className="mt-3 flex flex-wrap gap-2">
             {googleCalendarUrl ? (
               <a
-                className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                className="inline-flex min-h-8 max-w-full items-center justify-center gap-2 break-words rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 [overflow-wrap:anywhere]"
                 href={googleCalendarUrl}
                 target="_blank"
                 rel="noreferrer"
@@ -1991,7 +1991,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
             )}
             {outlookCalendarUrl && (
               <a
-                className="inline-flex min-h-8 items-center justify-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+                className="inline-flex min-h-8 max-w-full items-center justify-center gap-2 break-words rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 hover:ring-brand-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 [overflow-wrap:anywhere]"
                 href={outlookCalendarUrl}
                 target="_blank"
                 rel="noreferrer"
@@ -2008,13 +2008,13 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
         )}
       </div>
       {snoozedUntil && <p className="mt-2 text-xs font-semibold text-slate-500">Currently snoozed until {formatDate(snoozedUntil)}.</p>}
-      {messageError && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{messageError}</p>}
+      {messageError && <p className="mt-3 break-words rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 [overflow-wrap:anywhere]">{messageError}</p>}
       {latestFollowUpMessage && (
-        <div className="mt-3 rounded-lg bg-white/85 p-3 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-bold text-ink">Latest follow-up message</p>
+        <div className="mt-3 w-full min-w-0 max-w-full rounded-lg bg-white/85 p-3 text-sm leading-6 text-slate-700 ring-1 ring-brand-100">
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <p className="break-words font-bold text-ink">Latest follow-up message</p>
           </div>
-          <p className="mt-2 whitespace-pre-wrap">{latestFollowUpMessage.content}</p>
+          <p className="mt-2 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{latestFollowUpMessage.content}</p>
           <div className="mt-3 flex flex-wrap gap-2 border-t border-brand-100 pt-3">
             <Button className="min-h-8 min-w-[72px] shrink-0 whitespace-nowrap px-3 text-xs" onClick={copyFollowUpMessage}>
               <Clipboard size={14} className="shrink-0" aria-hidden="true" />
@@ -2024,7 +2024,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
             <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => setNextFollowUp(7)}>Set next follow-up</Button>
           </div>
           {nextFollowUpOpen && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50/80 px-3 py-2">
+            <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 rounded-lg bg-brand-50/80 px-3 py-2">
               <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Next reminder</span>
               <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => setNextFollowUp(3)}>3 days</Button>
               <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => setNextFollowUp(7)}>1 week</Button>
@@ -2033,7 +2033,7 @@ function FollowUpControls({ job, user, profile, messages, contacts = [], updateJ
           )}
         </div>
       )}
-      {message && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{message}</p>}
+      {message && <p className="mt-3 break-words rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 [overflow-wrap:anywhere]">{message}</p>}
     </div>
   );
 }
@@ -5474,9 +5474,9 @@ function FollowUpBadge({ date }) {
 
 function Detail({ label, value }) {
   return (
-    <div className="rounded-lg bg-brand-50 p-3">
-      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-brand-500">{label}</dt>
-      <dd className="mt-1 font-semibold">{value}</dd>
+    <div className="min-w-0 rounded-lg bg-brand-50 p-3">
+      <dt className="break-words text-xs font-semibold uppercase tracking-[0.12em] text-brand-500 [overflow-wrap:anywhere]">{label}</dt>
+      <dd className="mt-1 break-words font-semibold [overflow-wrap:anywhere]">{value}</dd>
     </div>
   );
 }
