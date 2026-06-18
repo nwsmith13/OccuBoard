@@ -130,12 +130,12 @@ export function LandingPage() {
 
       <main>
         <section id="hero" className="border-y border-brand-100 bg-gradient-to-b from-brand-50 to-white">
-          <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-8 overflow-hidden px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-center lg:gap-7 lg:py-8 2xl:gap-10 2xl:py-20">
+          <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-8 overflow-hidden px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-center lg:gap-7 lg:py-6 2xl:gap-10 2xl:py-20">
             <div className="min-w-0">
               <p className="mb-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-brand-700 shadow-card lg:mb-3 lg:py-1.5 2xl:mb-4 2xl:py-2">
                 AI-powered job application copilot
               </p>
-              <h1 className="max-w-3xl text-4xl font-bold tracking-normal text-ink sm:text-5xl lg:text-[3.05rem] lg:leading-[1.03] 2xl:text-6xl">
+              <h1 className="max-w-3xl text-4xl font-bold tracking-normal text-ink sm:text-5xl lg:text-[2.85rem] lg:leading-[1.04] 2xl:text-6xl">
                 Understand the role. Strengthen your application. Apply with confidence.
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600 lg:mt-3 lg:text-base lg:leading-7 2xl:mt-6 2xl:text-lg 2xl:leading-8">
@@ -144,11 +144,11 @@ export function LandingPage() {
               <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-brand-800 lg:mt-3">
                 No invented experience. No generic keyword stuffing. Just clearer positioning grounded in what you have actually done.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3 lg:mt-5 2xl:mt-8">
+              <div className="mt-8 flex flex-wrap gap-3 lg:mt-4 2xl:mt-8">
                 <Link to="/signup"><Button>Analyze Your First Job <ArrowRight size={18} /></Button></Link>
                 <a href="#how-it-works"><Button variant="secondary">See How It Works</Button></a>
               </div>
-              <div className="mt-6 flex max-w-3xl flex-wrap gap-2 lg:mt-4">
+              <div className="mt-6 flex max-w-3xl flex-wrap gap-2 lg:mt-3">
                 {["Recruiter Confidence Analysis", "Hiring Consideration Detection", "Truthful Recovery Strategy", "Interview Preparation", "Application Tracking"].map((item) => (
                   <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-brand-800 shadow-sm ring-1 ring-brand-100">
                     <CheckCircle2 size={13} className="text-emerald-600" />
@@ -162,8 +162,8 @@ export function LandingPage() {
         </section>
 
         <section id="know-before-you-apply" className="scroll-mt-28 bg-white">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-12 2xl:py-14">
-            <div className="mb-8 max-w-3xl">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-10 2xl:py-14">
+            <div className="mb-6 max-w-3xl 2xl:mb-8">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Know Before You Apply</p>
               <h2 className="mt-2 text-3xl font-bold">See what recruiters may notice before you apply.</h2>
               <p className="mt-3 leading-7 text-slate-600">
@@ -510,21 +510,21 @@ function HeroPreviewPanel({ activeTab }) {
 function RecruiterViewPreview() {
   return (
     <ProductFrame label="Recruiter Perspective" title="Hiring-team perspective" icon={<Users size={21} />}>
-      <div className="rounded-lg bg-brand-50 p-4 ring-2 ring-brand-100 shadow-card">
+      <div className="rounded-lg bg-brand-50 p-3 ring-2 ring-brand-100 shadow-card 2xl:p-4">
         <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-700">Recruiter Confidence</p>
-        <p className="mt-1 text-5xl font-black text-brand-900">85%</p>
-        <p className="mt-2 text-xs leading-5 text-brand-800">Likelihood the application is positioned strongly enough to move forward.</p>
+        <p className="mt-1 text-4xl font-black text-brand-900 2xl:text-5xl">85%</p>
+        <p className="mt-1.5 text-xs leading-5 text-brand-800 2xl:mt-2">Likelihood the application is positioned strongly enough to move forward.</p>
       </div>
-      <div className="mt-3 rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
+      <div className="mt-2.5 rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100 2xl:mt-3 2xl:p-4">
         <p className="text-xs font-black uppercase tracking-[0.1em] text-emerald-700">Recommended Action</p>
-        <p className="mt-1 text-lg font-black text-emerald-900">Apply after quick review</p>
-        <p className="mt-2 text-xs leading-5 text-emerald-800">Competitive application with one positioning note to review before submitting.</p>
+        <p className="mt-1 text-base font-black text-emerald-900 2xl:text-lg">Apply after quick review</p>
+        <p className="mt-1.5 text-xs leading-5 text-emerald-800 2xl:mt-2">Competitive application with one positioning note to review before submitting.</p>
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2 2xl:mt-3 2xl:gap-3">
         <PreviewMetric label="Competitive Match" value="82%" tone="emerald" />
         <InsightRow label="Strongest Hiring Signal" value="Customer onboarding and product adoption experience" tone="green" />
       </div>
-      <div className="mt-3 grid gap-3">
+      <div className="mt-2.5 grid gap-2.5 2xl:mt-3 2xl:gap-3">
         <InsightRow label="Primary Concern" value="Limited direct healthcare experience" tone="amber" />
         <InsightRow label="What recruiters may notice first" value="Customer-facing ownership, stakeholder communication, and retention improvement." tone="blue" />
       </div>
