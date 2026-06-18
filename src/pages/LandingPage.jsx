@@ -41,77 +41,76 @@ const workflowSteps = [
 ];
 
 const heroTabs = [
-  { id: "recruiter", label: "Recruiter View", icon: Users },
-  { id: "fit", label: "Fit Analysis", icon: Target },
+  { id: "recruiter", label: "Recruiter Perspective", icon: Users },
+  { id: "resume", label: "Resume Optimization", icon: FileText },
   { id: "recovery", label: "Recovery Strategy", icon: ShieldCheck },
-  { id: "interview", label: "Interview Prep", icon: MessageCircleQuestion },
+  { id: "interview", label: "Interview Preparation", icon: MessageCircleQuestion },
+  { id: "package", label: "Application Package", icon: FileCheck2 },
 ];
 
 const productTourSteps = [
   {
-    label: "Recruiter View",
+    label: "Recruiter Perspective",
     icon: Users,
-    title: "See how the application may be received.",
-    description: "Recruiter Confidence, likely first impressions, strongest signal, and primary concern sit together so the next decision feels clear.",
+    title: "See how recruiters may read the application.",
+    description: "OccuBoard surfaces recruiter confidence, likely first impressions, strongest signal, and primary concern before the user applies.",
     rows: [
       ["Recruiter Confidence", "85%"],
-      ["Strongest Hiring Signal", "SaaS implementation ownership"],
-      ["Primary Concern", "Direct industry experience"],
+      ["Strongest Hiring Signal", "Customer onboarding and product adoption experience"],
+      ["Primary Concern", "Limited direct healthcare experience"],
+      ["Recommended Action", "Apply after quick review"],
+    ],
+  },
+  {
+    label: "Resume Optimization",
+    icon: FileText,
+    title: "See what changed in the resume.",
+    description: "OccuBoard strengthens supported experience instead of copying keywords or inventing industry background.",
+    rows: [
+      ["Before", "Managed customer onboarding."],
+      ["After", "Led customer onboarding, stakeholder communication, and adoption follow-through to improve product engagement and retention."],
+      ["What changed", "Added ownership, communication, adoption, and retention framing."],
+      ["Why it changed", "The job values customer outcomes, cross-functional communication, and product adoption."],
+      ["Truthful positioning note", "No invented healthcare experience or fabricated certifications."],
     ],
   },
   {
     label: "Recovery Strategy",
     icon: ShieldCheck,
     title: "Recover concerns without inventing experience.",
-    description: "OccuBoard shows how to position adjacent experience clearly and truthfully.",
+    description: "OccuBoard strengthens transferable positioning across resume, outreach, and interview talking points.",
     rows: [
-      ["Concern", "Direct industry experience"],
-      ["Recovery Strength", "Strong recovery"],
-      ["Considerations Addressed", "3/4"],
+      ["Concern", "Limited direct healthcare experience"],
+      ["Recovery Strength", "Strong Recovery"],
+      ["What OccuBoard Changed", "Strengthened customer success, adoption, and stakeholder communication evidence."],
+      ["Considerations Addressed", "3 of 4"],
     ],
   },
   {
-    label: "Coverage Matrix",
-    icon: CheckCircle2,
-    title: "See where each concern is addressed.",
-    description: "Track coverage across resume, recruiter outreach, cover letter, and interview preparation.",
-    rows: [
-      ["Resume Coverage", "100%"],
-      ["Recruiter Message Coverage", "75%"],
-      ["Considerations Covered", "4/4"],
-    ],
-  },
-  {
-    label: "Resume Optimization",
-    icon: FileText,
-    title: "Generate materials from the strategy.",
-    description: "The tailored resume strengthens positioning while preserving the user's actual experience.",
-    rows: [
-      ["Initial Fit", "82%"],
-      ["Optimized Estimate", "88%"],
-      ["Improvement", "+6"],
-    ],
-  },
-  {
-    label: "Recruiter Message",
-    icon: Mail,
-    title: "Send concise, role-aware outreach.",
-    description: "Messages stay conversational, specific, and honest about transferable fit.",
-    rows: [
-      ["Tone", "Conversational"],
-      ["Length", "Concise"],
-      ["CTA", "Soft follow-up"],
-    ],
-  },
-  {
-    label: "Interview Prep",
+    label: "Interview Preparation",
     icon: MessageCircleQuestion,
-    title: "Prepare after applying.",
-    description: "Likely questions, STAR stories, talking points, and concern responses are ready when the process moves forward.",
+    title: "Turn likely questions into coaching.",
+    description: "OccuBoard prepares question context, evaluation criteria, answer direction, and related stories.",
     rows: [
-      ["Likely Questions", "Prepared"],
-      ["STAR Stories", "3 ready"],
-      ["Concern Responses", "Generated"],
+      ["Likely Question", "Tell me about a time you improved customer adoption of a product or process."],
+      ["Why They Ask It", "They want to understand ownership, communication, and follow-through."],
+      ["What They Evaluate", "Customer judgment, stakeholder communication, and measurable impact."],
+      ["Suggested Direction", "Use a customer onboarding or retention story with the challenge, coordination, and outcome."],
+      ["Related Story", "Improving customer retention through proactive account management."],
+      ["STAR Stories Ready", "3"],
+    ],
+  },
+  {
+    label: "Application Package",
+    icon: FileCheck2,
+    title: "Finish with a focused application package.",
+    description: "The user gets the materials and tracking context needed to apply, then prepare for interviews.",
+    rows: [
+      ["Resume", "Optimized"],
+      ["Recruiter Message", "Generated"],
+      ["Cover Letter", "Optional"],
+      ["Interview Preparation", "Ready"],
+      ["Application Tracking", "Ready"],
     ],
   },
 ];
@@ -176,8 +175,8 @@ export function LandingPage() {
               title="Understand recruiter perception before you submit."
               description="See the strongest hiring signal, the primary concern, recruiter confidence, and the recommended action in one focused view."
               highlights={[
-                ["Strongest Hiring Signal", "SaaS implementation ownership"],
-                ["Primary Concern", "Direct industry experience"],
+                ["Strongest Hiring Signal", "Customer onboarding and product adoption experience"],
+                ["Primary Concern", "Limited direct healthcare experience"],
                 ["Recruiter Confidence", "85%"],
                 ["Recommended Action", "Apply after quick review"],
               ]}
@@ -196,8 +195,8 @@ export function LandingPage() {
               highlights={[
                 ["Recovery Strength", "Strong recovery"],
                 ["Considerations Addressed", "3 of 4"],
-                ["Recovery Status", "Direct industry experience partially recovered"],
-                ["Recovery Explanation", "Position adjacent SaaS, ERP, and workflow systems experience without overstating domain expertise."],
+                ["Recovery Status", "Limited healthcare experience recovered with adjacent evidence"],
+                ["Recovery Explanation", "OccuBoard strengthened customer onboarding, adoption, and stakeholder communication without overstating healthcare expertise."],
               ]}
             />
           </div>
@@ -382,23 +381,32 @@ function IntelligencePreview() {
 }
 
 function HeroPreviewPanel({ activeTab }) {
-  if (activeTab === "fit") {
+  if (activeTab === "resume") {
     return (
       <div className="mt-4 grid gap-3">
-        <div className="grid gap-3 sm:grid-cols-[0.9fr_1.1fr]">
-          <PreviewMetric label="Competitive Match" value="82%" tone="emerald" />
+        <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr]">
+          <PreviewMetric label="Resume Optimized" value="+6" tone="emerald" />
           <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
-            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">Recommendation</p>
-            <p className="mt-1 text-lg font-black text-ink">Worth pursuing</p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">Good alignment with one clear positioning note.</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">Strengthened</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {["Customer onboarding ownership", "Stakeholder communication", "Product adoption outcomes", "Process improvement language"].map((item) => (
+                <span key={item} className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">{item}</span>
+              ))}
+            </div>
           </div>
         </div>
-        <PreviewPanelRows rows={[
-          ["Strengths", "Implementation ownership"],
-          ["Strengths", "Customer onboarding"],
-          ["Strengths", "Workflow optimization"],
-          ["Considerations", "Direct industry experience"],
-        ]} />
+        <div className="grid gap-3">
+          <PreviewDetail label="Before" value="Managed customer onboarding." />
+          <PreviewDetail
+            label="After"
+            value="Led customer onboarding, stakeholder communication, and adoption follow-through to improve product engagement and retention."
+            tone="green"
+          />
+        </div>
+        <div className="rounded-lg bg-brand-50 p-3 ring-1 ring-brand-100">
+          <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-700">Truthful positioning note</p>
+          <p className="mt-1 text-sm font-bold leading-6 text-brand-900">No invented healthcare experience. No fabricated certifications. No generic keyword stuffing.</p>
+        </div>
       </div>
     );
   }
@@ -407,21 +415,25 @@ function HeroPreviewPanel({ activeTab }) {
     return (
       <div className="mt-4 grid gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
-          <InsightRow label="Concern" value="Direct industry experience" tone="amber" />
+          <InsightRow label="Concern" value="Limited direct healthcare experience" tone="amber" />
           <PreviewMetric label="Recovery Strength" value="Strong" tone="emerald" />
         </div>
         <div className="rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
-          <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">Recovery Strategy</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">What OccuBoard Changed</p>
           <p className="mt-1 text-sm font-bold leading-6 text-emerald-900">
-            Position adjacent SaaS, ERP, and workflow systems experience without overstating domain expertise.
+            Strengthened transferable customer success and adoption experience across the resume, recruiter outreach, and interview talking points.
           </p>
         </div>
         <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
           <div className="mb-2 flex items-center justify-between gap-3">
             <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-600">Considerations Addressed</p>
-            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-black text-brand-700">3/4</span>
+            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-black text-brand-700">3 of 4</span>
           </div>
           <RecoveryBar percent={75} label="Recovery coverage" />
+        </div>
+        <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
+          <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-500">Truthfulness reminder</p>
+          <p className="mt-1 text-sm font-bold text-slate-800">Recovered with supported experience, not invented claims.</p>
         </div>
       </div>
     );
@@ -431,30 +443,42 @@ function HeroPreviewPanel({ activeTab }) {
     return (
       <div className="mt-4 grid gap-3">
         <div className="rounded-lg bg-brand-50 p-4 ring-1 ring-brand-100">
-          <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-700">Likely Questions</p>
-          <div className="mt-3 grid gap-2">
-            {[
-              "Tell me about an implementation project that required stakeholder alignment.",
-              "How do you manage rollout readiness?",
-              "Describe a time you improved adoption of a new process.",
-            ].map((question) => (
-              <div key={question} className="rounded-lg bg-white p-3 text-sm font-semibold leading-5 text-ink ring-1 ring-brand-100">
-                {question}
-              </div>
-            ))}
-          </div>
+          <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-700">Likely Question</p>
+          <p className="mt-1 text-lg font-black leading-6 text-brand-950">Tell me about a time you improved customer adoption of a product or process.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <InsightRow label="Why They Ask It" value="They want to understand ownership, communication, and follow-through." tone="blue" />
+          <InsightRow label="What They Are Evaluating" value="Customer judgment, stakeholder communication, and measurable impact." tone="green" />
         </div>
         <div className="grid gap-3 sm:grid-cols-[1.3fr_0.7fr]">
-          <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
-            <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">Talking Points</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {["Customer-facing implementations", "ERP coordination", "Workflow improvement"].map((point) => (
-                <span key={point} className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-800 ring-1 ring-brand-100">{point}</span>
-              ))}
-            </div>
-          </div>
+          <PreviewDetail
+            label="Suggested Answer Direction"
+            value="Use a customer onboarding or retention story. Explain the challenge, what you changed, who you coordinated with, and the outcome."
+            tone="green"
+          />
           <PreviewMetric label="STAR Stories Ready" value="3" tone="emerald" />
         </div>
+        <PreviewDetail label="Related Story" value="Improving customer retention through proactive account management." />
+      </div>
+    );
+  }
+
+  if (activeTab === "package") {
+    return (
+      <div className="mt-4 grid gap-3">
+        <div className="rounded-lg bg-emerald-50 p-4 ring-1 ring-emerald-100">
+          <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">Application Package Ready</p>
+          <p className="mt-1 text-xl font-black text-emerald-950">Ready to apply with a focused package.</p>
+          <p className="mt-2 text-sm font-semibold leading-6 text-emerald-800">Recommended next step: Apply, then prepare for interviews.</p>
+        </div>
+        <PreviewPanelRows rows={[
+          ["Resume", "Optimized"],
+          ["Recruiter Message", "Generated"],
+          ["Cover Letter", "Optional"],
+          ["Interview Preparation", "Ready"],
+          ["Application Tracking", "Ready"],
+        ]} />
+        <PreviewMetric label="Recruiter Confidence" value="85%" tone="brand" />
       </div>
     );
   }
@@ -468,15 +492,15 @@ function HeroPreviewPanel({ activeTab }) {
           <p className="mt-2 text-xs leading-5 text-brand-800">Likelihood this application is positioned strongly enough to move forward.</p>
         </div>
         <div className="grid gap-3">
-          <InsightRow label="Strongest Hiring Signal" value="SaaS Implementation Ownership" tone="green" />
-          <InsightRow label="Primary Concern" value="Direct Industry Experience" tone="amber" />
+          <InsightRow label="Strongest Hiring Signal" value="Customer onboarding and product adoption experience" tone="green" />
+          <InsightRow label="Primary Concern" value="Limited direct healthcare experience" tone="amber" />
           <InsightRow label="Recommended Action" value="Apply After Quick Review" tone="blue" />
         </div>
       </div>
       <div className="rounded-lg bg-white p-3 ring-1 ring-brand-100">
         <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">Recruiters May Notice First</p>
         <div className="mt-2 grid gap-2">
-          {["Customer-facing implementation ownership", "Systems coordination experience", "Stakeholder communication"].map((item) => (
+          {["Customer-facing ownership", "Stakeholder communication", "Retention improvement"].map((item) => (
             <div key={item} className="flex gap-2 rounded-lg bg-slate-50 p-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-100">
               <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={15} />
               {item}
@@ -490,7 +514,7 @@ function HeroPreviewPanel({ activeTab }) {
 
 function RecruiterViewPreview() {
   return (
-    <ProductFrame label="Recruiter View" title="Hiring-team perspective" icon={<Users size={21} />}>
+    <ProductFrame label="Recruiter Perspective" title="Hiring-team perspective" icon={<Users size={21} />}>
       <div className="rounded-lg bg-brand-50 p-4 ring-2 ring-brand-100 shadow-card">
         <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-700">Recruiter Confidence</p>
         <p className="mt-1 text-5xl font-black text-brand-900">85%</p>
@@ -503,11 +527,11 @@ function RecruiterViewPreview() {
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <PreviewMetric label="Competitive Match" value="82%" tone="emerald" />
-        <InsightRow label="Strongest Hiring Signal" value="SaaS implementation ownership" tone="green" />
+        <InsightRow label="Strongest Hiring Signal" value="Customer onboarding and product adoption experience" tone="green" />
       </div>
       <div className="mt-3 grid gap-3">
-        <InsightRow label="Primary Concern" value="Direct industry experience" tone="amber" />
-        <InsightRow label="What recruiters may notice first" value="Operational systems background and customer-facing implementation work." tone="blue" />
+        <InsightRow label="Primary Concern" value="Limited direct healthcare experience" tone="amber" />
+        <InsightRow label="What recruiters may notice first" value="Customer-facing ownership, stakeholder communication, and retention improvement." tone="blue" />
       </div>
     </ProductFrame>
   );
@@ -518,28 +542,28 @@ function RecoveryPreview() {
     <ProductFrame label="Recovery" title="Hiring consideration recovery" icon={<ShieldCheck size={21} />}>
       <div className="rounded-lg bg-amber-50 p-3 ring-1 ring-amber-100">
         <p className="text-[11px] font-black uppercase tracking-[0.1em] text-amber-700">Concern</p>
-        <p className="mt-1 text-sm font-bold text-amber-900">Direct industry experience</p>
+        <p className="mt-1 text-sm font-bold text-amber-900">Limited direct healthcare experience</p>
       </div>
       <div className="mt-3 rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-100">
         <p className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-700">Recovery</p>
-        <p className="mt-1 text-sm font-bold leading-6 text-emerald-900">Position adjacent SaaS, ERP, and workflow systems experience without overstating domain expertise.</p>
+        <p className="mt-1 text-sm font-bold leading-6 text-emerald-900">OccuBoard strengthened adjacent customer onboarding, product adoption, and stakeholder communication experience without overstating healthcare expertise.</p>
       </div>
       <div className="mt-3 rounded-lg bg-white p-3 ring-1 ring-brand-100">
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="text-xs font-black uppercase tracking-[0.1em] text-brand-600">Highest Impact Recovery</p>
           <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Fully addressed</span>
         </div>
-        <p className="font-bold text-ink">Strengthened implementation and workflow positioning</p>
+        <p className="font-bold text-ink">Strengthened customer success and adoption positioning</p>
         <RecoveryBar percent={100} label="Recovery Strength" />
       </div>
       <div className="mt-3 grid gap-3">
-        <RecoveryRow concern="Direct industry experience" status="Partial recovery" percent={45} tone="amber" />
-        <RecoveryRow concern="Rollout validation language" status="Strong recovery" percent={78} tone="green" />
-        <RecoveryRow concern="Systems adaptability" status="Fully addressed" percent={100} tone="green" />
+        <RecoveryRow concern="Healthcare experience" status="Partial recovery" percent={45} tone="amber" />
+        <RecoveryRow concern="Enterprise account ownership" status="Strong recovery" percent={78} tone="green" />
+        <RecoveryRow concern="Product adoption outcomes" status="Fully addressed" percent={100} tone="green" />
       </div>
       <div className="mt-3 rounded-lg bg-brand-50 p-3 ring-1 ring-brand-100">
         <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-700">Recovery Explanation</p>
-        <p className="mt-1 text-sm leading-6 text-brand-900">Position adjacent SaaS, ERP, and workflow systems experience without claiming direct industry ownership.</p>
+        <p className="mt-1 text-sm leading-6 text-brand-900">Recovered with supported customer success experience, not invented healthcare claims.</p>
       </div>
     </ProductFrame>
   );
@@ -547,10 +571,10 @@ function RecoveryPreview() {
 
 function CoveragePreview() {
   const rows = [
-    ["SaaS implementation", "Covered", "Covered", "Covered", "Covered"],
-    ["Industry experience", "Covered", "Partial", "Partial", "Covered"],
-    ["Rollout validation", "Covered", "Covered", "Missing", "Covered"],
-    ["Hands-on framing", "Covered", "Covered", "Covered", "Covered"],
+    ["Customer onboarding", "Covered", "Covered", "Covered", "Covered"],
+    ["Healthcare experience", "Covered", "Partial", "Partial", "Covered"],
+    ["Enterprise accounts", "Covered", "Covered", "Missing", "Covered"],
+    ["Retention improvement", "Covered", "Covered", "Covered", "Covered"],
   ];
 
   return (
@@ -583,7 +607,7 @@ function MaterialsPreview() {
   return (
     <ProductFrame label="Generated Materials" title="Analysis-backed application package" icon={<FileText size={21} />}>
       <div className="flex flex-wrap gap-2">
-        {["Resume", "Recruiter Message", "Cover Letter", "Interview Prep"].map((tab, index) => (
+        {["Resume", "Recruiter Message", "Cover Letter", "Interview Preparation"].map((tab, index) => (
           <span key={tab} className={`rounded-full px-3 py-1.5 text-xs font-bold ring-1 ${index === 0 ? "bg-brand-700 text-white ring-brand-700" : "bg-white text-brand-800 ring-brand-100"}`}>
             {tab}
           </span>
@@ -592,20 +616,20 @@ function MaterialsPreview() {
       <div className="mt-4 rounded-lg border border-brand-100 bg-white p-4 shadow-card">
         <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-lg font-black text-ink">Systems Implementation Specialist</p>
+            <p className="text-lg font-black text-ink">Customer Success Manager</p>
             <p className="text-sm text-slate-500">Tailored resume preview</p>
           </div>
           <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Optimized +6</span>
         </div>
         <div className="mt-4 grid gap-3">
-          <MaterialLine text="Coordinated SaaS onboarding, workflow alignment, and implementation follow-through across customer-facing teams." />
-          <MaterialLine text="Strengthened intake, issue tracking, documentation, and rollout-readiness language using supported project experience." />
-          <MaterialLine text="Positioned adjacent ERP, CRM, Jira, and Asana experience as evidence of quick platform adoption." />
+          <MaterialLine text="Led customer onboarding, stakeholder communication, and adoption follow-through across customer-facing accounts." />
+          <MaterialLine text="Strengthened retention improvement, process documentation, and product engagement language using supported experience." />
+          <MaterialLine text="Positioned CRM, account coordination, and process improvement experience as evidence of customer success readiness." />
         </div>
       </div>
       <div className="mt-3 rounded-lg bg-brand-50 p-3 ring-1 ring-brand-100">
         <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-700">Strengthened from analysis</p>
-        <p className="mt-1 text-sm font-bold text-brand-900">Added rollout validation framing and operational support alignment.</p>
+        <p className="mt-1 text-sm font-bold text-brand-900">Added adoption, retention, and stakeholder communication framing from the analysis.</p>
       </div>
     </ProductFrame>
   );
