@@ -43,7 +43,7 @@ export async function exportInterviewCheatSheetPdf({ profile, job, score, conten
   renderer.section("Questions To Ask");
   renderer.bullets(questionsToAsk.slice(0, 6));
   renderer.section("Research Notes");
-  renderer.cards(focusAreas.slice(0, 5).map(formatFocusAreaCard));
+  renderer.bullets(formatFocusAreaBullets(focusAreas.slice(0, 5)));
   renderer.section("Follow-Up Reminders");
   renderer.bullets(buildFollowUpReminders({ job, interviewDetails, concerns }));
   doc.save(fileName);
@@ -84,7 +84,7 @@ export async function exportInterviewPrepPacketPdf({ profile, job, score, conten
   renderer.section("Questions To Ask");
   renderer.bullets(questionsToAsk);
   renderer.section("Research Notes");
-  renderer.cards(focusAreas.map(formatFocusAreaCard));
+  renderer.bullets(formatFocusAreaBullets(focusAreas));
   renderer.section("Follow-Up Reminders");
   renderer.bullets(buildFollowUpReminders({ job, interviewDetails, concerns }));
   doc.save(fileName);
@@ -140,7 +140,7 @@ export async function exportResearchNotesPdf({ profile, job, focusAreas = [], qu
   const renderer = createPdfRenderer(doc, { accentColor });
   renderer.title("Research Notes", `${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
   renderer.section("Company and Role Notes");
-  renderer.cards(focusAreas.map(formatFocusAreaCard));
+  renderer.bullets(formatFocusAreaBullets(focusAreas));
   renderer.section("Questions To Ask");
   renderer.bullets(questionsToAsk);
   doc.save(fileName);
@@ -149,7 +149,7 @@ export async function exportResearchNotesPdf({ profile, job, focusAreas = [], qu
 
 function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
   const page = { width: doc.internal.pageSize.getWidth(), height: doc.internal.pageSize.getHeight() };
-  const margin = 62;
+  const margin = 64;
   const maxWidth = page.width - margin * 2;
   let y = margin;
 
@@ -159,7 +159,7 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
     y = margin;
   };
 
-  const writeLines = (lines, { x = margin, font = "normal", size = 10.5, leading = 15, color = [23, 32, 51] } = {}) => {
+  const writeLines = (lines, { x = margin, font = "normal", size = 10.5, leading = 16, color = [23, 32, 51] } = {}) => {
     doc.setFont("helvetica", font);
     doc.setFontSize(size);
     doc.setTextColor(...color);
@@ -190,7 +190,7 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
       doc.setDrawColor(...accent);
       doc.setLineWidth(1.2);
       doc.line(margin, y, page.width - margin, y);
-      y += 22;
+      y += 28;
     },
     meta(text) {
       if (!text) return;
@@ -198,31 +198,35 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
       y += 8;
     },
     section(title) {
-      y += 4;
-      ensureSpace(34);
+      y += 14;
+      ensureSpace(86);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10.5);
+      doc.setFontSize(11);
       doc.setTextColor(...hexToRgb(accentColor));
       doc.text(String(title).toUpperCase(), margin, y);
+      y += 10;
+      doc.setDrawColor(217, 230, 242);
+      doc.setLineWidth(0.8);
+      doc.line(margin, y, page.width - margin, y);
       y += 18;
     },
     paragraph(text) {
       const clean = normalizeText(text);
       writeLines([clean || "No notes available yet."]);
-      y += 8;
+      y += 14;
     },
     bullets(items = []) {
       const clean = normalizeList(items);
       if (!clean.length) {
         writeLines(["No items available yet."], { color: [91, 103, 122] });
-        y += 8;
+        y += 14;
         return;
       }
       clean.forEach((item) => {
-        writeLines([`\u2022 ${item}`], { x: margin + 8 });
-        y += 2;
+        writeLines([`- ${item}`], { x: margin + 10, leading: 17 });
+        y += 4;
       });
-      y += 10;
+      y += 16;
     },
     cards(cards = []) {
       const clean = cards.filter((card) => card?.title || card?.body);
@@ -232,21 +236,28 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
         return;
       }
       clean.forEach((card) => {
-        const titleLines = doc.splitTextToSize(normalizeText(card.title), maxWidth - 24);
-        const bodyGroups = getCardBodyGroups(card.body).map((group) => doc.splitTextToSize(group, maxWidth - 24));
-        const bodyLineCount = bodyGroups.reduce((sum, group) => sum + group.length, 0);
-        const height = 32 + titleLines.length * 15 + bodyLineCount * 14 + Math.max(0, bodyGroups.length - 1) * 6;
-        ensureSpace(height + 14);
+        const titleLines = doc.splitTextToSize(normalizeText(card.title), maxWidth - 32);
+        const bodyGroups = getCardBodyGroups(card.body);
+        const wrappedGroups = bodyGroups.map((group) => splitLabeledGroup(doc, group, maxWidth - 32));
+        const bodyLineCount = wrappedGroups.reduce((sum, group) => sum + group.labelLines.length + group.valueLines.length, 0);
+        const height = 42 + titleLines.length * 16 + bodyLineCount * 15 + Math.max(0, wrappedGroups.length - 1) * 9;
+        ensureSpace(height + 20);
         doc.setDrawColor(217, 230, 242);
-        doc.setFillColor(248, 251, 253);
-        doc.roundedRect(margin, y - 8, maxWidth, height, 8, 8, "FD");
-        y += 10;
-        writeLines(titleLines, { x: margin + 12, font: "bold", size: 11, leading: 15 });
-        bodyGroups.forEach((group) => {
-          writeLines(group, { x: margin + 12, size: 9.5, leading: 14, color: [71, 85, 105] });
-          y += 6;
+        doc.setFillColor(249, 252, 254);
+        doc.roundedRect(margin, y - 8, maxWidth, height, 9, 9, "FD");
+        y += 14;
+        writeLines(titleLines, { x: margin + 16, font: "bold", size: 11.5, leading: 16 });
+        y += 4;
+        wrappedGroups.forEach((group) => {
+          if (group.labelLines.length) {
+            writeLines(group.labelLines, { x: margin + 16, font: "bold", size: 9.4, leading: 14, color: [15, 94, 168] });
+          }
+          if (group.valueLines.length) {
+            writeLines(group.valueLines, { x: margin + 16, size: 9.8, leading: 15, color: [71, 85, 105] });
+          }
+          y += 9;
         });
-        y += 12;
+        y += 16;
       });
     },
   };
@@ -261,13 +272,6 @@ function formatQuestionCard(question = {}) {
       question.guidance || question.answerDirection ? `Suggested direction: ${question.guidance || question.answerDirection}` : "",
       question.relatedStory ? `Related story: ${question.relatedStory}` : "",
     ].filter(Boolean),
-  };
-}
-
-function formatFocusAreaCard(area = {}) {
-  return {
-    title: area.title || area.emphasize || "Research note",
-    body: area.description || area.guidance || area.why || area.note || "",
   };
 }
 
@@ -306,6 +310,30 @@ function normalizeText(value = "") {
 function getCardBodyGroups(body = "") {
   const values = Array.isArray(body) ? body : String(body || "").split(/\n+/);
   return values.map(normalizeText).filter(Boolean);
+}
+
+function splitLabeledGroup(doc, text, width) {
+  const match = String(text || "").match(/^([^:]{2,42}):\s*(.*)$/);
+  if (!match) {
+    return {
+      labelLines: [],
+      valueLines: doc.splitTextToSize(normalizeText(text), width),
+    };
+  }
+  const [, label, value] = match;
+  return {
+    labelLines: doc.splitTextToSize(`${label}:`, width),
+    valueLines: doc.splitTextToSize(normalizeText(value), width),
+  };
+}
+
+function formatFocusAreaBullets(focusAreas = []) {
+  return focusAreas.map((area) => {
+    if (typeof area === "string") return area;
+    const title = area.title || area.emphasize || "Research note";
+    const detail = area.description || area.guidance || area.why || area.note || "";
+    return detail ? `${title}: ${detail}` : title;
+  });
 }
 
 function slugifyName(value) {
