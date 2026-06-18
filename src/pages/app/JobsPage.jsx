@@ -437,6 +437,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
 
   useEffect(() => {
     setTasks(loadJobCommandTasks(job.id));
+    setStatusUpdateOpen(false);
   }, [job.id]);
 
   useEffect(() => {
@@ -454,6 +455,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     if (nextTab === activeTab) return;
     if (hasUnsavedChanges && !window.confirm("You have unsaved changes. Leave this section anyway?")) return;
     setHasUnsavedChanges(false);
+    setStatusUpdateOpen(false);
     setActiveTab(nextTab);
   }, [activeTab, hasUnsavedChanges]);
 
@@ -1394,15 +1396,37 @@ function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
 }
 
 function StatusUpdatePanel({ currentStage, onChange, onCancel }) {
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === "Escape") onCancel();
+    }
+
+    function handlePointerDown(event) {
+      if (!panelRef.current || panelRef.current.contains(event.target)) return;
+      onCancel();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [onCancel]);
+
   return (
-    <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
+    <section ref={panelRef} className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Update Status</p>
           <h3 className="mt-1 text-lg font-bold text-ink">Move this application</h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">Current stage: <span className="font-bold text-ink">{currentStage}</span></p>
         </div>
-        <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={onCancel}>Cancel</Button>
+        <Button variant="secondary" className="w-fit min-h-9 px-4 text-sm" onClick={onCancel}>Cancel</Button>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {applicationStageOptions.map((stage) => {
@@ -2370,9 +2394,9 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
           aria-expanded={advancedOpen}
           aria-controls="advanced-individual-downloads"
         >
-            <span>
-            <span className="block text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Individual files</span>
-            <span className="block text-sm font-bold text-ink">Download Individually</span>
+          <span>
+            <span className="block text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Download Individually</span>
+            <span className="block text-sm font-bold text-ink">Individual asset downloads</span>
           </span>
           <ChevronDown size={16} className={`shrink-0 text-slate-500 transition ${advancedOpen ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
@@ -2388,7 +2412,9 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
 
             <MaterialCard title="Cover Letter" status={coverLetter ? "Generated" : coverLetterSkipped ? "Optional ✓" : "Optional"} description={coverLetter ? "Copy or export the tailored cover letter." : coverLetterSkipped ? "You chose not to include a cover letter for this application." : "Cover letter optional. Generate one only when it strengthens the application."}>
               {coverLetter ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="grid gap-3">
+                  <CompactPreview title="Cover Letter Preview" content={coverLetter.content} />
+                  <div className="flex flex-wrap gap-2">
                   <Button variant="secondary" className="min-h-8 min-w-[72px] shrink-0 whitespace-nowrap px-3 text-xs" onClick={copyCoverLetter}>
                     <Clipboard size={14} className="shrink-0" aria-hidden="true" />
                     {coverCopied ? "Copied" : "Copy"}
@@ -2402,6 +2428,7 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
                     DOCX
                   </Button>
                   <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={onGoToCoverLetter}>Edit</Button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-2">
@@ -2416,21 +2443,33 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
 
             <MaterialCard title="Recruiter Message" status={recruiterMessage ? "Generated" : "Not generated"} description={recruiterMessage ? "Copy your outreach note when you are ready to contact someone." : "Draft this after your application materials are ready."}>
               {recruiterMessage ? (
-                <div className="flex flex-wrap gap-2">
-                  <CopyButton text={recruiterMessage.content} />
-                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportRecruiterMessagePdf({ profile, job, message: recruiterMessage.content })}>PDF</Button>
+                <div className="grid gap-3">
+                  <CompactPreview title="Recruiter Message Preview" content={recruiterMessage.content} />
+                  <div className="flex flex-wrap gap-2">
+                    <CopyButton text={recruiterMessage.content} />
+                    <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportRecruiterMessagePdf({ profile, job, message: recruiterMessage.content })}>PDF</Button>
+                  </div>
                 </div>
               ) : <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToMessage}>Draft Recruiter Message</Button>}
             </MaterialCard>
 
             <MaterialCard title="Interview Prep" status={prepContent ? "Prepared" : "Not prepared"} description={prepContent ? "Download interview prep assets together or individually." : "Prepare interview materials before downloading these assets."}>
               {prepContent ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportInterviewPrepPacketPdf({ job, profile, score, content: prepContent, interviewDetails: getInterviewDetails(job, contacts), questions: prepContent?.questions || [], stories: prepContent?.starStories || [], focusAreas: prepContent?.focusAreas || [], questionsToAsk: prepContent?.questionsToAsk || [], concerns: getInterviewConcernAreas(score) })}>Prep Packet PDF</Button>
-                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportInterviewCheatSheetPdf({ job, profile, score, content: prepContent, interviewDetails: getInterviewDetails(job, contacts), questions: prepContent?.questions || [], stories: prepContent?.starStories || [], focusAreas: prepContent?.focusAreas || [], questionsToAsk: prepContent?.questionsToAsk || [], concerns: getInterviewConcernAreas(score) })}>Cheat Sheet PDF</Button>
-                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportInterviewQuestionsPdf({ profile, job, questions: prepContent?.questions || [] })}>Questions PDF</Button>
-                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportStarStoriesPdf({ profile, job, stories: prepContent?.starStories || [] })}>STAR Stories PDF</Button>
-                  <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportResearchNotesPdf({ profile, job, focusAreas: prepContent?.focusAreas || [], questionsToAsk: prepContent?.questionsToAsk || [] })}>Research Notes PDF</Button>
+                <div className="grid gap-3">
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <CompactPreview title="Interview Prep Packet" content={buildInterviewPacketPreview(prepContent)} />
+                    <CompactPreview title="Cheat Sheet" content={buildCheatSheetPreview(prepContent, score)} />
+                    <CompactPreview title="Questions" content={(prepContent?.questions || []).slice(0, 3).map((question) => question.question || question.title || question).join("\n")} />
+                    <CompactPreview title="STAR Stories" content={(prepContent?.starStories || []).slice(0, 3).map((story) => story.title || "STAR Story").join("\n")} />
+                    <CompactPreview title="Research Notes" content={(prepContent?.focusAreas || []).slice(0, 3).map((area) => area.title || area.emphasize || area).join("\n")} />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportInterviewPrepPacketPdf({ job, profile, score, content: prepContent, interviewDetails: getInterviewDetails(job, contacts), questions: prepContent?.questions || [], stories: prepContent?.starStories || [], focusAreas: prepContent?.focusAreas || [], questionsToAsk: prepContent?.questionsToAsk || [], concerns: getInterviewConcernAreas(score) })}>Prep Packet PDF</Button>
+                    <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportInterviewCheatSheetPdf({ job, profile, score, content: prepContent, interviewDetails: getInterviewDetails(job, contacts), questions: prepContent?.questions || [], stories: prepContent?.starStories || [], focusAreas: prepContent?.focusAreas || [], questionsToAsk: prepContent?.questionsToAsk || [], concerns: getInterviewConcernAreas(score) })}>Cheat Sheet PDF</Button>
+                    <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportInterviewQuestionsPdf({ profile, job, questions: prepContent?.questions || [] })}>Questions PDF</Button>
+                    <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportStarStoriesPdf({ profile, job, stories: prepContent?.starStories || [] })}>STAR Stories PDF</Button>
+                    <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => exportResearchNotesPdf({ profile, job, focusAreas: prepContent?.focusAreas || [], questionsToAsk: prepContent?.questionsToAsk || [] })}>Research Notes PDF</Button>
+                  </div>
                 </div>
               ) : <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={onGoToInterview}>Prepare Interview Prep</Button>}
             </MaterialCard>
@@ -2754,6 +2793,34 @@ function MaterialCard({ title, status, description, children }) {
       </div>
     </section>
   );
+}
+
+function CompactPreview({ title, content }) {
+  const text = String(content || "No preview available yet.").trim() || "No preview available yet.";
+  return (
+    <div className="min-w-0 rounded-lg bg-brand-50/70 p-3 ring-1 ring-brand-100">
+      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-brand-700">{title}</p>
+      <p className="mt-1 line-clamp-4 whitespace-pre-line break-words text-xs leading-5 text-slate-700 [overflow-wrap:anywhere]">{text}</p>
+    </div>
+  );
+}
+
+function buildInterviewPacketPreview(content = {}) {
+  const questions = content.questions?.length || 0;
+  const stories = content.starStories?.length || 0;
+  const research = (content.focusAreas?.length || 0) + (content.questionsToAsk?.length || 0);
+  return [
+    `${questions} likely questions`,
+    `${stories} STAR stories`,
+    `${research} research notes/questions`,
+    "Talking points and follow-up reminders included",
+  ].join("\n");
+}
+
+function buildCheatSheetPreview(content = {}, score = {}) {
+  const talkingPoints = Array.isArray(content.talkingPoints) ? content.talkingPoints : [];
+  const strengths = Array.isArray(score?.strengths) ? score.strengths : [];
+  return [...strengths, ...talkingPoints].slice(0, 4).join("\n") || "Interview summary, talking points, and reminders.";
 }
 
 function RecruiterViewWorkspace({ score, profile, resume, coverLetter, recruiterMessage, reviewed = false, onContinue, onMarkApplied }) {

@@ -21,7 +21,6 @@ export async function exportInterviewCheatSheetPdf({ profile, job, score, conten
   renderer.title("Interview Cheat Sheet", `${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
   renderer.meta([
     interviewDetails.interview_date ? `Interview: ${formatDate(interviewDetails.interview_date)}` : "",
-    interviewDetails.interview_type ? `Format: ${interviewDetails.interview_type}` : "",
     score?.score ? `Fit score: ${score.score}%` : "",
   ].filter(Boolean).join("   |   "));
   renderer.section("Interview Summary");
@@ -37,7 +36,7 @@ export async function exportInterviewCheatSheetPdf({ profile, job, score, conten
       story.action ? `Action: ${story.action}` : "",
       story.result ? `Result: ${story.result}` : "",
       story.bestUseCases?.length ? `Best used for: ${story.bestUseCases.join(", ")}` : "",
-    ].filter(Boolean).join("\n"),
+    ].filter(Boolean),
   })));
   renderer.section("Questions To Expect");
   renderer.cards(questions.slice(0, 6).map(formatQuestionCard));
@@ -62,7 +61,6 @@ export async function exportInterviewPrepPacketPdf({ profile, job, score, conten
   renderer.title("Interview Prep Packet", `${getDisplayJobTitle(job)} at ${getDisplayCompanyName(job)}`);
   renderer.meta([
     interviewDetails.interview_date ? `Interview: ${formatDate(interviewDetails.interview_date)}` : "",
-    interviewDetails.interview_type ? `Format: ${interviewDetails.interview_type}` : "",
     score?.score ? `Fit score: ${score.score}%` : "",
   ].filter(Boolean).join("   |   "));
   renderer.section("Interview Summary");
@@ -81,7 +79,7 @@ export async function exportInterviewPrepPacketPdf({ profile, job, score, conten
       story.result ? `Result: ${story.result}` : "",
       story.bestUseCases?.length ? `Best used for: ${story.bestUseCases.join(", ")}` : "",
       story.followUps?.length ? `Likely follow-ups: ${story.followUps.join("; ")}` : "",
-    ].filter(Boolean).join("\n"),
+    ].filter(Boolean),
   })));
   renderer.section("Questions To Ask");
   renderer.bullets(questionsToAsk);
@@ -129,7 +127,7 @@ export async function exportStarStoriesPdf({ profile, job, stories = [], accentC
       story.action ? `Action: ${story.action}` : "",
       story.result ? `Result: ${story.result}` : "",
       story.followUps?.length ? `Likely follow-ups: ${story.followUps.join("; ")}` : "",
-    ].filter(Boolean).join("\n"),
+    ].filter(Boolean),
   })));
   doc.save(fileName);
   return fileName;
@@ -151,7 +149,7 @@ export async function exportResearchNotesPdf({ profile, job, focusAreas = [], qu
 
 function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
   const page = { width: doc.internal.pageSize.getWidth(), height: doc.internal.pageSize.getHeight() };
-  const margin = 54;
+  const margin = 62;
   const maxWidth = page.width - margin * 2;
   let y = margin;
 
@@ -161,7 +159,7 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
     y = margin;
   };
 
-  const writeLines = (lines, { x = margin, font = "normal", size = 10.5, leading = 14, color = [23, 32, 51] } = {}) => {
+  const writeLines = (lines, { x = margin, font = "normal", size = 10.5, leading = 15, color = [23, 32, 51] } = {}) => {
     doc.setFont("helvetica", font);
     doc.setFontSize(size);
     doc.setTextColor(...color);
@@ -200,12 +198,13 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
       y += 8;
     },
     section(title) {
-      ensureSpace(28);
+      y += 4;
+      ensureSpace(34);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(10.5);
       doc.setTextColor(...hexToRgb(accentColor));
       doc.text(String(title).toUpperCase(), margin, y);
-      y += 16;
+      y += 18;
     },
     paragraph(text) {
       const clean = normalizeText(text);
@@ -221,8 +220,9 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
       }
       clean.forEach((item) => {
         writeLines([`\u2022 ${item}`], { x: margin + 8 });
+        y += 2;
       });
-      y += 8;
+      y += 10;
     },
     cards(cards = []) {
       const clean = cards.filter((card) => card?.title || card?.body);
@@ -233,16 +233,20 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
       }
       clean.forEach((card) => {
         const titleLines = doc.splitTextToSize(normalizeText(card.title), maxWidth - 24);
-        const bodyLines = doc.splitTextToSize(normalizeText(card.body), maxWidth - 24);
-        const height = 24 + titleLines.length * 13 + bodyLines.length * 13;
-        ensureSpace(height + 10);
+        const bodyGroups = getCardBodyGroups(card.body).map((group) => doc.splitTextToSize(group, maxWidth - 24));
+        const bodyLineCount = bodyGroups.reduce((sum, group) => sum + group.length, 0);
+        const height = 32 + titleLines.length * 15 + bodyLineCount * 14 + Math.max(0, bodyGroups.length - 1) * 6;
+        ensureSpace(height + 14);
         doc.setDrawColor(217, 230, 242);
         doc.setFillColor(248, 251, 253);
-        doc.roundedRect(margin, y - 10, maxWidth, height, 8, 8, "FD");
-        y += 8;
-        writeLines(titleLines, { x: margin + 12, font: "bold", size: 10.5, leading: 13 });
-        if (bodyLines.length) writeLines(bodyLines, { x: margin + 12, size: 9.5, leading: 13, color: [71, 85, 105] });
+        doc.roundedRect(margin, y - 8, maxWidth, height, 8, 8, "FD");
         y += 10;
+        writeLines(titleLines, { x: margin + 12, font: "bold", size: 11, leading: 15 });
+        bodyGroups.forEach((group) => {
+          writeLines(group, { x: margin + 12, size: 9.5, leading: 14, color: [71, 85, 105] });
+          y += 6;
+        });
+        y += 12;
       });
     },
   };
@@ -256,7 +260,7 @@ function formatQuestionCard(question = {}) {
       question.evaluating || question.whatTheyEvaluate ? `What they evaluate: ${question.evaluating || question.whatTheyEvaluate}` : "",
       question.guidance || question.answerDirection ? `Suggested direction: ${question.guidance || question.answerDirection}` : "",
       question.relatedStory ? `Related story: ${question.relatedStory}` : "",
-    ].filter(Boolean).join("\n"),
+    ].filter(Boolean),
   };
 }
 
@@ -297,6 +301,11 @@ function normalizeText(value = "") {
     .replace(/\r/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function getCardBodyGroups(body = "") {
+  const values = Array.isArray(body) ? body : String(body || "").split(/\n+/);
+  return values.map(normalizeText).filter(Boolean);
 }
 
 function slugifyName(value) {
