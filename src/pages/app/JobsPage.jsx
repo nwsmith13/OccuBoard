@@ -2067,7 +2067,22 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
   const [error, setError] = useState("");
   const showSlowHint = useSlowLoading(coverLoading);
   const prepContent = hasValidInterviewPrep(prep) ? normalizeInterviewPrepContent(prep.content) : null;
-  const defaultPackageSelections = useMemo(() => getDefaultPackageSelections({ resume, coverLetter, recruiterMessage, prepContent }), [resume, coverLetter, recruiterMessage, prepContent]);
+  const hasPackageResume = Boolean(resume?.content);
+  const hasPackageCoverLetter = Boolean(coverLetter?.content);
+  const hasPackagePrepContent = Boolean(prepContent);
+  const hasPackageQuestions = Boolean(prepContent?.questions?.length);
+  const hasPackageStories = Boolean(prepContent?.starStories?.length);
+  const defaultPackageSelections = useMemo(
+    () =>
+      getDefaultPackageSelections({
+        hasResume: hasPackageResume,
+        hasCoverLetter: hasPackageCoverLetter,
+        hasPrepContent: hasPackagePrepContent,
+        hasQuestions: hasPackageQuestions,
+        hasStories: hasPackageStories,
+      }),
+    [hasPackageResume, hasPackageCoverLetter, hasPackagePrepContent, hasPackageQuestions, hasPackageStories],
+  );
   const [packageSelections, setPackageSelections] = useState(defaultPackageSelections);
   const packageItems = useMemo(() => getPackageBuilderItems({ resume, coverLetter, recruiterMessage, prepContent, selections: packageSelections }), [resume, coverLetter, recruiterMessage, prepContent, packageSelections]);
   const selectedPackageItems = packageItems.filter((item) => item.available && packageSelections[item.key]);
@@ -2289,7 +2304,11 @@ function ApplicationMaterialsWorkspace({ job, profile, score, resume, coverLette
         packageFileName={packageFileName}
         downloading={packageDownloading}
         onboardingCompleted={onboarding.completed}
-        onToggle={(key) => setPackageSelections((current) => ({ ...current, [key]: !current[key] }))}
+        onToggle={(key) => {
+          const item = packageItems.find((candidate) => candidate.key === key);
+          if (!item?.available) return;
+          setPackageSelections((current) => ({ ...current, [key]: !current[key] }));
+        }}
         onDownload={downloadSelectedPackage}
         onGoToInterview={onGoToInterview}
       />
@@ -2540,7 +2559,7 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
                       className="mt-1 shrink-0"
                       checked={Boolean(selections[item.key]) && item.available}
                       disabled={!item.available}
-                      onChange={() => onToggle(item.key)}
+                      onChange={() => item.available && onToggle(item.key)}
                     />
                     <span className="min-w-0">
                       <span className="block font-bold">{item.label}</span>
@@ -2578,16 +2597,14 @@ function PackageBuilderSection({ items, selections, selectedItems, packageFileNa
   );
 }
 
-function getDefaultPackageSelections({ resume, coverLetter, prepContent }) {
-  const hasQuestions = Array.isArray(prepContent?.questions) && prepContent.questions.length > 0;
-  const hasStories = Array.isArray(prepContent?.starStories) && prepContent.starStories.length > 0;
+function getDefaultPackageSelections({ hasResume, hasCoverLetter, hasPrepContent, hasQuestions, hasStories }) {
   return {
-    resumePdf: Boolean(resume?.content),
+    resumePdf: hasResume,
     resumeDocx: false,
-    coverLetterPdf: Boolean(coverLetter?.content),
+    coverLetterPdf: hasCoverLetter,
     coverLetterDocx: false,
     recruiterMessage: false,
-    interviewCheatSheet: Boolean(prepContent),
+    interviewCheatSheet: hasPrepContent,
     interviewQuestions: hasQuestions,
     starStories: hasStories,
     researchNotes: false,

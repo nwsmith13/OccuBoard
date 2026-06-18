@@ -32,6 +32,7 @@ const legacyGlobalProfileKeys = [
   "occuboard.profileOptionalOverrides",
   "occuboard:profileOptionalOverrides",
 ];
+const missingRemoteTables = new Set();
 
 function readLocal(key, fallback) {
   try {
@@ -91,11 +92,14 @@ export async function logJobActivity(user, jobId, type, metadata = {}) {
     created_at: now(),
   };
 
-  if (hasSupabaseConfig && user?.id) {
+  if (hasSupabaseConfig && user?.id && !shouldSkipRemoteTable("job_activity_logs")) {
     const supabase = await getSupabaseClient();
     const { data, error } = await supabase.from("job_activity_logs").insert(payload).select("*").single();
     if (error) {
-      if (isMissingTableError(error) || isMissingColumnError(error)) return null;
+      if (isMissingTableError(error) || isMissingColumnError(error)) {
+        rememberMissingRemoteTable("job_activity_logs", error);
+        return null;
+      }
       throw error;
     }
     return data;
@@ -110,42 +114,80 @@ export async function fetchWorkspace(user) {
   if (hasSupabaseConfig && user?.id) {
     clearLegacyGlobalProfileStorage();
     const supabase = await getSupabaseClient();
-    const [profileResult, jobsResult, logsResult, resumesResult] = await Promise.all([
+    let [profileResult, jobsResult, logsResult, resumesResult] = await Promise.all([
       // The profiles table uses the auth user UUID as its primary key.
       supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
       supabase.from("jobs").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
       supabase.from("activity_logs").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(12),
-      supabase.from("resume_versions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      shouldSkipRemoteTable("resume_versions") ? { data: [], error: null } : supabase.from("resume_versions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     ]);
+    if (jobsResult.error && isMissingColumnError(jobsResult.error)) {
+      jobsResult = await supabase.from("jobs").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+    }
+    if (jobsResult.error && isMissingColumnError(jobsResult.error)) {
+      jobsResult = await supabase.from("jobs").select("*").eq("user_id", user.id);
+    }
+    if (resumesResult.error && isMissingColumnError(resumesResult.error)) {
+      resumesResult = await supabase.from("resume_versions").select("*").eq("user_id", user.id);
+    }
 
     if (profileResult.error) throw profileResult.error;
     if (jobsResult.error) throw jobsResult.error;
     if (logsResult.error) throw logsResult.error;
-    if (resumesResult.error) throw resumesResult.error;
+    if (resumesResult.error && !isOptionalRemoteTableError(resumesResult.error)) throw resumesResult.error;
 
-    const [scoresResult, messagesResult] = await Promise.all([
-      supabase.from("job_scores").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    let [scoresResult, messagesResult] = await Promise.all([
+      shouldSkipRemoteTable("job_scores") ? { data: [], error: null } : supabase.from("job_scores").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("messages").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     ]);
-    const uploadsResult = await supabase.from("resume_uploads").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
-    const [jobActivityResult, jobContactsResult, interviewPrepResult] = await Promise.all([
-      supabase.from("job_activity_logs").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("job_contacts").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
-      supabase.from("interview_prep").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
+    if (scoresResult.error && isMissingColumnError(scoresResult.error)) {
+      scoresResult = await supabase.from("job_scores").select("*").eq("user_id", user.id);
+    }
+    if (messagesResult.error && isMissingColumnError(messagesResult.error)) {
+      messagesResult = await supabase.from("messages").select("*").eq("user_id", user.id);
+    }
+    const uploadsResult = shouldSkipRemoteTable("resume_uploads")
+      ? { data: [], error: null }
+      : await supabase.from("resume_uploads").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+    let [jobActivityResult, jobContactsResult, interviewPrepResult] = await Promise.all([
+      shouldSkipRemoteTable("job_activity_logs") ? { data: [], error: null } : supabase.from("job_activity_logs").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      shouldSkipRemoteTable("job_contacts") ? { data: [], error: null } : supabase.from("job_contacts").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
+      shouldSkipRemoteTable("interview_prep") ? { data: [], error: null } : supabase.from("interview_prep").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
     ]);
+    if (jobActivityResult.error && isMissingColumnError(jobActivityResult.error)) {
+      jobActivityResult = await supabase.from("job_activity_logs").select("*").eq("user_id", user.id);
+    }
+    if (jobContactsResult.error && isMissingColumnError(jobContactsResult.error)) {
+      jobContactsResult = await supabase.from("job_contacts").select("*").eq("user_id", user.id);
+    }
+    if (interviewPrepResult.error && isMissingColumnError(interviewPrepResult.error)) {
+      interviewPrepResult = await supabase.from("interview_prep").select("*").eq("user_id", user.id);
+    }
 
-    const jobScores = isMissingTableError(scoresResult.error) ? [] : scoresResult.data ?? [];
-    const messages = isMissingTableError(messagesResult.error) ? [] : messagesResult.data ?? [];
-    const resumeUploads = isMissingTableError(uploadsResult.error) ? [] : uploadsResult.data ?? [];
-    const jobActivityLogs = isMissingTableError(jobActivityResult.error) ? [] : jobActivityResult.data ?? [];
-    const jobContacts = isMissingTableError(jobContactsResult.error) ? readLocal(keys.jobContacts, []) : jobContactsResult.data ?? [];
-    const interviewPrep = isMissingTableError(interviewPrepResult.error) ? [] : (interviewPrepResult.data ?? []).map(normalizeInterviewPrepRecord).filter(hasValidInterviewPrep);
-    if (scoresResult.error && !isMissingTableError(scoresResult.error)) throw scoresResult.error;
-    if (messagesResult.error && !isMissingTableError(messagesResult.error)) throw messagesResult.error;
-    if (uploadsResult.error && !isMissingTableError(uploadsResult.error)) throw uploadsResult.error;
-    if (jobActivityResult.error && !isMissingTableError(jobActivityResult.error)) throw jobActivityResult.error;
-    if (jobContactsResult.error && !isMissingTableError(jobContactsResult.error)) throw jobContactsResult.error;
-    if (interviewPrepResult.error && !isMissingTableError(interviewPrepResult.error)) throw interviewPrepResult.error;
+    [uploadsResult, jobActivityResult, jobContactsResult, interviewPrepResult].forEach((result, index) => {
+      const table = ["resume_uploads", "job_activity_logs", "job_contacts", "interview_prep"][index];
+      if (isOptionalRemoteTableError(result.error)) rememberMissingRemoteTable(table, result.error);
+    });
+    [
+      [scoresResult, "job_scores"],
+      [resumesResult, "resume_versions"],
+    ].forEach(([result, table]) => {
+      if (isOptionalRemoteTableError(result.error)) rememberMissingRemoteTable(table, result.error);
+    });
+
+    const jobScores = isOptionalRemoteTableError(scoresResult.error) ? [] : scoresResult.data ?? [];
+    const messages = isOptionalRemoteTableError(messagesResult.error) ? [] : messagesResult.data ?? [];
+    const resumeVersions = isOptionalRemoteTableError(resumesResult.error) ? [] : normalizeResumeVersions(resumesResult.data ?? []);
+    const resumeUploads = isOptionalRemoteTableError(uploadsResult.error) ? [] : uploadsResult.data ?? [];
+    const jobActivityLogs = isOptionalRemoteTableError(jobActivityResult.error) ? [] : jobActivityResult.data ?? [];
+    const jobContacts = isOptionalRemoteTableError(jobContactsResult.error) ? readLocal(keys.jobContacts, []) : jobContactsResult.data ?? [];
+    const interviewPrep = isOptionalRemoteTableError(interviewPrepResult.error) ? [] : (interviewPrepResult.data ?? []).map(normalizeInterviewPrepRecord).filter(hasValidInterviewPrep);
+    if (scoresResult.error && !isOptionalRemoteTableError(scoresResult.error)) throw scoresResult.error;
+    if (messagesResult.error && !isOptionalRemoteTableError(messagesResult.error)) throw messagesResult.error;
+    if (uploadsResult.error && !isOptionalRemoteTableError(uploadsResult.error)) throw uploadsResult.error;
+    if (jobActivityResult.error && !isOptionalRemoteTableError(jobActivityResult.error)) throw jobActivityResult.error;
+    if (jobContactsResult.error && !isOptionalRemoteTableError(jobContactsResult.error)) throw jobContactsResult.error;
+    if (interviewPrepResult.error && !isOptionalRemoteTableError(interviewPrepResult.error)) throw interviewPrepResult.error;
 
     let profile = profileResult.data?.id === user.id ? profileResult.data : null;
     if (!profile) {
@@ -161,7 +203,7 @@ export async function fetchWorkspace(user) {
       jobActivityLogs,
       jobContacts,
       interviewPrep,
-      resumeVersions: resumesResult.data ?? [],
+      resumeVersions,
       jobScores,
       messages,
       resumeUploads,
@@ -175,7 +217,7 @@ export async function fetchWorkspace(user) {
     jobActivityLogs: readLocal(keys.jobActivityLogs, seedJobActivityLogs),
     jobContacts: readLocal(keys.jobContacts, []),
     interviewPrep: readLocal(keys.interviewPrep, []).map(normalizeInterviewPrepRecord).filter(hasValidInterviewPrep),
-    resumeVersions: readLocal(keys.resumeVersions, seedResumeVersions),
+    resumeVersions: normalizeResumeVersions(readLocal(keys.resumeVersions, seedResumeVersions)),
     jobScores: readLocal(keys.jobScores, seedJobScores),
     messages: readLocal(keys.messages, seedMessages),
     resumeUploads: readLocal(keys.resumeUploads, []),
@@ -183,11 +225,33 @@ export async function fetchWorkspace(user) {
 }
 
 function isMissingTableError(error) {
-  return error?.code === "PGRST205" || error?.message?.includes("schema cache");
+  return error?.code === "PGRST205" || error?.code === "42P01" || error?.message?.includes("schema cache") || /does not exist/i.test(error?.message || "");
 }
 
 function isMissingColumnError(error) {
   return error?.code === "PGRST204" || error?.message?.includes("Could not find") || error?.message?.includes("schema cache");
+}
+
+function isOptionalRemoteTableError(error) {
+  return isMissingTableError(error) || isMissingColumnError(error);
+}
+
+function shouldSkipRemoteTable(table) {
+  return missingRemoteTables.has(table);
+}
+
+function rememberMissingRemoteTable(table, error) {
+  if (!table || !(isMissingTableError(error) || isMissingColumnError(error))) return;
+  missingRemoteTables.add(table);
+}
+
+function normalizeResumeVersions(items = []) {
+  return items
+    .map((item) => ({
+      ...item,
+      content: item.content || item.resume_text || item.generated_content || "",
+    }))
+    .filter((item) => item.id && item.job_id && String(item.content || "").trim());
 }
 
 export async function saveProfile(user, profile) {

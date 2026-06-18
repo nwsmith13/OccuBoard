@@ -49,7 +49,7 @@ export async function fetchBillingState(user) {
         return billing;
       }
     } catch (error) {
-      globalThis.console.warn("[OccuBoard billing] Server billing state unavailable; falling back to client billing.", error);
+      logBillingWarning("Server billing state unavailable; falling back to client billing.", error);
     }
   }
   if (hasSupabaseConfig && user?.id) {
@@ -83,12 +83,12 @@ export async function incrementUsage(user, field) {
       .single();
     if (error) {
       if (isMissingBillingTable(error) || isMissingBillingColumn(error)) {
-        globalThis.console.warn("[OccuBoard billing] Supabase usage write unavailable; using local fallback.", error);
+        logBillingWarning("Supabase usage write unavailable; using local fallback.", error);
         const fallback = incrementLocalUsage(user, field);
         logBillingUsage("increment:fallback", { userId: user.id, field, updatedUsage: fallback });
         return fallback;
       }
-      globalThis.console.error("[OccuBoard billing] Supabase usage write failed.", { userId: user.id, field, error });
+      logBillingWarning("Supabase usage write failed.", { userId: user.id, field, error });
       throw error;
     }
     logBillingUsage("increment:success", { userId: user.id, field, updatedUsage: data });
@@ -112,12 +112,12 @@ export async function setUsageValue(user, field, value) {
       .single();
     if (error) {
       if (isMissingBillingTable(error) || isMissingBillingColumn(error)) {
-        globalThis.console.warn("[OccuBoard billing] Supabase usage set unavailable; using local fallback.", error);
+        logBillingWarning("Supabase usage set unavailable; using local fallback.", error);
         const fallback = setLocalUsageValue(user, field, nextValue);
         logBillingUsage("set:fallback", { userId: user.id, field, updatedUsage: fallback });
         return fallback;
       }
-      globalThis.console.error("[OccuBoard billing] Supabase usage set failed.", { userId: user.id, field, error });
+      logBillingWarning("Supabase usage set failed.", { userId: user.id, field, error });
       throw error;
     }
     logBillingUsage("set:success", { userId: user.id, field, updatedUsage: data });
@@ -264,5 +264,19 @@ function isMissingBillingColumn(error) {
 }
 
 function logBillingUsage(event, payload) {
+  if (!isBillingDebugEnabled()) return;
   globalThis.console.info(`[OccuBoard billing] ${event}`, payload);
+}
+
+function logBillingWarning(message, payload) {
+  if (!isBillingDebugEnabled()) return;
+  globalThis.console.warn(`[OccuBoard billing] ${message}`, payload);
+}
+
+function isBillingDebugEnabled() {
+  try {
+    return Boolean(import.meta.env.DEV && window.localStorage.getItem("occuboard:debugBilling") === "true");
+  } catch {
+    return false;
+  }
 }

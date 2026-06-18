@@ -105,10 +105,10 @@ export function ResumeExportPanel({ resume, content, profile, job, score, source
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Download</p>
           <div className="flex flex-wrap gap-2">
             <Button className="min-h-9 px-3 text-xs transition hover:-translate-y-0.5" onClick={() => runExport("PDF")} disabled={Boolean(exporting)}>
-                <Download size={14} /> {exporting === "PDF" ? "Exporting..." : "PDF"}
+                <Download size={14} /> {exporting === "PDF" ? "Exporting..." : "Export PDF"}
             </Button>
             <Button className="min-h-9 px-3 text-xs transition hover:-translate-y-0.5" onClick={() => runExport("DOCX")} disabled={Boolean(exporting)}>
-                <FileText size={14} /> {exporting === "DOCX" ? "Exporting..." : "DOCX"}
+                <FileText size={14} /> {exporting === "DOCX" ? "Exporting..." : "Export DOCX"}
             </Button>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">

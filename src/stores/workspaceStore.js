@@ -24,6 +24,24 @@ import { trackEvent, trackProductMilestone } from "../lib/productAnalytics.js";
 const localAiUsageCountedKey = "occuboard.aiUsageCountedJobs";
 let workspaceLoadSequence = 0;
 
+function isBillingDebugEnabled() {
+  try {
+    return Boolean(import.meta.env.DEV && window.localStorage.getItem("occuboard:debugBilling") === "true");
+  } catch {
+    return false;
+  }
+}
+
+function logBillingDebug(message, payload) {
+  if (!isBillingDebugEnabled()) return;
+  globalThis.console.info(`[OccuBoard billing] ${message}`, payload);
+}
+
+function warnBillingDebug(message, payload) {
+  if (!isBillingDebugEnabled()) return;
+  globalThis.console.warn(`[OccuBoard billing] ${message}`, payload);
+}
+
 function createEmptyWorkspaceState(user) {
   return {
     profile: null,
@@ -206,18 +224,18 @@ export const useWorkspaceStore = create((set, get) => ({
   markJobAiUsageCounted: async (user, job) => {
     const currentJob = get().jobs.find((item) => item.id === job?.id) || job;
     const currentUsage = get().billing?.usage;
-    globalThis.console.info("[OccuBoard billing] usage check", {
+    logBillingDebug("usage check", {
       jobId: currentJob?.id,
       aiUsageCountedAt: currentJob?.ai_usage_counted_at,
       localCounted: hasLocalAiUsageCounted(currentJob?.id),
       currentUsage,
     });
     if (!currentJob?.id || currentJob.ai_usage_counted_at || hasLocalAiUsageCounted(currentJob.id)) {
-      globalThis.console.info("[OccuBoard billing] usage already counted", { jobId: currentJob?.id, currentUsage });
+      logBillingDebug("usage already counted", { jobId: currentJob?.id, currentUsage });
       return currentJob;
     }
     const countedAt = new Date().toISOString();
-    globalThis.console.info("[OccuBoard billing] consuming AI-powered application", {
+    logBillingDebug("consuming AI-powered application", {
       jobId: currentJob.id,
       countedAt,
       currentUsage,
@@ -226,7 +244,7 @@ export const useWorkspaceStore = create((set, get) => ({
     try {
       saved = await updateJob(user, currentJob.id, { ai_usage_counted_at: countedAt });
     } catch (error) {
-      globalThis.console.warn("[OccuBoard billing] job usage marker write failed; using local marker.", {
+      warnBillingDebug("job usage marker write failed; using local marker.", {
         jobId: currentJob.id,
         error,
       });
@@ -239,7 +257,7 @@ export const useWorkspaceStore = create((set, get) => ({
       jobs: data.jobs.map((item) => (item.id === currentJob.id ? { ...item, ...saved, ai_usage_counted_at: saved?.ai_usage_counted_at || countedAt } : item)),
       billing: usage ? { ...state.billing, usage } : state.billing,
     }));
-    globalThis.console.info("[OccuBoard billing] usage updated", {
+    logBillingDebug("usage updated", {
       jobId: currentJob.id,
       previousUsage: currentUsage,
       updatedUsage: usage,
@@ -281,14 +299,14 @@ async function reconcileAiApplicationUsage(user, data, billing) {
   if (!countedJobIds.size) return billing;
   countedJobIds.forEach((jobId) => rememberLocalAiUsageCounted(jobId, new Date().toISOString()));
   const currentCount = Number(billing?.usage?.application_count || 0);
-  globalThis.console.info("[OccuBoard billing] reconciliation check", {
+  logBillingDebug("reconciliation check", {
     currentUsage: billing?.usage,
     derivedAiPoweredApplications: countedJobIds.size,
     jobIds: [...countedJobIds],
   });
   if (currentCount >= countedJobIds.size) return billing;
   const usage = await setUsageValue(user, "application_count", countedJobIds.size);
-  globalThis.console.info("[OccuBoard billing] reconciliation updated usage", {
+  logBillingDebug("reconciliation updated usage", {
     previousUsage: billing?.usage,
     updatedUsage: usage,
   });
