@@ -286,7 +286,16 @@ export function LandingPage() {
             <h2 className="text-2xl font-bold">Know what to strengthen before you apply.</h2>
             <p className="mt-2 text-brand-100">Turn your next job description into a realistic fit assessment, recruiter perspective, recovery strategy, and application plan.</p>
           </div>
-          <Link to="/signup"><Button variant="secondary">Analyze Your First Job</Button></Link>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <Link to="/signup"><Button variant="secondary">Analyze Your First Job</Button></Link>
+            <p className="text-sm font-semibold text-brand-100">
+              Questions?{" "}
+              <button type="button" className="underline decoration-brand-200 underline-offset-4 hover:text-white" onClick={() => setFeedbackOpen(true)}>
+                Contact us
+              </button>{" "}
+              at hello@occuboard.io.
+            </p>
+          </div>
         </div>
       </footer>
       <PublicFooter onContact={() => setFeedbackOpen(true)} />

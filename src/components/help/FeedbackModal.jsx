@@ -57,9 +57,7 @@ export function FeedbackModal({ open, type = "Feedback", userEmail = "", onClose
       toast.success("Thanks. Your message was sent.");
       onClose();
     } catch (error) {
-      if (error.code === "support_config_missing" && error.mailto) {
-        setFallbackMailto(error.mailto);
-      }
+      setFallbackMailto(error.mailto || "mailto:hello@occuboard.io");
       toast.error(error.message || "Could not send your message. Please try again.");
     } finally {
       setSending(false);
@@ -132,7 +130,7 @@ export function FeedbackModal({ open, type = "Feedback", userEmail = "", onClose
           </p>
           {fallbackMailto && (
             <div className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold leading-6 text-brand-900 ring-1 ring-brand-100">
-              Support email is not available from the app right now. You can still contact us directly at{" "}
+              You can also email us directly at{" "}
               <a className="font-black underline decoration-brand-300 underline-offset-2" href={fallbackMailto}>hello@occuboard.io</a>.
             </div>
           )}
