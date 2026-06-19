@@ -173,7 +173,7 @@ export function PublicFooter({ onContact }) {
           {onContact ? (
             <button type="button" className="font-semibold hover:text-brand-800" onClick={onContact}>Contact</button>
           ) : (
-            <a className="font-semibold hover:text-brand-800" href="mailto:hello@occuboard.com">Contact</a>
+            <a className="font-semibold hover:text-brand-800" href="mailto:hello@occuboard.io">Contact</a>
           )}
           <Link className="font-semibold hover:text-brand-800" to="/privacy">Privacy Policy</Link>
           <Link className="font-semibold hover:text-brand-800" to="/terms">Terms of Service</Link>

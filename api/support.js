@@ -1,5 +1,5 @@
 const allowedTypes = new Set(["Feedback", "Bug Report", "Support Question", "Feature Request"]);
-const supportInbox = "hello@occuboard.com";
+const defaultSupportInbox = "hello@occuboard.io";
 
 export default async function handler(req, res) {
   setJson(res);
@@ -8,7 +8,15 @@ export default async function handler(req, res) {
     const payload = normalizeSubmission(typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {});
     if (!payload.subject || !payload.message) return send(res, 400, { error: "Subject and message are required." });
     const apiKey = process.env.RESEND_API_KEY || "";
-    if (!apiKey) return send(res, 500, { error: "Support email is not configured." });
+    const supportInbox = process.env.SUPPORT_EMAIL || defaultSupportInbox;
+    const fromEmail = process.env.FROM_EMAIL || process.env.RESEND_FROM_EMAIL || supportInbox;
+    if (!apiKey) {
+      return send(res, 503, {
+        error: "Support email is not configured yet. You can still email hello@occuboard.io directly.",
+        code: "support_config_missing",
+        mailto: "mailto:hello@occuboard.io",
+      });
+    }
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -16,7 +24,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || "OccuBoard <hello@occuboard.com>",
+        from: formatFromEmail(fromEmail),
         to: supportInbox,
         reply_to: payload.userEmail || undefined,
         subject: `[${payload.type}] ${payload.subject}`,
@@ -26,12 +34,21 @@ export default async function handler(req, res) {
     });
     if (!response.ok) {
       await response.text().catch(() => "");
-      return send(res, 502, { error: "Could not send support message." });
+      return send(res, 502, {
+        error: "Could not send support message. You can still email hello@occuboard.io directly.",
+        mailto: "mailto:hello@occuboard.io",
+      });
     }
     return send(res, 200, { ok: true });
   } catch {
     return send(res, 400, { error: "Could not send support message." });
   }
+}
+
+function formatFromEmail(value = "") {
+  const email = String(value || defaultSupportInbox).trim();
+  if (email.includes("<")) return email;
+  return `OccuBoard <${email}>`;
 }
 
 function normalizeSubmission(input = {}) {

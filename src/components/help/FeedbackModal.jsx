@@ -14,9 +14,13 @@ export function FeedbackModal({ open, type = "Feedback", userEmail = "", onClose
   const toast = useToast();
   const [form, setForm] = useState({ ...initialForm, type });
   const [sending, setSending] = useState(false);
+  const [fallbackMailto, setFallbackMailto] = useState("");
 
   useEffect(() => {
-    if (open) setForm({ ...initialForm, type: type || "Feedback" });
+    if (open) {
+      setForm({ ...initialForm, type: type || "Feedback" });
+      setFallbackMailto("");
+    }
   }, [open, type]);
 
   useEffect(() => {
@@ -53,6 +57,7 @@ export function FeedbackModal({ open, type = "Feedback", userEmail = "", onClose
       toast.success("Thanks. Your message was sent.");
       onClose();
     } catch (error) {
+      if (error.mailto) setFallbackMailto(error.mailto);
       toast.error(error.message || "Could not send your message. Please try again.");
     } finally {
       setSending(false);
@@ -123,6 +128,12 @@ export function FeedbackModal({ open, type = "Feedback", userEmail = "", onClose
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-500 ring-1 ring-slate-100">
             We will include your account email, current page, browser, and timestamp so support has the context needed to help.
           </p>
+          {fallbackMailto && (
+            <div className="rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold leading-6 text-brand-900 ring-1 ring-brand-100">
+              Support email is not available from the app right now. You can still contact us directly at{" "}
+              <a className="font-black underline decoration-brand-300 underline-offset-2" href={fallbackMailto}>hello@occuboard.io</a>.
+            </div>
+          )}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="secondary" onClick={onClose} disabled={sending}>Cancel</Button>
             <Button type="submit" disabled={sending}>

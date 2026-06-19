@@ -1,4 +1,4 @@
-import { ChevronRight, HelpCircle, RotateCcw, X } from "lucide-react";
+import { ChevronRight, HelpCircle, MessageSquare, RotateCcw, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { restartProductTour } from "../../lib/onboarding.js";
 import { trackProductEvent } from "../../lib/productAnalytics.js";
@@ -18,7 +18,14 @@ const helpSections = [
   ["Privacy & Data Security", "Your account data is stored per authenticated user. Review the Privacy Policy in Settings for provider and deletion details."],
 ];
 
-export function HelpCenter({ open, initialSection = "", onClose, onRestart }) {
+const supportActions = [
+  ["Send Feedback", "Feedback"],
+  ["Report a Bug", "Bug Report"],
+  ["Contact Support", "Support Question"],
+  ["Request a Feature", "Feature Request"],
+];
+
+export function HelpCenter({ open, initialSection = "", onClose, onRestart, onOpenFeedback }) {
   const [expanded, setExpanded] = useState(initialSection);
 
   useEffect(() => {
@@ -57,6 +64,23 @@ export function HelpCenter({ open, initialSection = "", onClose, onRestart }) {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <section className="mb-5 rounded-xl bg-gradient-to-r from-brand-50 via-white to-emerald-50 p-4 ring-1 ring-brand-100">
+            <div className="flex items-start gap-3">
+              <MessageSquare size={20} className="mt-0.5 shrink-0 text-brand-700" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-ink">Need help or want to share something?</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">Send feedback, report a bug, contact support, or request a feature.</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {supportActions.map(([label, type], index) => (
+                    <Button key={type} variant={index === 0 ? "primary" : "secondary"} className="min-h-9 justify-center px-3 text-xs" onClick={() => onOpenFeedback?.(type)}>
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
           <div className="grid gap-2">
             {helpSections.map(([title, copy]) => {
               const selected = expanded === title;

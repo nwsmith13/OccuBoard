@@ -1,4 +1,4 @@
-import { BarChart3, Command, FileStack, FileText, HelpCircle, LayoutDashboard, LogOut, Menu, MessageSquare, PlusCircle, Settings, X } from "lucide-react";
+import { BarChart3, Command, FileStack, FileText, HelpCircle, LayoutDashboard, LogOut, Menu, PlusCircle, Settings, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -226,30 +226,17 @@ export function AppLayout() {
         </main>
       </div>
       <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
-      <div className="fixed bottom-5 right-5 z-30 flex flex-col items-end gap-2">
-        <button
-          type="button"
-          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-800 px-4 text-sm font-black text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
-          onClick={() => {
-            setFeedbackModal({ open: true, type: "Feedback" });
-            trackProductEvent("feedback_opened", { type: "Feedback", source: "floating_button" });
-          }}
-          aria-label="Send feedback to OccuBoard"
-        >
-          <MessageSquare size={17} aria-hidden="true" /> Send Feedback
-        </button>
-        <button
-          type="button"
-          className="inline-flex min-h-9 items-center gap-2 rounded-full bg-white px-3 text-xs font-black text-brand-800 shadow-sm ring-1 ring-brand-100 transition hover:-translate-y-0.5 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
-          onClick={() => {
-            setHelpCenter({ open: true, section: "" });
-            trackProductEvent("help_center_opened", { source: "floating_button" });
-          }}
-          aria-label="Open OccuBoard Help Center"
-        >
-          <HelpCircle size={15} aria-hidden="true" /> Help
-        </button>
-      </div>
+      <button
+        type="button"
+        className="fixed bottom-5 right-5 z-30 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-800 px-4 text-sm font-black text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+        onClick={() => {
+          setHelpCenter({ open: true, section: "" });
+          trackProductEvent("help_center_opened", { source: "floating_button" });
+        }}
+        aria-label="Open OccuBoard Help Center"
+      >
+        <HelpCircle size={17} aria-hidden="true" /> Help
+      </button>
       <HelpCenter
         open={helpCenter.open}
         initialSection={helpCenter.section}

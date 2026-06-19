@@ -29,6 +29,8 @@ export async function submitFeedback(input = {}) {
   if (!response.ok) {
     const error = new Error(data?.error || "Could not send your message. Please try again.");
     error.status = response.status;
+    error.code = data?.code || "";
+    error.mailto = data?.mailto || "mailto:hello@occuboard.io";
     throw error;
   }
   return data;
