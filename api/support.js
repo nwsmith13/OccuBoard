@@ -1,4 +1,8 @@
+/* global console */
+
 const allowedTypes = new Set(["Feedback", "Bug Report", "Support Question", "Feature Request"]);
+const defaultSupportEmail = "hello@occuboard.io";
+const defaultFromEmail = "OccuBoard Support <hello@occuboard.io>";
 
 export default async function handler(req, res) {
   setJson(res);
@@ -7,12 +11,10 @@ export default async function handler(req, res) {
     const payload = normalizeSubmission(typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {});
     if (!payload.subject || !payload.message) return send(res, 400, { error: "Subject and message are required." });
     const apiKey = process.env.RESEND_API_KEY || "";
-    const supportInbox = process.env.SUPPORT_EMAIL || "";
-    const fromEmail = process.env.FROM_EMAIL || "";
+    const supportInbox = sanitizeSupportEmail(process.env.SUPPORT_EMAIL || defaultSupportEmail);
+    const fromEmail = resolveFromEmail(process.env.FROM_EMAIL);
     const missingEnv = [
       ["RESEND_API_KEY", apiKey],
-      ["SUPPORT_EMAIL", supportInbox],
-      ["FROM_EMAIL", fromEmail],
     ].filter(([, value]) => !value).map(([key]) => key);
     if (missingEnv.length) {
       return send(res, 503, {
@@ -22,6 +24,7 @@ export default async function handler(req, res) {
         mailto: "mailto:hello@occuboard.io",
       });
     }
+    console.log("Support email sender domain", fromEmail);
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -53,10 +56,22 @@ export default async function handler(req, res) {
   }
 }
 
-function formatFromEmail(value = "") {
+function resolveFromEmail(value = "") {
   const email = String(value || "").trim();
+  if (!email || /occuboard\.com/i.test(email)) return defaultFromEmail;
+  return formatFromEmail(email);
+}
+
+function sanitizeSupportEmail(value = "") {
+  const email = String(value || "").trim();
+  if (!email || /occuboard\.com/i.test(email)) return defaultSupportEmail;
+  return email;
+}
+
+function formatFromEmail(value = "") {
+  const email = String(value || defaultFromEmail).trim();
   if (email.includes("<")) return email;
-  return `OccuBoard <${email}>`;
+  return `OccuBoard Support <${email}>`;
 }
 
 function normalizeSubmission(input = {}) {
