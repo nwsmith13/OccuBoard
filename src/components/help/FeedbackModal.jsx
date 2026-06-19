@@ -57,7 +57,9 @@ export function FeedbackModal({ open, type = "Feedback", userEmail = "", onClose
       toast.success("Thanks. Your message was sent.");
       onClose();
     } catch (error) {
-      if (error.mailto) setFallbackMailto(error.mailto);
+      if (error.code === "support_config_missing" && error.mailto) {
+        setFallbackMailto(error.mailto);
+      }
       toast.error(error.message || "Could not send your message. Please try again.");
     } finally {
       setSending(false);

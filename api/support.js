@@ -1,5 +1,4 @@
 const allowedTypes = new Set(["Feedback", "Bug Report", "Support Question", "Feature Request"]);
-const defaultSupportInbox = "hello@occuboard.io";
 
 export default async function handler(req, res) {
   setJson(res);
@@ -8,12 +7,18 @@ export default async function handler(req, res) {
     const payload = normalizeSubmission(typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {});
     if (!payload.subject || !payload.message) return send(res, 400, { error: "Subject and message are required." });
     const apiKey = process.env.RESEND_API_KEY || "";
-    const supportInbox = process.env.SUPPORT_EMAIL || defaultSupportInbox;
-    const fromEmail = process.env.FROM_EMAIL || process.env.RESEND_FROM_EMAIL || supportInbox;
-    if (!apiKey) {
+    const supportInbox = process.env.SUPPORT_EMAIL || "";
+    const fromEmail = process.env.FROM_EMAIL || "";
+    const missingEnv = [
+      ["RESEND_API_KEY", apiKey],
+      ["SUPPORT_EMAIL", supportInbox],
+      ["FROM_EMAIL", fromEmail],
+    ].filter(([, value]) => !value).map(([key]) => key);
+    if (missingEnv.length) {
       return send(res, 503, {
         error: "Support email is not configured yet. You can still email hello@occuboard.io directly.",
         code: "support_config_missing",
+        missing: missingEnv,
         mailto: "mailto:hello@occuboard.io",
       });
     }
@@ -33,10 +38,13 @@ export default async function handler(req, res) {
       }),
     });
     if (!response.ok) {
-      await response.text().catch(() => "");
+      const resendError = await response.text().catch(() => "");
+      globalThis.console?.error?.("Resend support email rejected", {
+        status: response.status,
+        body: resendError,
+      });
       return send(res, 502, {
-        error: "Could not send support message. You can still email hello@occuboard.io directly.",
-        mailto: "mailto:hello@occuboard.io",
+        error: "We could not send your message from the app. Please try again in a moment.",
       });
     }
     return send(res, 200, { ok: true });
@@ -46,7 +54,7 @@ export default async function handler(req, res) {
 }
 
 function formatFromEmail(value = "") {
-  const email = String(value || defaultSupportInbox).trim();
+  const email = String(value || "").trim();
   if (email.includes("<")) return email;
   return `OccuBoard <${email}>`;
 }
