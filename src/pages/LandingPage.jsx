@@ -18,6 +18,7 @@
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { FeedbackModal } from "../components/help/FeedbackModal.jsx";
 import { Logo } from "../components/layout/Logo.jsx";
 import { Button } from "../components/ui/Button.jsx";
 import { Card } from "../components/ui/Card.jsx";
@@ -117,6 +118,7 @@ const productTourSteps = [
 
 export function LandingPage() {
   const [tourOpen, setTourOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
     <div className="w-full overflow-x-hidden bg-white pt-20 text-ink sm:pt-24 2xl:pt-28">
@@ -287,8 +289,9 @@ export function LandingPage() {
           <Link to="/signup"><Button variant="secondary">Analyze Your First Job</Button></Link>
         </div>
       </footer>
-      <PublicFooter />
+      <PublicFooter onContact={() => setFeedbackOpen(true)} />
       {tourOpen ? <ProductTourModal onClose={() => setTourOpen(false)} /> : null}
+      <FeedbackModal open={feedbackOpen} type="Support Question" onClose={() => setFeedbackOpen(false)} />
     </div>
   );
 }

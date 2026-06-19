@@ -83,7 +83,7 @@ export function useToast() {
 
 function ToastViewport({ toasts, onDismiss }) {
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[80] grid w-[min(380px,calc(100vw-2rem))] gap-2">
+    <div className="pointer-events-none fixed bottom-4 right-4 z-[120] grid w-[min(380px,calc(100vw-2rem))] gap-2">
       {toasts.map((toast) => <Toast key={toast.id} toast={toast} onDismiss={() => onDismiss(toast.id)} />)}
     </div>
   );

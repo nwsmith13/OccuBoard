@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { createBillingPortalSession, createCheckoutSession, FREE_LIMIT, getPlanLabel, isProSubscription, verifyCheckoutSession } from "../../lib/billing.js";
-import { openHelpCenter } from "../../lib/helpCenter.js";
+import { openFeedback, openHelpCenter } from "../../lib/helpCenter.js";
 import { restartProductTour } from "../../lib/onboarding.js";
 import { trackEvent, trackProductEvent, trackProductMilestone } from "../../lib/productAnalytics.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -140,6 +140,8 @@ export function SettingsPage() {
             <p className="mt-2 text-sm leading-6 text-slate-600">Learn how each OccuBoard workspace fits together or restart the guided product tour without changing your data.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button variant="secondary" onClick={() => openHelpCenter()}>Open Help Center</Button>
+              <Button variant="secondary" onClick={() => openFeedback("Feedback")}>Send Feedback</Button>
+              <Button variant="secondary" onClick={() => openFeedback("Support Question")}>Contact Support</Button>
               <Button
                 variant="ghost"
                 onClick={() => {

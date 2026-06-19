@@ -164,12 +164,17 @@ function LegalDocument({ title, intro, sections }) {
   );
 }
 
-export function PublicFooter() {
+export function PublicFooter({ onContact }) {
   return (
     <footer className="border-t border-brand-100 bg-white px-4 py-6 text-sm text-slate-600">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="font-semibold">© {new Date().getFullYear()} OccuBoard</p>
         <nav className="flex flex-wrap gap-4" aria-label="Legal links">
+          {onContact ? (
+            <button type="button" className="font-semibold hover:text-brand-800" onClick={onContact}>Contact</button>
+          ) : (
+            <a className="font-semibold hover:text-brand-800" href="mailto:hello@occuboard.com">Contact</a>
+          )}
           <Link className="font-semibold hover:text-brand-800" to="/privacy">Privacy Policy</Link>
           <Link className="font-semibold hover:text-brand-800" to="/terms">Terms of Service</Link>
         </nav>

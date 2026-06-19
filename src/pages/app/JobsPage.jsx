@@ -4222,7 +4222,7 @@ function InterviewPrepOverview({ focusAreas, questions, readiness, concerns, con
           )}
           <div className="mt-3 grid gap-2 md:grid-cols-2">
             {toolkitStatus.map((item) => (
-              <ToolkitStatusRow key={item.label} item={item} onAction={item.id === "concerns" && item.status === "attention" ? onViewConcerns : null} />
+              <ToolkitStatusRow key={item.label} item={item} onAction={item.id === "concerns" ? onViewConcerns : null} />
             ))}
           </div>
         </div>
@@ -4504,7 +4504,7 @@ function PrepInfoBlock({ label, value }) {
 
 function ToolkitStatusRow({ item, onAction }) {
   const tone = getToolkitStatusTone(item.status);
-  const icon = item.status === "complete" ? "\u2713" : item.status === "attention" ? "!" : "\u25CB";
+  const icon = item.icon === "message" ? <MessageCircle size={13} aria-hidden="true" /> : item.status === "complete" ? "\u2713" : item.status === "attention" ? "!" : "\u25CB";
   const content = (
     <>
       <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-xs font-black ${tone.icon}`} aria-hidden="true">
@@ -4743,25 +4743,18 @@ function getHiringConcernsStatus(concerns = []) {
   if (!concerns.length) {
     return {
       id: "concerns",
-      label: "Recruiter Topics Prepared",
+      label: "Conversation Topics Prepared",
       status: "complete",
+      icon: "message",
       detail: "No major conversation topics need extra preparation.",
-    };
-  }
-  if (concerns.length <= 1) {
-    return {
-      id: "concerns",
-      label: "Recruiter Topic To Prepare",
-      status: "attention",
-      detail: "1 conversation topic a recruiter or hiring manager may ask about.",
-      actionLabel: "View Topics",
     };
   }
   return {
     id: "concerns",
-    label: "Recruiter Topics To Prepare",
-    status: "attention",
-    detail: `${concerns.length} conversation topics a recruiter or hiring manager may ask about.`,
+    label: "Conversation Topics Prepared",
+    status: "complete",
+    icon: "message",
+    detail: `${concerns.length} conversation topic${concerns.length === 1 ? "" : "s"} ready to review.`,
     actionLabel: "View Topics",
   };
 }

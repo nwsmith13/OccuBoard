@@ -1,13 +1,14 @@
-import { BarChart3, Command, FileStack, FileText, HelpCircle, LayoutDashboard, LogOut, Menu, PlusCircle, Settings, X } from "lucide-react";
+import { BarChart3, Command, FileStack, FileText, HelpCircle, LayoutDashboard, LogOut, Menu, MessageSquare, PlusCircle, Settings, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { buildOnboardingState, clearEmailConfirmation, clearProductTourRestart, getRestartedTourState, onboardingStorageKey, onboardingTrackerDismissedKey, onboardingUpdatedEvent, readBooleanFlag, readEmailConfirmation, readProductTourRestart, shouldShowFullOnboarding, writeBooleanFlag } from "../../lib/onboarding.js";
-import { openHelpCenterEvent } from "../../lib/helpCenter.js";
+import { openFeedbackEvent, openHelpCenterEvent } from "../../lib/helpCenter.js";
 import { trackProductEvent } from "../../lib/productAnalytics.js";
 import { isProSubscription } from "../../lib/billing.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { CommandPalette } from "../command/CommandPalette.jsx";
+import { FeedbackModal } from "../help/FeedbackModal.jsx";
 import { HelpCenter } from "../help/HelpCenter.jsx";
 import { CompletionRibbon, GettingStartedRibbon } from "../onboarding/GettingStartedRibbon.jsx";
 import { OnboardingFlow } from "../onboarding/OnboardingFlow.jsx";
@@ -34,6 +35,7 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [helpCenter, setHelpCenter] = useState({ open: false, section: "" });
+  const [feedbackModal, setFeedbackModal] = useState({ open: false, type: "Feedback" });
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => readBooleanFlag(onboardingStorageKey));
   const [trackerDismissed, setTrackerDismissed] = useState(() => readBooleanFlag(onboardingTrackerDismissedKey));
   const [emailConfirmed, setEmailConfirmed] = useState(() => readEmailConfirmation());
@@ -80,6 +82,16 @@ export function AppLayout() {
     }
     window.addEventListener(openHelpCenterEvent, showHelp);
     return () => window.removeEventListener(openHelpCenterEvent, showHelp);
+  }, []);
+
+  useEffect(() => {
+    function showFeedback(event) {
+      const type = event.detail?.type || "Feedback";
+      setFeedbackModal({ open: true, type });
+      trackProductEvent("feedback_opened", { type, source: "global_event" });
+    }
+    window.addEventListener(openFeedbackEvent, showFeedback);
+    return () => window.removeEventListener(openFeedbackEvent, showFeedback);
   }, []);
 
   useEffect(() => {
@@ -214,21 +226,38 @@ export function AppLayout() {
         </main>
       </div>
       <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
-      <button
-        type="button"
-        className="fixed bottom-5 right-5 z-30 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-800 px-4 text-sm font-black text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
-        onClick={() => {
-          setHelpCenter({ open: true, section: "" });
-          trackProductEvent("help_center_opened", { source: "floating_button" });
-        }}
-        aria-label="Open OccuBoard Help Center"
-      >
-        <HelpCircle size={17} aria-hidden="true" /> Help
-      </button>
+      <div className="fixed bottom-5 right-5 z-30 flex flex-col items-end gap-2">
+        <button
+          type="button"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-800 px-4 text-sm font-black text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+          onClick={() => {
+            setFeedbackModal({ open: true, type: "Feedback" });
+            trackProductEvent("feedback_opened", { type: "Feedback", source: "floating_button" });
+          }}
+          aria-label="Send feedback to OccuBoard"
+        >
+          <MessageSquare size={17} aria-hidden="true" /> Send Feedback
+        </button>
+        <button
+          type="button"
+          className="inline-flex min-h-9 items-center gap-2 rounded-full bg-white px-3 text-xs font-black text-brand-800 shadow-sm ring-1 ring-brand-100 transition hover:-translate-y-0.5 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+          onClick={() => {
+            setHelpCenter({ open: true, section: "" });
+            trackProductEvent("help_center_opened", { source: "floating_button" });
+          }}
+          aria-label="Open OccuBoard Help Center"
+        >
+          <HelpCircle size={15} aria-hidden="true" /> Help
+        </button>
+      </div>
       <HelpCenter
         open={helpCenter.open}
         initialSection={helpCenter.section}
         onClose={() => setHelpCenter({ open: false, section: "" })}
+        onOpenFeedback={(type) => {
+          setFeedbackModal({ open: true, type });
+          trackProductEvent("feedback_opened", { type, source: "help_center" });
+        }}
         onRestart={() => {
           setHelpCenter({ open: false, section: "" });
           setOnboardingDismissed(false);
@@ -236,6 +265,12 @@ export function AppLayout() {
           setOnboardingRefresh((value) => value + 1);
           window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
         }}
+      />
+      <FeedbackModal
+        open={feedbackModal.open}
+        type={feedbackModal.type}
+        userEmail={profile?.email || user?.email || ""}
+        onClose={() => setFeedbackModal({ open: false, type: "Feedback" })}
       />
     </div>
   );
