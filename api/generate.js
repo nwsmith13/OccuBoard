@@ -137,11 +137,17 @@ export function validateGeneratedResult(action, result, profile, job) {
   }
 
   const hasCandidateVoice = /\b(?:i|i['\u2019]m|i['\u2019]ve|i\s+have|my)\b/i.test(content);
-  const mentionsOpportunity = [
-    String(job?.job_title || "").trim(),
-    String(job?.company_name || "").trim(),
-  ].filter(Boolean).some((value) => content.toLowerCase().includes(value.toLowerCase()));
-  if (hasBadVoice || !hasCandidateVoice || !mentionsOpportunity) {
+  const evaluatorVoicePatterns = [
+    /\b(?:this|the)\s+(?:candidate|applicant)\s+(?:is|has|brings|demonstrates|would|could|should)\b/i,
+    /\b(?:candidate|applicant)\s+(?:appears|seems|demonstrates|would\s+be|is\s+a\s+strong)\b/i,
+    /\bwe\s+(?:should|can|could)\s+(?:move\s+forward|interview|screen|consider)\b/i,
+    /\bi\s+(?:recommend|would\s+recommend)\s+(?:moving\s+forward|interviewing|screening|considering)\b/i,
+    /\bmove\s+(?:this|the)\s+(?:candidate|applicant)\s+forward\b/i,
+    /\bwhy\s+(?:we|you)\s+should\s+(?:interview|hire|consider)\b/i,
+  ];
+  const evaluatorVoiceHits = evaluatorVoicePatterns.filter((pattern) => pattern.test(content)).length;
+  const clearEvaluatorVoice = evaluatorVoiceHits >= 2 || (evaluatorVoiceHits >= 1 && !hasCandidateVoice);
+  if (hasBadVoice || clearEvaluatorVoice || !hasCandidateVoice) {
     const error = new Error("The generated message used recruiter voice instead of candidate voice. Please regenerate.");
     error.status = 422;
     error.code = "message_voice_validation_failed";

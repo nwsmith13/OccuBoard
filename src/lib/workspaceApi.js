@@ -326,11 +326,16 @@ function applyProfileOptionalOverrides(user, profile = {}) {
   const overrides = readLocal(getUserScopedKey(keys.profileOptionalOverrides, user.id), {});
   return {
     ...profile,
-    location: profile.location || overrides.location || "",
-    phone: profile.phone || overrides.phone || "",
-    linkedin_url: profile.linkedin_url || overrides.linkedin_url || "",
-    portfolio_url: profile.portfolio_url || overrides.portfolio_url || "",
+    location: getProfileFieldOrOverride(profile, overrides, "location"),
+    phone: getProfileFieldOrOverride(profile, overrides, "phone"),
+    linkedin_url: getProfileFieldOrOverride(profile, overrides, "linkedin_url"),
+    portfolio_url: getProfileFieldOrOverride(profile, overrides, "portfolio_url"),
   };
+}
+
+function getProfileFieldOrOverride(profile = {}, overrides = {}, field) {
+  if (Object.prototype.hasOwnProperty.call(profile, field)) return profile[field] ?? "";
+  return overrides[field] ?? "";
 }
 
 function clearProfileOptionalOverrides(user) {

@@ -149,7 +149,7 @@ export async function exportResearchNotesPdf({ profile, job, focusAreas = [], qu
 
 function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
   const page = { width: doc.internal.pageSize.getWidth(), height: doc.internal.pageSize.getHeight() };
-  const margin = 64;
+  const margin = 66;
   const maxWidth = page.width - margin * 2;
   let y = margin;
 
@@ -160,6 +160,7 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
   };
 
   const writeLines = (lines, { x = margin, font = "normal", size = 10.5, leading = 16, color = [23, 32, 51] } = {}) => {
+    resetCharacterSpacing(doc);
     doc.setFont("helvetica", font);
     doc.setFontSize(size);
     doc.setTextColor(...color);
@@ -178,12 +179,14 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
       const accent = hexToRgb(accentColor);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(19);
+      resetCharacterSpacing(doc);
       doc.setTextColor(23, 32, 51);
       ensureSpace(42);
       doc.text(title, margin, y);
       y += 20;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(11);
+      resetCharacterSpacing(doc);
       doc.setTextColor(91, 103, 122);
       doc.text(subtitle, margin, y);
       y += 12;
@@ -198,10 +201,11 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
       y += 8;
     },
     section(title) {
-      y += 14;
-      ensureSpace(86);
+      y += 20;
+      ensureSpace(92);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
+      resetCharacterSpacing(doc);
       doc.setTextColor(...hexToRgb(accentColor));
       doc.text(String(title).toUpperCase(), margin, y);
       y += 10;
@@ -224,9 +228,9 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
       }
       clean.forEach((item) => {
         writeLines([`- ${item}`], { x: margin + 10, leading: 17 });
-        y += 4;
+        y += 5;
       });
-      y += 16;
+      y += 18;
     },
     cards(cards = []) {
       const clean = cards.filter((card) => card?.title || card?.body);
@@ -238,29 +242,33 @@ function createPdfRenderer(doc, { accentColor = defaultAccent } = {}) {
       clean.forEach((card) => {
         const titleLines = doc.splitTextToSize(normalizeText(card.title), maxWidth - 32);
         const bodyGroups = getCardBodyGroups(card.body);
-        const wrappedGroups = bodyGroups.map((group) => splitLabeledGroup(doc, group, maxWidth - 32));
+        const wrappedGroups = bodyGroups.map((group) => splitLabeledGroup(doc, group, maxWidth - 38));
         const bodyLineCount = wrappedGroups.reduce((sum, group) => sum + group.labelLines.length + group.valueLines.length, 0);
-        const height = 42 + titleLines.length * 16 + bodyLineCount * 15 + Math.max(0, wrappedGroups.length - 1) * 9;
-        ensureSpace(height + 20);
+        const height = 52 + titleLines.length * 17 + bodyLineCount * 16 + Math.max(0, wrappedGroups.length - 1) * 13;
+        ensureSpace(height + 24);
         doc.setDrawColor(217, 230, 242);
         doc.setFillColor(249, 252, 254);
         doc.roundedRect(margin, y - 8, maxWidth, height, 9, 9, "FD");
-        y += 14;
-        writeLines(titleLines, { x: margin + 16, font: "bold", size: 11.5, leading: 16 });
-        y += 4;
+        y += 16;
+        writeLines(titleLines, { x: margin + 18, font: "bold", size: 11.5, leading: 17 });
+        y += 7;
         wrappedGroups.forEach((group) => {
           if (group.labelLines.length) {
-            writeLines(group.labelLines, { x: margin + 16, font: "bold", size: 9.4, leading: 14, color: [15, 94, 168] });
+            writeLines(group.labelLines, { x: margin + 18, font: "bold", size: 9.4, leading: 14, color: [15, 94, 168] });
           }
           if (group.valueLines.length) {
-            writeLines(group.valueLines, { x: margin + 16, size: 9.8, leading: 15, color: [71, 85, 105] });
+            writeLines(group.valueLines, { x: margin + 18, size: 9.8, leading: 16, color: [71, 85, 105] });
           }
-          y += 9;
+          y += 12;
         });
-        y += 16;
+        y += 20;
       });
     },
   };
+}
+
+function resetCharacterSpacing(doc) {
+  if (typeof doc.setCharSpace === "function") doc.setCharSpace(0);
 }
 
 function formatQuestionCard(question = {}) {

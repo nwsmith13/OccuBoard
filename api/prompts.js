@@ -574,6 +574,7 @@ Rules:
 - Use first person as the user/candidate.
 - Never write from the recruiter, hiring manager, or company.
 - Never address the message to the candidate; address the recruiter, hiring manager, or company contact instead.
+- Do not describe the applicant in third person, score/evaluate the applicant, or recommend whether the applicant should be moved forward. This is an outreach note from the applicant.
 - Never say "I'm recruiting for" or imply the sender is recruiting.
 - Never say "I'm reaching out from [Company]".
 - Never say "our role", "our team", or "we are hiring".

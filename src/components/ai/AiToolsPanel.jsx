@@ -620,9 +620,36 @@ export function FitResult({ score, onGenerate, onRegenerate, onContinue, onRecru
 }
 
 export function ResumeResult({ resume, job: currentJob, score, materials = {}, analysisReady = true, onAnalyze, onGenerate, onRegenerate, onExportComplete, onOpenRecruiterView, onOpenExport, onOpenMessage, onOpenInterview, loading, showAction = true, hideIndividualExport = false }) {
-  const { profile, jobs } = useWorkspaceStore();
+  const { user } = useAuth();
+  const toast = useToast();
+  const { profile, jobs, updateResumeVersion } = useWorkspaceStore();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(resume?.content || "");
+  const [saveState, setSaveState] = useState("");
   const job = currentJob || (resume ? jobs.find((item) => item.id === resume.job_id) : null);
-  const whyThisFits = extractWhyThisFits(resume?.content);
+  const whyThisFits = extractWhyThisFits(draft);
+  const displayResume = resume ? { ...resume, content: draft } : resume;
+  useEffect(() => {
+    setDraft(resume?.content || "");
+    setEditing(false);
+    setSaveState("");
+  }, [resume?.id, resume?.content]);
+
+  async function saveEdits() {
+    if (!resume?.id || !draft.trim()) return;
+    setSaveState("saving");
+    try {
+      await updateResumeVersion(user, resume.id, { content: draft });
+      setSaveState("saved");
+      setEditing(false);
+      toast.success("Resume edits saved.");
+      window.setTimeout(() => setSaveState(""), 2200);
+    } catch {
+      setSaveState("error");
+      toast.error("Could not save resume edits.");
+    }
+  }
+
   if (!resume && !analysisReady) return <EmptyAiState title="No tailored resume yet" description="Generate the fit analysis first so your resume can be tailored from the strongest evidence." action={showAction && onAnalyze ? "Analyze Fit" : ""} onAction={onAnalyze} loading={loading} />;
   if (!resume) return <EmptyAiState title="No tailored resume yet" description="Create an application-ready resume version using your base resume and this job." action={showAction && onGenerate ? "Generate Resume" : ""} onAction={onGenerate} loading={loading} />;
   return (
@@ -635,9 +662,50 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
             Your tailored resume is ready. Review the polished version below, then continue to Recruiter View or export it from here.
           </p>
         </div>
-        <CopyButton text={resume.content} />
+        <CopyButton text={draft} />
       </div>
-      <ResumeFitImprovementSnapshot score={score} generatedText={resume.content} />
+      <ResumeFitImprovementSnapshot score={score} generatedText={draft} />
+      <div className="mt-4 rounded-lg bg-white/90 p-4 ring-1 ring-brand-100">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold text-ink">Tailored resume text</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">Make small edits here before exporting. Saved edits are used for PDF, DOCX, and package downloads.</p>
+          </div>
+          {!editing && (
+            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => setEditing(true)}>
+              Edit resume
+            </Button>
+          )}
+        </div>
+        {editing ? (
+          <>
+            <textarea
+              className="mt-3 min-h-[420px] w-full rounded-lg border border-brand-100 bg-white p-4 text-sm leading-6 text-slate-800 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+              value={draft}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setSaveState("dirty");
+              }}
+            />
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button className="min-h-8 px-3 text-xs" onClick={saveEdits} disabled={saveState === "saving" || !draft.trim()}>
+                {saveState === "saving" && <Loader2 size={14} className="animate-spin" />}
+                {saveState === "saving" ? "Saving..." : "Save edits"}
+              </Button>
+              <Button variant="ghost" className="min-h-8 px-3 text-xs" onClick={() => { setDraft(resume.content || ""); setEditing(false); setSaveState(""); }}>
+                Cancel
+              </Button>
+            </div>
+          </>
+        ) : (
+          <pre className="mt-3 max-h-[520px] overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-800">{draft}</pre>
+        )}
+        <div className="mt-2 min-h-5">
+          {saveState === "dirty" && <span className="text-xs font-semibold text-amber-700">Unsaved changes</span>}
+          {saveState === "saved" && <span className="text-xs font-semibold text-emerald-700">Saved</span>}
+          {saveState === "error" && <span className="text-xs font-semibold text-rose-700">Could not save</span>}
+        </div>
+      </div>
       <div className="mt-4 rounded-lg bg-white/85 p-3 ring-1 ring-brand-100">
         <p className="text-sm font-bold text-ink">Choose your next step</p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -655,7 +723,7 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
         </div>
       )}
       <RecruiterConfidenceIndicator label="Recruiter-ready positioning improved" />
-      <RewriteVisibilityPanel material={resume} materials={materials} score={score} originalText={profile?.base_resume_text} generatedText={resume.content} materialType="resume" className="mt-3" />
+      <RewriteVisibilityPanel material={displayResume} materials={{ ...materials, resume: displayResume }} score={score} originalText={profile?.base_resume_text} generatedText={draft} materialType="resume" className="mt-3" />
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           className="inline-flex min-h-10 items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
@@ -666,7 +734,7 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
       </div>
       {!hideIndividualExport && (
         <div className="mt-5">
-          <ResumeExportPanel resume={resume} profile={profile} job={job} score={score} source="resume_page" compact onExportComplete={onExportComplete} />
+          <ResumeExportPanel resume={displayResume} profile={profile} job={job} score={score} source="resume_page" compact onExportComplete={onExportComplete} />
         </div>
       )}
       {onRegenerate && <RegenerateButton label="Regenerate resume" onClick={onRegenerate} disabled={Boolean(loading)} />}

@@ -14,12 +14,14 @@ export function ProfileForm({ compact = false, onSaved }) {
   const [form, setForm] = useState(() => getCurrentUserProfile(profile, user));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [cleaned, setCleaned] = useState(false);
   const [autoClean, setAutoClean] = useState(true);
 
   useEffect(() => {
     setForm(getCurrentUserProfile(profile, user));
     setSaved(false);
+    setSaveError("");
     setCleaned(false);
   }, [profile, user]);
 
@@ -28,6 +30,7 @@ export function ProfileForm({ compact = false, onSaved }) {
   const tone = getCompletenessTone(completeness);
   const update = (event) => {
     setSaved(false);
+    setSaveError("");
     setCleaned(false);
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   };
@@ -46,18 +49,25 @@ export function ProfileForm({ compact = false, onSaved }) {
       : form;
     const resumeTextChanged = String(payload.base_resume_text || "").trim() !== String(profile?.base_resume_text || "").trim();
     setSaving(true);
-    await saveProfile(user, payload);
-    setForm(payload);
-    setSaving(false);
-    setSaved(true);
-    setCleaned(false);
-    if (resumeTextChanged && payload.base_resume_text?.trim()) {
-      trackEvent("resume_pasted", { user_id: user?.id, source: "paste" });
+    try {
+      const savedProfile = await saveProfile(user, payload);
+      const nextProfile = { ...payload, ...savedProfile };
+      setForm(nextProfile);
+      setSaved(true);
+      setCleaned(false);
+      if (resumeTextChanged && payload.base_resume_text?.trim()) {
+        trackEvent("resume_pasted", { user_id: user?.id, source: "paste" });
+      }
+      if (!hadBaseResume && payload.base_resume_text?.trim()) {
+        trackProductMilestone("resume_added", { user_id: user?.id, source: "paste" });
+      }
+      onSaved?.({ hadBaseResume, hasBaseResume: Boolean(payload.base_resume_text?.trim()), profile: nextProfile });
+    } catch (error) {
+      setSaved(false);
+      setSaveError(error?.message || "Profile could not be saved. Please try again.");
+    } finally {
+      setSaving(false);
     }
-    if (!hadBaseResume && payload.base_resume_text?.trim()) {
-      trackProductMilestone("resume_added", { user_id: user?.id, source: "paste" });
-    }
-    onSaved?.({ hadBaseResume, hasBaseResume: Boolean(payload.base_resume_text?.trim()), profile: payload });
   }
 
   return (
@@ -133,6 +143,7 @@ export function ProfileForm({ compact = false, onSaved }) {
         <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save profile"}</Button>
         {saved && <p className="text-sm font-semibold text-brand-700">Saved</p>}
       </div>
+      {saveError && <p className="-mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{saveError}</p>}
     </form>
   );
 }
