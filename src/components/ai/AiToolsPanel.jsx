@@ -623,7 +623,7 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
   const { user } = useAuth();
   const toast = useToast();
   const { profile, jobs, updateResumeVersion } = useWorkspaceStore();
-  const [editing, setEditing] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [draft, setDraft] = useState(resume?.content || "");
   const [saveState, setSaveState] = useState("");
   const job = currentJob || (resume ? jobs.find((item) => item.id === resume.job_id) : null);
@@ -631,7 +631,7 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
   const displayResume = resume ? { ...resume, content: draft } : resume;
   useEffect(() => {
     setDraft(resume?.content || "");
-    setEditing(false);
+    setEditOpen(false);
     setSaveState("");
   }, [resume?.id, resume?.content]);
 
@@ -641,7 +641,6 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
     try {
       await updateResumeVersion(user, resume.id, { content: draft });
       setSaveState("saved");
-      setEditing(false);
       toast.success("Resume edits saved.");
       window.setTimeout(() => setSaveState(""), 2200);
     } catch {
@@ -665,57 +664,6 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
         <CopyButton text={draft} />
       </div>
       <ResumeFitImprovementSnapshot score={score} generatedText={draft} />
-      <div className="mt-4 rounded-lg bg-white/90 p-4 ring-1 ring-brand-100">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-bold text-ink">Tailored resume text</p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">Make small edits here before exporting. Saved edits are used for PDF, DOCX, and package downloads.</p>
-          </div>
-          {!editing && (
-            <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={() => setEditing(true)}>
-              Edit resume
-            </Button>
-          )}
-        </div>
-        {editing ? (
-          <>
-            <textarea
-              className="mt-3 min-h-[420px] w-full rounded-lg border border-brand-100 bg-white p-4 text-sm leading-6 text-slate-800 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
-              value={draft}
-              onChange={(event) => {
-                setDraft(event.target.value);
-                setSaveState("dirty");
-              }}
-            />
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button className="min-h-8 px-3 text-xs" onClick={saveEdits} disabled={saveState === "saving" || !draft.trim()}>
-                {saveState === "saving" && <Loader2 size={14} className="animate-spin" />}
-                {saveState === "saving" ? "Saving..." : "Save edits"}
-              </Button>
-              <Button variant="ghost" className="min-h-8 px-3 text-xs" onClick={() => { setDraft(resume.content || ""); setEditing(false); setSaveState(""); }}>
-                Cancel
-              </Button>
-            </div>
-          </>
-        ) : (
-          <pre className="mt-3 max-h-[520px] overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-800">{draft}</pre>
-        )}
-        <div className="mt-2 min-h-5">
-          {saveState === "dirty" && <span className="text-xs font-semibold text-amber-700">Unsaved changes</span>}
-          {saveState === "saved" && <span className="text-xs font-semibold text-emerald-700">Saved</span>}
-          {saveState === "error" && <span className="text-xs font-semibold text-rose-700">Could not save</span>}
-        </div>
-      </div>
-      <div className="mt-4 rounded-lg bg-white/85 p-3 ring-1 ring-brand-100">
-        <p className="text-sm font-bold text-ink">Choose your next step</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {onOpenRecruiterView && <Button className="min-h-8 px-3 text-xs" onClick={onOpenRecruiterView}>Continue to Recruiter View</Button>}
-          {onOpenExport && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenExport}>Export Package</Button>}
-          <Link className="inline-flex min-h-8 items-center rounded-lg bg-white px-3 text-xs font-bold text-brand-800 ring-1 ring-brand-100 hover:bg-brand-50" to="/app/new-jobs">Analyze Another Job</Link>
-          {onOpenMessage && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenMessage}>Optional: Generate Recruiter Message</Button>}
-          {onOpenInterview && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenInterview}>Optional: Prepare For Interview</Button>}
-        </div>
-      </div>
       {whyThisFits && (
         <div className="mt-4 rounded-lg bg-white/85 p-4 text-sm leading-6 text-slate-700">
           <p className="font-bold text-ink">Why this fits</p>
@@ -737,6 +685,56 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
           <ResumeExportPanel resume={displayResume} profile={profile} job={job} score={score} source="resume_page" compact onExportComplete={onExportComplete} />
         </div>
       )}
+      <section className="mt-4 overflow-hidden rounded-lg bg-white/90 ring-1 ring-brand-100">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+          onClick={() => {
+            setEditOpen((value) => !value);
+          }}
+          aria-expanded={editOpen}
+        >
+          <div>
+            <p className="text-sm font-bold text-ink">Edit Resume</p>
+            <p className="mt-0.5 text-xs leading-5 text-slate-500">Optional. Saved edits update preview, copy, PDF, DOCX, and package export content.</p>
+          </div>
+          <ChevronDown size={16} className={`shrink-0 text-brand-700 transition ${editOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+        </button>
+        {editOpen && (
+          <div className="border-t border-brand-100 p-4">
+            <textarea
+              className="min-h-[420px] w-full rounded-lg border border-brand-100 bg-white p-4 text-sm leading-6 text-slate-800 outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+              value={draft}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setSaveState("dirty");
+              }}
+            />
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button className="min-h-8 px-3 text-xs" onClick={saveEdits} disabled={saveState === "saving" || !draft.trim()}>
+                {saveState === "saving" && <Loader2 size={14} className="animate-spin" />}
+                {saveState === "saving" ? "Saving..." : "Save edits"}
+              </Button>
+              <Button variant="ghost" className="min-h-8 px-3 text-xs" onClick={() => { setDraft(resume.content || ""); setEditOpen(false); setSaveState(""); }}>
+                Cancel
+              </Button>
+              {saveState === "dirty" && <span className="text-xs font-semibold text-amber-700">Unsaved changes</span>}
+              {saveState === "saved" && <span className="text-xs font-semibold text-emerald-700">Saved</span>}
+              {saveState === "error" && <span className="text-xs font-semibold text-rose-700">Could not save</span>}
+            </div>
+          </div>
+        )}
+      </section>
+      <div className="mt-4 rounded-lg bg-white/85 p-3 ring-1 ring-brand-100">
+        <p className="text-sm font-bold text-ink">Choose your next step</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {onOpenRecruiterView && <Button className="min-h-8 px-3 text-xs" onClick={onOpenRecruiterView}>Continue to Recruiter View</Button>}
+          {onOpenExport && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenExport}>Export Package</Button>}
+          <Link className="inline-flex min-h-8 items-center rounded-lg bg-white px-3 text-xs font-bold text-brand-800 ring-1 ring-brand-100 hover:bg-brand-50" to="/app/new-jobs">Analyze Another Job</Link>
+          {onOpenMessage && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenMessage}>Optional: Generate Recruiter Message</Button>}
+          {onOpenInterview && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenInterview}>Optional: Prepare For Interview</Button>}
+        </div>
+      </div>
       {onRegenerate && <RegenerateButton label="Regenerate resume" onClick={onRegenerate} disabled={Boolean(loading)} />}
     </div>
   );

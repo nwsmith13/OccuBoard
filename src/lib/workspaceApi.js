@@ -265,22 +265,28 @@ export async function saveProfile(user, profile) {
       email: profile.email || user.email,
       updated_at: now(),
     };
+    logProfilePersistenceDebug("save:start", { user, profile: payload });
     const { data, error } = await supabase.from("profiles").upsert(payload).select("*").single();
     if (error) {
+      logProfilePersistenceDebug("save:error", { user, profile: payload, error });
       if (!isMissingColumnError(error)) throw error;
       rememberProfileOptionalOverrides(user, payload);
       const legacyPayload = getLegacyProfilePayload(payload);
       const retry = await supabase.from("profiles").upsert(legacyPayload).select("*").single();
       if (retry.error) throw retry.error;
       await logActivity(user, "Profile", "Updated profile and base resume details");
-      return applyProfileOptionalOverrides(user, { ...retry.data, updated_at: payload.updated_at });
+      const saved = applyProfileOptionalOverrides(user, { ...retry.data, updated_at: payload.updated_at });
+      logProfilePersistenceDebug("save:legacy-success", { user, profile: saved });
+      return saved;
     }
     clearProfileOptionalOverrides(user);
     await logActivity(user, "Profile", "Updated profile and base resume details");
+    logProfilePersistenceDebug("save:success", { user, profile: data });
     return data;
   }
   const saved = writeLocal(keys.profile, { ...profile, id: "local-demo-user", updated_at: now() });
   await logActivity(user, "Profile", "Updated profile and base resume details");
+  logProfilePersistenceDebug("save:local-success", { user, profile: saved });
   return saved;
 }
 
@@ -324,13 +330,15 @@ function rememberProfileOptionalOverrides(user, profile = {}) {
 function applyProfileOptionalOverrides(user, profile = {}) {
   if (!user?.id || profile.id !== user.id) return createEmptyProfile(user);
   const overrides = readLocal(getUserScopedKey(keys.profileOptionalOverrides, user.id), {});
-  return {
+  const merged = {
     ...profile,
     location: getProfileFieldOrOverride(profile, overrides, "location"),
     phone: getProfileFieldOrOverride(profile, overrides, "phone"),
     linkedin_url: getProfileFieldOrOverride(profile, overrides, "linkedin_url"),
     portfolio_url: getProfileFieldOrOverride(profile, overrides, "portfolio_url"),
   };
+  logProfilePersistenceDebug("hydrate:optional-fields", { user, profile: merged });
+  return merged;
 }
 
 function getProfileFieldOrOverride(profile = {}, overrides = {}, field) {
@@ -357,6 +365,33 @@ function clearLegacyGlobalProfileStorage() {
   } catch {
     // Stale browser data cleanup is best-effort.
   }
+}
+
+function logProfilePersistenceDebug(event, { user, profile = {}, error = null } = {}) {
+  try {
+    globalThis.console?.info?.("[profile-persistence]", {
+      event,
+      userId: user?.id || "",
+      optionalFields: summarizeOptionalProfileFields(profile),
+      error: error ? { code: error.code, message: error.message, details: error.details } : undefined,
+    });
+  } catch {
+    // Debug logging should never affect profile persistence.
+  }
+}
+
+function summarizeOptionalProfileFields(profile = {}) {
+  return ["location", "phone", "linkedin_url", "portfolio_url"].reduce((summary, field) => {
+    const hasOwn = Object.prototype.hasOwnProperty.call(profile, field);
+    const value = profile[field];
+    summary[field] = {
+      included: hasOwn,
+      empty: value === "",
+      nullish: value == null,
+      length: typeof value === "string" ? value.length : 0,
+    };
+    return summary;
+  }, {});
 }
 
 export async function createJob(user, job) {

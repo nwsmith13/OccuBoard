@@ -311,6 +311,7 @@ function normalizeList(items = []) {
 function normalizeText(value = "") {
   return String(value || "")
     .replace(/\r/g, "")
+    .replace(/\b(?:[A-Za-z]\s+){3,}[A-Za-z]\b/g, (match) => match.replace(/\s+/g, ""))
     .replace(/\s+/g, " ")
     .trim();
 }
