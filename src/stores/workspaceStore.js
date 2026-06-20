@@ -42,6 +42,21 @@ function warnBillingDebug(message, payload) {
   globalThis.console.warn(`[OccuBoard billing] ${message}`, payload);
 }
 
+function normalizeAnalyticsStage(status = "") {
+  const value = String(status || "").trim();
+  const lower = value.toLowerCase();
+  if (lower === "applied") return "Applied";
+  if (lower === "saved" || lower === "draft" || lower === "tailoring") return "Saved";
+  if (lower === "recruiter screen" || lower === "recruiter contacted") return "Recruiter Contacted";
+  if (lower === "phone screen") return "Phone Screen";
+  if (lower === "interview" || lower === "interviewing") return "Interview";
+  if (lower === "final interview" || lower === "final round") return "Final Interview";
+  if (lower === "offer") return "Offer";
+  if (lower === "rejected") return "Rejected";
+  if (lower === "closed") return "Closed";
+  return value || "unknown";
+}
+
 function createEmptyWorkspaceState(user) {
   return {
     profile: null,
@@ -104,11 +119,11 @@ export const useWorkspaceStore = create((set, get) => ({
   updateJob: async (user, id, patch, options = {}) => {
     const previousJob = get().jobs.find((job) => job.id === id);
     const saved = await updateJob(user, id, patch);
-    const previousStage = previousJob?.status || "unknown";
-    const newStage = saved?.status || patch?.status;
+    const previousStage = normalizeAnalyticsStage(previousJob?.status || "unknown");
+    const newStage = normalizeAnalyticsStage(saved?.status || patch?.status);
     const source = options.source || "unknown";
-    if (patch?.status && newStage !== previousJob?.status) {
-      trackEvent("application_stage_changed", {
+    if (patch?.status && newStage !== previousStage) {
+      const payload = {
         application_id: id,
         job_id: id,
         user_id: user?.id,
@@ -117,10 +132,11 @@ export const useWorkspaceStore = create((set, get) => ({
         previous_stage: previousStage,
         new_stage: newStage,
         source,
-      });
+      };
+      trackEvent("application_stage_changed", payload);
     }
     if (patch?.status && newStage === "Applied" && previousStage !== "Applied") {
-      trackEvent("application_marked_applied", {
+      const payload = {
         application_id: id,
         job_id: id,
         user_id: user?.id,
@@ -129,7 +145,9 @@ export const useWorkspaceStore = create((set, get) => ({
         previous_stage: previousStage,
         new_stage: "Applied",
         source,
-      });
+      };
+      globalThis.console?.log?.("[analytics] application_marked_applied", payload);
+      trackEvent("application_marked_applied", payload);
     }
     if (patch?.status === "Applied") trackProductMilestone("application_tracked", { job_id: id, user_id: user?.id, stage: "applied" });
     if (patch?.archived_at && !previousJob?.archived_at) trackProductMilestone("application_archived", { job_id: id, user_id: user?.id });
