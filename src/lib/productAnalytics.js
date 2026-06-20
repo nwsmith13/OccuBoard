@@ -26,6 +26,7 @@ export function trackEvent(name, properties = {}) {
     // Third-party analytics must never interrupt the user's work.
   }
   try {
+    globalThis.console?.log?.("[PostHog] capture", name);
     if (typeof posthog?.capture === "function") posthog.capture(name, metadata);
   } catch {
     // PostHog may be unavailable in local development or blocked by the browser.

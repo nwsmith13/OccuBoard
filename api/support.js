@@ -1,5 +1,3 @@
-/* global console */
-
 const allowedTypes = new Set(["Feedback", "Bug Report", "Support Question", "Feature Request"]);
 const defaultSupportEmail = "hello@occuboard.io";
 const defaultFromEmail = "OccuBoard Support <hello@occuboard.io>";
@@ -24,7 +22,8 @@ export default async function handler(req, res) {
         mailto: "mailto:hello@occuboard.io",
       });
     }
-    console.log("Support email sender domain", fromEmail);
+    const safeFromEmail = ensureVerifiedFromEmail(fromEmail);
+    globalThis.console?.log?.("Support email sender domain", getSenderDomain(safeFromEmail));
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -32,7 +31,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: formatFromEmail(fromEmail),
+        from: safeFromEmail,
         to: supportInbox,
         reply_to: payload.userEmail || undefined,
         subject: `[${payload.type}] ${payload.subject}`,
@@ -72,6 +71,17 @@ function formatFromEmail(value = "") {
   const email = String(value || defaultFromEmail).trim();
   if (email.includes("<")) return email;
   return `OccuBoard Support <${email}>`;
+}
+
+function ensureVerifiedFromEmail(value = "") {
+  const email = formatFromEmail(value);
+  if (/occuboard\.com/i.test(email)) return defaultFromEmail;
+  return email || defaultFromEmail;
+}
+
+function getSenderDomain(value = "") {
+  const match = String(value).match(/@([^>\s]+)/);
+  return match?.[1] || "unknown";
 }
 
 function normalizeSubmission(input = {}) {

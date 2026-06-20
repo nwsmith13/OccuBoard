@@ -9,16 +9,23 @@ import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { SeoManager } from "./components/seo/SeoManager.jsx";
 import "./styles.css";
 
-posthog.init(import.meta.env.VITE_POSTHOG_PROJECT_TOKEN, {
-  api_host: import.meta.env.VITE_POSTHOG_HOST,
-  defaults: "2026-01-30",
-  capture_pageview: false,
-});
+const posthogKey = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN || import.meta.env.VITE_POSTHOG_KEY;
+const posthogHost = import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com";
+
+globalThis.console?.log?.("[PostHog] init", { hasKey: Boolean(posthogKey), host: posthogHost });
+
+if (posthogKey) {
+  posthog.init(posthogKey, {
+    api_host: posthogHost,
+    defaults: "2026-01-30",
+    capture_pageview: false,
+  });
+}
 
 function PostHogPageTracker() {
   const location = useLocation();
   useEffect(() => {
-    posthog.capture("$pageview");
+    if (posthogKey) posthog.capture("$pageview");
   }, [location.pathname]);
   return null;
 }
