@@ -384,7 +384,7 @@ function ApplicationWorkspacePage({ applicationId, initialTab = "overview", init
       }}
       onArchive={onBack}
       onMove={async () => {
-        await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || todayIso() });
+        await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || todayIso() }, { source: "mark_applied_button" });
       }}
       onJobUpdate={() => {}}
     />

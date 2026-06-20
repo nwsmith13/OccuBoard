@@ -71,7 +71,7 @@ export function DashboardPage() {
   }, [firstTimeMode, user?.id]);
 
   async function moveToApplied(job) {
-    const saved = await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || new Date().toISOString().slice(0, 10) });
+    const saved = await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || new Date().toISOString().slice(0, 10) }, { source: "mark_applied_button" });
     setSelectedJob(saved ? { ...saved, initialTab: "overview" } : null);
   }
 

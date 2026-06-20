@@ -135,7 +135,7 @@ export function JobsPage() {
   }
 
   async function moveToApplied(job) {
-    await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || todayIso() });
+    await updateJob(user, job.id, { status: "Applied", applied_date: job.applied_date || todayIso() }, { source: "mark_applied_button" });
     setSelected(null);
   }
 
@@ -355,6 +355,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
   const [markAppliedOpen, setMarkAppliedOpen] = useState(false);
   const [editJobOpen, setEditJobOpen] = useState(false);
   const [statusUpdateOpen, setStatusUpdateOpen] = useState(false);
+  const [statusChangeSource, setStatusChangeSource] = useState("header_update_status");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [jobEditDraft, setJobEditDraft] = useState(() => getJobEditDraft(initialJob));
@@ -490,7 +491,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
       return;
     }
     if (nextBestAction.actionType === "move_to_interview") {
-      const updated = await updateJob(user, job.id, { status: "Interview" });
+      const updated = await updateJob(user, job.id, { status: "Interview" }, { source: "overview_stage_control" });
       if (updated) mergeJobUpdate(updated);
     }
     if (nextBestAction.actionType === "export_package") {
@@ -524,13 +525,13 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
     }
   }
 
-  async function handleMoveStage(nextStage) {
+  async function handleMoveStage(nextStage, source = "overview_stage_control") {
     if (!nextStage || nextStage === getDisplayStage(job.status)) return;
     try {
       const previousStage = getDisplayStage(job.status);
       const patch = { status: nextStage };
       if (nextStage === "Applied" && !job.applied_date) patch.applied_date = todayIso();
-      const updated = await updateJob(user, job.id, patch);
+      const updated = await updateJob(user, job.id, patch, { source });
       if (updated) mergeJobUpdate(updated);
       await logJobActivity?.(user, job.id, "application_stage_changed", { previousStage, newStage: nextStage, detail: `Stage changed from ${previousStage} to ${nextStage}` });
       toast.success(`Stage moved to ${nextStage}.`);
@@ -603,7 +604,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
         patch.followup_completed_at = null;
         patch.followup_snoozed_until = null;
       }
-      const updated = await updateJob(user, job.id, patch);
+      const updated = await updateJob(user, job.id, patch, { source: "mark_applied_button" });
       const nextJob = mergeJobUpdate({ ...patch, ...updated });
       await logJobActivity?.(user, job.id, "application_marked_applied", {
         detail: "Application marked applied",
@@ -731,7 +732,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                   packageDownloaded={packageDownloaded}
                   onTabChange={requestTabChange}
                   onMarkApplied={() => setMarkAppliedOpen(true)}
-                  onUpdateStatus={() => setStatusUpdateOpen(true)}
+                  onUpdateStatus={() => {
+                    setStatusChangeSource("header_update_status");
+                    setStatusUpdateOpen(true);
+                  }}
                   onSetFollowUp={() => {
                     requestTabChange("overview");
                     setOverviewPanels((current) => ({ ...current, followup: true }));
@@ -741,7 +745,10 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
               </div>
               <ApplicationActionsMenu
                 archived={isArchivedJob(job)}
-                onUpdateStatus={() => setStatusUpdateOpen(true)}
+                onUpdateStatus={() => {
+                  setStatusChangeSource("actions_dropdown");
+                  setStatusUpdateOpen(true);
+                }}
                 onEdit={() => setEditJobOpen(true)}
                 onArchive={handleArchive}
                 onDelete={() => setDeleteConfirmOpen(true)}
@@ -788,7 +795,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
                 currentStage={getDisplayStage(job.status)}
                 saving={false}
                 onChange={async (nextStage) => {
-                  await handleMoveStage(nextStage);
+                  await handleMoveStage(nextStage, statusChangeSource);
                   setStatusUpdateOpen(false);
                 }}
                 onCancel={() => setStatusUpdateOpen(false)}
@@ -890,7 +897,7 @@ export function JobDetail({ job: initialJob, initialTab = "fit", initialFocus = 
               </div>
 
               <div className="flex w-full min-w-0 max-w-full flex-wrap gap-3 rounded-xl bg-white/90 p-4 shadow-sm ring-1 ring-brand-100">
-                <StageMoveControl value={getDisplayStage(job.status)} onChange={handleMoveStage} />
+                <StageMoveControl value={getDisplayStage(job.status)} onChange={(nextStage) => handleMoveStage(nextStage, "overview_stage_control")} />
                 {onEdit && <Button variant="secondary" onClick={onEdit}><Edit3 size={16} /> Edit</Button>}
               </div>
             </div>

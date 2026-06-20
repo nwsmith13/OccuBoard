@@ -101,15 +101,34 @@ export const useWorkspaceStore = create((set, get) => ({
     set((state) => ({ ...data, billing: state.billing }));
     return saved;
   },
-  updateJob: async (user, id, patch) => {
+  updateJob: async (user, id, patch, options = {}) => {
     const previousJob = get().jobs.find((job) => job.id === id);
     const saved = await updateJob(user, id, patch);
-    if (patch?.status && patch.status !== previousJob?.status) {
+    const previousStage = previousJob?.status || "unknown";
+    const newStage = saved?.status || patch?.status;
+    const source = options.source || "unknown";
+    if (patch?.status && newStage !== previousJob?.status) {
       trackEvent("application_stage_changed", {
+        application_id: id,
         job_id: id,
         user_id: user?.id,
-        previous_stage: previousJob?.status || "unknown",
-        new_stage: patch.status,
+        job_title: saved?.job_title || previousJob?.job_title || "",
+        company: saved?.company_name || previousJob?.company_name || "",
+        previous_stage: previousStage,
+        new_stage: newStage,
+        source,
+      });
+    }
+    if (patch?.status && newStage === "Applied" && previousStage !== "Applied") {
+      trackEvent("application_marked_applied", {
+        application_id: id,
+        job_id: id,
+        user_id: user?.id,
+        job_title: saved?.job_title || previousJob?.job_title || "",
+        company: saved?.company_name || previousJob?.company_name || "",
+        previous_stage: previousStage,
+        new_stage: "Applied",
+        source,
       });
     }
     if (patch?.status === "Applied") trackProductMilestone("application_tracked", { job_id: id, user_id: user?.id, stage: "applied" });
