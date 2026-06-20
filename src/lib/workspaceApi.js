@@ -258,31 +258,32 @@ export async function saveProfile(user, profile) {
   if (hasSupabaseConfig && user?.id) {
     clearLegacyGlobalProfileStorage();
     const supabase = await getSupabaseClient();
-    const payload = {
-      ...createEmptyProfile(user),
-      ...profile,
-      id: user.id,
-      email: profile.email || user.email,
-      updated_at: now(),
-    };
+    const payload = buildProfilePayload(user, profile);
     logProfilePersistenceDebug("save:start", { user, profile: payload });
-    const { data, error } = await supabase.from("profiles").upsert(payload).select("*").single();
+    const { data, error, strippedColumns } = await upsertProfileWithSchemaFallback(supabase, payload);
     if (error) {
-      logProfilePersistenceDebug("save:error", { user, profile: payload, error });
+      logProfilePersistenceDebug("save:error", { user, profile: payload, error, strippedColumns });
       if (!isMissingColumnError(error)) throw error;
-      rememberProfileOptionalOverrides(user, payload);
-      const legacyPayload = getLegacyProfilePayload(payload);
+      const missingColumn = getMissingColumnName(error);
+      if (profileContactFields.includes(missingColumn)) {
+        throw new Error(`Profile could not be saved because the profiles.${missingColumn} column is missing in Supabase.`);
+      }
+      const legacyPayload = buildLegacyProfilePayload(payload);
       const retry = await supabase.from("profiles").upsert(legacyPayload).select("*").single();
-      if (retry.error) throw retry.error;
+      if (retry.error) {
+        logProfilePersistenceDebug("save:legacy-error", { user, profile: legacyPayload, error: retry.error, strippedColumns });
+        throw retry.error;
+      }
       await logActivity(user, "Profile", "Updated profile and base resume details");
-      const saved = applyProfileOptionalOverrides(user, { ...retry.data, updated_at: payload.updated_at });
+      const saved = applyProfileOptionalOverrides(user, { ...retry.data, ...pickProfileContactFields(payload), updated_at: payload.updated_at });
       logProfilePersistenceDebug("save:legacy-success", { user, profile: saved });
       return saved;
     }
     clearProfileOptionalOverrides(user);
     await logActivity(user, "Profile", "Updated profile and base resume details");
-    logProfilePersistenceDebug("save:success", { user, profile: data });
-    return data;
+    const saved = { ...payload, ...data };
+    logProfilePersistenceDebug("save:success", { user, profile: saved, strippedColumns });
+    return saved;
   }
   const saved = writeLocal(keys.profile, { ...profile, id: "local-demo-user", updated_at: now() });
   await logActivity(user, "Profile", "Updated profile and base resume details");
@@ -292,11 +293,11 @@ export async function saveProfile(user, profile) {
 
 async function insertProfileWithFallback(user, profile) {
   const supabase = await getSupabaseClient();
-  const payload = { ...profile, id: user.id, email: profile.email || user.email };
+  const payload = buildProfilePayload(user, profile);
   const { data, error } = await supabase.from("profiles").insert(payload).select("*").single();
   if (!error) return data;
 
-  const legacyPayload = getLegacyProfilePayload(payload);
+  const legacyPayload = buildLegacyProfilePayload(payload);
   const retry = await supabase.from("profiles").upsert(legacyPayload).select("*").single();
   if (retry.error) {
     const existing = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
@@ -306,25 +307,54 @@ async function insertProfileWithFallback(user, profile) {
   return { ...profile, ...retry.data };
 }
 
-function getLegacyProfilePayload(profile) {
+const profileContactFields = ["location", "phone", "linkedin_url", "portfolio_url"];
+
+function buildProfilePayload(user, profile = {}) {
+  return {
+    id: user.id,
+    full_name: profile.full_name ?? user?.user_metadata?.full_name ?? "",
+    email: profile.email || user.email,
+    location: profile.location ?? "",
+    phone: profile.phone ?? "",
+    target_roles: profile.target_roles ?? "",
+    base_resume_text: profile.base_resume_text ?? "",
+    linkedin_url: profile.linkedin_url ?? "",
+    portfolio_url: profile.portfolio_url ?? "",
+    updated_at: now(),
+  };
+}
+
+async function upsertProfileWithSchemaFallback(supabase, payload) {
+  let nextPayload = { ...payload };
+  const strippedColumns = [];
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const result = await supabase.from("profiles").upsert(nextPayload).select("*").single();
+    if (!result.error) return { data: result.data, error: null, strippedColumns };
+    const missingColumn = getMissingColumnName(result.error);
+    if (!missingColumn || profileContactFields.includes(missingColumn) || !Object.prototype.hasOwnProperty.call(nextPayload, missingColumn)) {
+      return { data: null, error: result.error, strippedColumns };
+    }
+    strippedColumns.push(missingColumn);
+    const { [missingColumn]: _removed, ...rest } = nextPayload;
+    nextPayload = rest;
+  }
+  return { data: null, error: new Error("Profile save failed after schema fallback retries."), strippedColumns };
+}
+
+function buildLegacyProfilePayload(profile) {
   return {
     id: profile.id,
     full_name: profile.full_name ?? "",
     email: profile.email,
-    target_roles: profile.target_roles ?? "",
     base_resume_text: profile.base_resume_text ?? "",
-    created_at: profile.created_at,
   };
 }
 
-function rememberProfileOptionalOverrides(user, profile = {}) {
-  if (!user?.id) return;
-  writeLocal(getUserScopedKey(keys.profileOptionalOverrides, user.id), {
-    location: profile.location ?? "",
-    phone: profile.phone ?? "",
-    linkedin_url: profile.linkedin_url ?? "",
-    portfolio_url: profile.portfolio_url ?? "",
-  });
+function pickProfileContactFields(profile = {}) {
+  return profileContactFields.reduce((picked, field) => {
+    picked[field] = profile[field] ?? "";
+    return picked;
+  }, {});
 }
 
 function applyProfileOptionalOverrides(user, profile = {}) {
@@ -367,17 +397,28 @@ function clearLegacyGlobalProfileStorage() {
   }
 }
 
-function logProfilePersistenceDebug(event, { user, profile = {}, error = null } = {}) {
+function logProfilePersistenceDebug(event, { user, profile = {}, error = null, strippedColumns = [] } = {}) {
   try {
     globalThis.console?.info?.("[profile-persistence]", {
       event,
       userId: user?.id || "",
       optionalFields: summarizeOptionalProfileFields(profile),
+      strippedColumns,
       error: error ? { code: error.code, message: error.message, details: error.details } : undefined,
     });
   } catch {
     // Debug logging should never affect profile persistence.
   }
+}
+
+function getMissingColumnName(error) {
+  const text = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`;
+  return (
+    text.match(/['"]([a-zA-Z0-9_]+)['"]\s+column/)?.[1] ||
+    text.match(/column\s+['"]?([a-zA-Z0-9_]+)['"]?/i)?.[1] ||
+    text.match(/Could not find the ['"]([a-zA-Z0-9_]+)['"] column/i)?.[1] ||
+    ""
+  );
 }
 
 function summarizeOptionalProfileFields(profile = {}) {

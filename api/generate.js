@@ -59,7 +59,19 @@ export default async function handler(req, res) {
 
     let result = parseStructuredOutput(response);
     if (action === "fit") result = refineFitAnalysisEvidence(result, profile, job);
-    validateGeneratedResult(action, result, profile, job);
+    try {
+      validateGeneratedResult(action, result, profile, job);
+    } catch (validationError) {
+      logMessageValidationFailure({ action, result, profile, job, validationError });
+      if (action !== "message" || validationError.code !== "message_voice_validation_failed") throw validationError;
+      result = await rewriteRecruiterMessageToCandidateVoice(client, { result, profile, job });
+      try {
+        validateGeneratedResult(action, result, profile, job);
+      } catch (rewriteError) {
+        logMessageValidationFailure({ action, result, profile, job, validationError: rewriteError, phase: "rewrite" });
+        throw rewriteError;
+      }
+    }
     return send(res, 200, { result });
   } catch (error) {
     return send(res, getStatus(error), { error: getFriendlyError(error), code: error.code });
@@ -112,6 +124,18 @@ function parseStructuredOutput(response) {
 export function validateGeneratedResult(action, result, profile, job) {
   if (!["message", "followupMessage"].includes(action)) return;
   const content = String(result?.content || "").trim();
+  const diagnostics = getMessageVoiceDiagnostics({ action, content, profile, job });
+  if (!diagnostics.valid) {
+    const error = new Error(diagnostics.message);
+    error.status = 422;
+    error.code = "message_voice_validation_failed";
+    error.validationReason = diagnostics.reason;
+    error.validationDiagnostics = diagnostics;
+    throw error;
+  }
+}
+
+function getMessageVoiceDiagnostics({ action, content, profile, job }) {
   const firstName = String(profile?.full_name || "").trim().split(/\s+/)[0];
   const fullName = String(profile?.full_name || "").trim();
   const company = String(job?.company_name || "").trim();
@@ -128,12 +152,16 @@ export function validateGeneratedResult(action, result, profile, job) {
   const hasBadVoice = badPatterns.some((pattern) => pattern.test(content));
   if (action === "followupMessage") {
     if (hasBadVoice || /\bjust\s+checking\s+in\b/i.test(content)) {
-      const error = new Error("The generated follow-up message used the wrong voice or tone. Please regenerate.");
-      error.status = 422;
-      error.code = "message_voice_validation_failed";
-      throw error;
+      return {
+        valid: false,
+        reason: hasBadVoice ? "wrong_sender_or_recipient" : "banned_followup_phrase",
+        message: "The generated follow-up message used the wrong voice or tone. Please regenerate.",
+        hasBadVoice,
+        hasCandidateVoice: /\b(?:i|i['\u2019]m|i['\u2019]ve|i\s+have|my)\b/i.test(content),
+        evaluatorVoiceHits: 0,
+      };
     }
-    return;
+    return { valid: true, reason: "ok", hasBadVoice, hasCandidateVoice: true, evaluatorVoiceHits: 0 };
   }
 
   const hasCandidateVoice = /\b(?:i|i['\u2019]m|i['\u2019]ve|i\s+have|my)\b/i.test(content);
@@ -148,11 +176,71 @@ export function validateGeneratedResult(action, result, profile, job) {
   const evaluatorVoiceHits = evaluatorVoicePatterns.filter((pattern) => pattern.test(content)).length;
   const clearEvaluatorVoice = evaluatorVoiceHits >= 2 || (evaluatorVoiceHits >= 1 && !hasCandidateVoice);
   if (hasBadVoice || clearEvaluatorVoice || !hasCandidateVoice) {
-    const error = new Error("The generated message used recruiter voice instead of candidate voice. Please regenerate.");
-    error.status = 422;
-    error.code = "message_voice_validation_failed";
-    throw error;
+    return {
+      valid: false,
+      reason: hasBadVoice ? "wrong_sender_or_recipient" : clearEvaluatorVoice ? "evaluator_voice" : "missing_candidate_voice",
+      message: "The generated message used recruiter voice instead of candidate voice. Please regenerate.",
+      hasBadVoice,
+      hasCandidateVoice,
+      evaluatorVoiceHits,
+      clearEvaluatorVoice,
+    };
   }
+  return { valid: true, reason: "ok", hasBadVoice, hasCandidateVoice, evaluatorVoiceHits, clearEvaluatorVoice };
+}
+
+async function rewriteRecruiterMessageToCandidateVoice(client, { result, profile, job }) {
+  const original = String(result?.content || "").trim();
+  const response = await client.responses.create({
+    model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+    input: [
+      { role: "system", content: `${GLOBAL_AI_RULES}\nRewrite only the outreach message. Keep it truthful, concise, first-person, and written from the applicant to a recruiter or hiring contact.` },
+      {
+        role: "user",
+        content: [
+          `Rewrite this recruiter outreach message into candidate/applicant voice for the ${job?.job_title || "role"} role at ${job?.company_name || "the company"}.`,
+          "The sender is the applicant. The recipient is a recruiter, hiring manager, or hiring contact.",
+          "Do not describe the applicant in third person. Do not evaluate, score, or recommend the candidate.",
+          "It may mention recruiters or hiring teams naturally, but it must not sound like a recruiter evaluating the applicant.",
+          "Keep it 85-130 words, human, direct, and role-aware.",
+          `Candidate name: ${profile?.full_name || "the applicant"}`,
+          `Original generated message:\n${original}`,
+        ].join("\n\n"),
+      },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "message_generation",
+        strict: true,
+        schema: getSchema("message"),
+      },
+    },
+  });
+  const rewritten = parseStructuredOutput(response);
+  return {
+    ...result,
+    ...rewritten,
+    content: rewritten.content || result.content,
+  };
+}
+
+function logMessageValidationFailure({ action, result, profile, job, validationError, phase = "initial" }) {
+  if (!["message", "followupMessage"].includes(action)) return;
+  const content = String(result?.content || "");
+  const diagnostics = validationError.validationDiagnostics || getMessageVoiceDiagnostics({ action, content, profile, job });
+  globalThis.console?.warn?.("[ai-validation] recruiter message rejected", {
+    phase,
+    action,
+    reason: validationError.validationReason || diagnostics.reason,
+    hasCandidateVoice: Boolean(diagnostics.hasCandidateVoice),
+    hasBadVoice: Boolean(diagnostics.hasBadVoice),
+    evaluatorVoiceHits: Number(diagnostics.evaluatorVoiceHits || 0),
+    contentLength: content.length,
+    jobTitleLength: String(job?.job_title || "").length,
+    companyLength: String(job?.company_name || "").length,
+    contentPreview: content.slice(0, 220),
+  });
 }
 
 function getFriendlyError(error) {
