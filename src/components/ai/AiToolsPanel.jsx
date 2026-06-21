@@ -224,7 +224,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
                 onSecondary={() => window.setTimeout(() => document.getElementById("tailored-resume-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }), 20)}
               />
             )}
-            <ResumeResult resume={latestResume} job={job} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} hideIndividualExport={showOnboardingHelp && latestResume && !onboarding.hasRecruiterView} onOpenRecruiterView={() => onTabChange?.("recruiterView")} onOpenExport={() => onTabChange?.("export")} onOpenMessage={() => onTabChange?.("message")} onOpenInterview={() => onTabChange?.("interview")} />
+            <ResumeResult resume={latestResume} job={job} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} onAnalyze={() => onTabChange?.("fit")} onGenerate={() => runAi("resume")} onRegenerate={() => runAi("resume", { regenerate: true })} loading={aiState.loading} onExportComplete={onExportComplete} onOpenRecruiterView={() => onTabChange?.("recruiterView")} onOpenExport={() => onTabChange?.("export")} onOpenMessage={() => onTabChange?.("message")} onOpenInterview={() => onTabChange?.("interview")} />
           </>
         )}
           {activeAction === "message" && <MessageResult message={latestMessage} score={latestScore} materials={{ resume: latestResume, coverLetter: latestCoverLetter, message: latestMessage }} analysisReady={Boolean(latestScore)} resumeReady={Boolean(latestResume)} coverLetterReady={Boolean(latestCoverLetter)} contacts={contacts} selectedContactId={selectedContactId} onContactChange={setSelectedContactId} onAnalyze={() => onTabChange?.("fit")} onResume={() => onTabChange?.("resume")} onSave={(message, patch) => updateMessage(user, message, patch)} onLogActivity={(type, metadata) => logJobActivity(user, job.id, type, metadata)} onGenerate={() => runAi("message")} onRegenerate={() => runAi("message", { regenerate: true })} loading={aiState.loading} />}
@@ -672,6 +672,11 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
       )}
       <RecruiterConfidenceIndicator label="Recruiter-ready positioning improved" />
       <RewriteVisibilityPanel material={displayResume} materials={{ ...materials, resume: displayResume }} score={score} originalText={profile?.base_resume_text} generatedText={draft} materialType="resume" className="mt-3" />
+      {!hideIndividualExport && (
+        <div className="mt-5">
+          <ResumeExportPanel resume={displayResume} profile={profile} job={job} score={score} source="resume_page" compact onExportComplete={onExportComplete} />
+        </div>
+      )}
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           className="inline-flex min-h-10 items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-800 ring-1 ring-brand-200 transition hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
@@ -680,11 +685,6 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
           View in Generated Resumes
         </Link>
       </div>
-      {!hideIndividualExport && (
-        <div className="mt-5">
-          <ResumeExportPanel resume={displayResume} profile={profile} job={job} score={score} source="resume_page" compact onExportComplete={onExportComplete} />
-        </div>
-      )}
       <section className="mt-4 overflow-hidden rounded-lg bg-white/90 ring-1 ring-brand-100">
         <button
           type="button"
