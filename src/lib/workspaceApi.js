@@ -3,7 +3,7 @@ import { deriveCompanyDomain } from "./companyIdentity.js";
 import { hasValidInterviewPrep, normalizeInterviewPrepContent, normalizeInterviewPrepRecord } from "./interviewPrep.js";
 import { getDisplayCompanyName, getDisplayJobTitle, getTailoredResumeTitle } from "./jobDisplay.js";
 import { createEmptyProfile } from "./profile.js";
-import { getSupabaseClient, hasSupabaseConfig } from "./supabase.js";
+import { getSupabaseClient, getSupabaseConfigDebug, hasSupabaseConfig } from "./supabase.js";
 
 const keys = {
   profile: "occuboard:demo:profile",
@@ -401,6 +401,8 @@ function logProfilePersistenceDebug(event, { user, profile = {}, error = null, s
   try {
     globalThis.console?.info?.("[profile-persistence]", {
       event,
+      persistencePath: getSupabaseConfigDebug().path,
+      supabase: getSupabaseConfigDebug(),
       userId: user?.id || "",
       optionalFields: summarizeOptionalProfileFields(profile),
       strippedColumns,

@@ -4,9 +4,12 @@ import { freeLimit, getSubscriptionByUserId, getUsageByUserId, hasBillingDatabas
 import { DEFAULT_MODEL, GLOBAL_AI_RULES, buildPrompt, getSchema } from "./prompts.js";
 
 const supportedActions = ["fit", "resume", "message", "followupMessage", "coverLetter", "interviewPrep"];
+const generateRuntimeVersion = "generate-voice-retry-2026-06-21-01";
 
 export default async function handler(req, res) {
   setJson(res);
+  res.setHeader("x-occuboard-generate-version", generateRuntimeVersion);
+  globalThis.console?.info?.("[api/generate] runtime", { version: generateRuntimeVersion, method: req.method });
 
   if (req.method !== "POST") {
     return send(res, 405, { error: "Method not allowed" });
@@ -64,12 +67,25 @@ export default async function handler(req, res) {
     } catch (validationError) {
       logMessageValidationFailure({ action, result, profile, job, validationError });
       if (action !== "message" || validationError.code !== "message_voice_validation_failed") throw validationError;
-      result = await rewriteRecruiterMessageToCandidateVoice(client, { result, profile, job });
+      try {
+        result = await rewriteRecruiterMessageToCandidateVoice(client, { result, profile, job });
+      } catch (rewriteGenerationError) {
+        logMessageValidationFailure({ action, result, profile, job, validationError: rewriteGenerationError, phase: "rewrite_generation_failed_returning_original" });
+        globalThis.console?.warn?.("[ai-validation] returning original recruiter message after rewrite generation failed", {
+          version: generateRuntimeVersion,
+          error: rewriteGenerationError?.message,
+        });
+        return send(res, 200, { result, warning: "message_voice_validation_bypassed_after_rewrite_failure" });
+      }
       try {
         validateGeneratedResult(action, result, profile, job);
       } catch (rewriteError) {
         logMessageValidationFailure({ action, result, profile, job, validationError: rewriteError, phase: "rewrite" });
-        throw rewriteError;
+        globalThis.console?.warn?.("[ai-validation] returning rewritten recruiter message despite validator warning", {
+          version: generateRuntimeVersion,
+          reason: rewriteError.validationReason || rewriteError.code || "unknown",
+        });
+        return send(res, 200, { result, warning: "message_voice_validation_bypassed_after_rewrite" });
       }
     }
     return send(res, 200, { result });

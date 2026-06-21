@@ -73,6 +73,38 @@ function createEmptyWorkspaceState(user) {
   };
 }
 
+function assertProfilePersistenceConfirmed(submitted = {}, reloaded = {}) {
+  const fieldsToConfirm = ["full_name", "email", "location", "phone", "target_roles", "base_resume_text", "linkedin_url", "portfolio_url"];
+  const mismatches = fieldsToConfirm.filter((field) => {
+    if (!Object.prototype.hasOwnProperty.call(submitted, field)) return false;
+    return normalizeProfileValue(submitted[field]) !== normalizeProfileValue(reloaded?.[field]);
+  });
+  if (!mismatches.length) return;
+  globalThis.console?.warn?.("[profile-persistence] reload mismatch", {
+    fields: mismatches,
+    submitted: summarizeProfileConfirmationFields(submitted, mismatches),
+    reloaded: summarizeProfileConfirmationFields(reloaded, mismatches),
+  });
+  throw new Error(`Profile save did not persist confirmed fields: ${mismatches.join(", ")}.`);
+}
+
+function normalizeProfileValue(value) {
+  return String(value ?? "").trim();
+}
+
+function summarizeProfileConfirmationFields(profile = {}, fields = []) {
+  return fields.reduce((summary, field) => {
+    const value = profile?.[field];
+    summary[field] = {
+      included: Object.prototype.hasOwnProperty.call(profile || {}, field),
+      empty: value === "",
+      nullish: value == null,
+      length: typeof value === "string" ? value.length : 0,
+    };
+    return summary;
+  }, {});
+}
+
 export const useWorkspaceStore = create((set, get) => ({
   ...createEmptyWorkspaceState(null),
   loading: false,
@@ -105,9 +137,10 @@ export const useWorkspaceStore = create((set, get) => ({
     const userKey = user?.id ?? "local-demo-user";
     const saved = await saveProfile(user, profile);
     const data = await fetchWorkspace(user);
+    assertProfilePersistenceConfirmed(profile, data.profile);
     if (!isCurrentWorkspaceUser(get(), userKey)) return saved;
-    set((state) => ({ ...data, profile: saved, billing: state.billing }));
-    return saved;
+    set((state) => ({ ...data, billing: state.billing }));
+    return data.profile;
   },
   createJob: async (user, job) => {
     const saved = await createJob(user, job);
