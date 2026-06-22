@@ -168,7 +168,7 @@ export function JobsPage() {
           <Field id="job_description" label="Job description" as="textarea" name="job_description" rows="5" value={form.job_description ?? ""} onChange={update} />
           <Field id="notes" label="Notes" as="textarea" name="notes" rows="3" value={form.notes ?? ""} onChange={update} />
           <div className="flex gap-3">
-            <Button type="submit">{editingId ? "Save changes" : "Add Job"}</Button>
+            <Button type="submit">{editingId ? "Save changes" : "Analyze Job"}</Button>
             {editingId && <Button variant="secondary" onClick={() => { setEditingId(null); setForm(emptyJob); }}>Cancel</Button>}
           </div>
         </form>
@@ -1375,21 +1375,52 @@ function getNextBestActionShellTone(tone, actionType) {
 }
 
 function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
+  const [dateMode, setDateMode] = useState(form.appliedDate && form.appliedDate !== todayIso() ? "custom" : "today");
+  function chooseToday() {
+    setDateMode("today");
+    onChange("appliedDate", todayIso());
+  }
+  function chooseCustom() {
+    setDateMode("custom");
+  }
   return (
     <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Mark Applied</p>
-          <h3 className="mt-1 text-lg font-bold text-ink">Record submission details</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">Save when you submitted, where you applied, and when OccuBoard should remind you to follow up.</p>
+          <h3 className="mt-1 text-lg font-bold text-ink">Application Date</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Default to today, or choose the date you submitted this application.</p>
         </div>
         <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={onCancel}>Cancel</Button>
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <Field id="mark-applied-date" label="Applied date" type="date" value={form.appliedDate} onChange={(event) => onChange("appliedDate", event.target.value)} />
-        <Field id="mark-application-url" label="Application URL (optional)" value={form.applicationUrl} onChange={(event) => onChange("applicationUrl", event.target.value)} />
-        <Field id="mark-followup-date" label="Follow-up date (optional)" type="date" value={form.followUpDate} onChange={(event) => onChange("followUpDate", event.target.value)} />
-        <Field id="mark-followup-note" label="Follow-up note (optional)" value={form.followUpNote} onChange={(event) => onChange("followUpNote", event.target.value)} />
+      <div className="mt-4 grid gap-3">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={`rounded-lg px-4 py-2 text-sm font-black ring-1 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${dateMode === "today" ? "bg-brand-700 text-white ring-brand-700" : "bg-white text-brand-800 ring-brand-200 hover:bg-brand-50"}`}
+            onClick={chooseToday}
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            className={`rounded-lg px-4 py-2 text-sm font-black ring-1 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${dateMode === "custom" ? "bg-brand-700 text-white ring-brand-700" : "bg-white text-brand-800 ring-brand-200 hover:bg-brand-50"}`}
+            onClick={chooseCustom}
+          >
+            Custom Date
+          </button>
+        </div>
+        {dateMode === "custom" && (
+          <Field id="mark-applied-date" label="Applied date" type="date" value={form.appliedDate} onChange={(event) => onChange("appliedDate", event.target.value)} />
+        )}
+        <details className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
+          <summary className="cursor-pointer text-sm font-bold text-slate-700">Optional details</summary>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <Field id="mark-application-url" label="Application URL (optional)" value={form.applicationUrl} onChange={(event) => onChange("applicationUrl", event.target.value)} />
+            <Field id="mark-followup-date" label="Follow-up date (optional)" type="date" value={form.followUpDate} onChange={(event) => onChange("followUpDate", event.target.value)} />
+            <Field id="mark-followup-note" label="Follow-up note (optional)" value={form.followUpNote} onChange={(event) => onChange("followUpNote", event.target.value)} />
+          </div>
+        </details>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <Button className="min-h-8 px-3 text-xs" onClick={onSave} disabled={saving}>

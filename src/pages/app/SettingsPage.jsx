@@ -207,12 +207,16 @@ function CheckoutSuccessCard({ syncState, pro, loading, onStartJobs, onDashboard
 function BillingCard({ billingMessage, loading, onUpgrade, onManage, planLabel, pro, subscription, usage }) {
   const used = Math.min(FREE_LIMIT, Number(usage.application_count || 0));
   const remaining = Math.max(0, FREE_LIMIT - used);
+  const betaTester = pro && Boolean(subscription?.stripe_subscription_id);
+  const betaEndDate = betaTester && subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : "";
   return (
     <Card>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Billing</p>
+          {betaTester && <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Beta Tester</p>}
           <h2 className="mt-1 text-xl font-bold">{pro ? "OccuBoard Pro Active" : "Free Plan"}</h2>
+          {betaTester && betaEndDate && <p className="mt-1 text-sm font-bold text-emerald-800">Free until {betaEndDate}</p>}
           <p className="mt-1 text-sm text-slate-600">{pro ? "Create as many AI-powered applications as you need." : `${remaining} of ${FREE_LIMIT} free AI-powered applications remaining.`}</p>
         </div>
         <span className={`w-fit shrink-0 self-start rounded-full px-3 py-1 text-xs font-black ring-1 ${pro ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-slate-50 text-slate-700 ring-slate-100"}`}>

@@ -22,7 +22,7 @@ export function buildOnboardingState({ profile, resumeUploads = [], jobs = [], j
   const trackedApplication = jobs.some((job) => ["Applied", "Recruiter Screen", "Interview", "Final Interview", "Offer", "Closed"].includes(job.status));
   const rawSteps = [
     { id: "resume", label: "Upload Resume", done: hasResume },
-    { id: "job", label: "Add Job", done: hasJob },
+    { id: "job", label: "Analyze Job", done: hasJob },
     { id: "fit", label: "Analyze Fit", done: hasAnalysis },
     { id: "resumeGenerated", label: "Generate Resume", done: hasTailoredResume },
     { id: "recruiterView", label: "Recruiter View", done: hasRecruiterView },

@@ -272,7 +272,7 @@ export function NewJobsPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Step 2 of 8</p>
-              <h3 className="mt-1 text-xl font-black text-ink">Add Your First Job</h3>
+              <h3 className="mt-1 text-xl font-black text-ink">Analyze Your First Job</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Great - your resume is ready. Now paste a job posting URL or the full job description below.</p>
             </div>
             <Button variant="secondary" className="w-fit min-h-8 px-3 text-xs" onClick={() => setOnboardingHelpOpen(false)}>Got it</Button>

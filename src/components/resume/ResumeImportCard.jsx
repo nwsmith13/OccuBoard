@@ -151,7 +151,7 @@ export function ResumeOnboardingHandoff({ onContinue, onSkip }) {
         <div className="mt-6 flex flex-col-reverse items-center justify-center gap-2 sm:flex-row">
           <Button variant="ghost" className="w-full sm:w-fit" onClick={onSkip}>Stay here</Button>
           <Button className="w-full sm:w-fit" onClick={onContinue}>
-            Add My First Job <ArrowRight size={16} aria-hidden="true" />
+            Analyze My First Job <ArrowRight size={16} aria-hidden="true" />
           </Button>
         </div>
       </section>

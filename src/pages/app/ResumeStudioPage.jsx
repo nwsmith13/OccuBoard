@@ -20,7 +20,9 @@ export function ResumeStudioPage() {
   const [handoff, setHandoff] = useState(false);
   const [highlightImport, setHighlightImport] = useState(false);
   const importRef = useRef(null);
+  const profileRef = useRef(null);
   const highlightTimerRef = useRef(null);
+  const returnTo = new window.URLSearchParams(location.search).get("returnTo");
   const latestUpload = resumeUploads[0];
   const hasBaseResume = Boolean(profile?.base_resume_text?.trim());
   const shouldShowNextJob = hasBaseResume && jobs.length === 0;
@@ -53,6 +55,14 @@ export function ResumeStudioPage() {
   }, [focusImportCard, location.hash]);
 
   useEffect(() => {
+    if (location.hash !== "#profile") return;
+    const frame = window.requestAnimationFrame(() => {
+      profileRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash]);
+
+  useEffect(() => {
     function handleFocusRequest() {
       focusImportCard();
     }
@@ -80,10 +90,10 @@ export function ResumeStudioPage() {
                 <CheckCircle2 size={18} aria-hidden="true" />
                 <p className="text-xs font-black uppercase tracking-[0.14em]">Base resume saved</p>
               </div>
-              <h2 className="mt-3 text-xl font-black text-ink">Next step: Add your first job</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">Your resume foundation is ready. Add a job to begin tailoring.</p>
+              <h2 className="mt-3 text-xl font-black text-ink">Next step: Analyze your first job</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Your resume foundation is ready. Analyze a job to begin tailoring.</p>
               <Button className="mt-4" onClick={() => navigate("/app/new-jobs")}>
-                Add Job <ArrowRight size={16} aria-hidden="true" />
+                Analyze Job <ArrowRight size={16} aria-hidden="true" />
               </Button>
             </Card>
           ) : (
@@ -112,7 +122,7 @@ export function ResumeStudioPage() {
         </div>
       </div>
 
-      <Card id="base-resume">
+      <Card id="profile" ref={profileRef} className="scroll-mt-24">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-500">Career Profile</p>
           <h2 className="mt-2 text-xl font-bold">Base Resume</h2>
           <p className="mt-2 text-sm text-slate-600">Paste or edit the main resume text you want to adapt for different roles.</p>
@@ -122,6 +132,7 @@ export function ResumeStudioPage() {
               compact
               onSaved={({ hadBaseResume, hasBaseResume: savedResume }) => {
                 if (!hadBaseResume && savedResume) setHandoff(true);
+                if (returnTo) navigate(returnTo);
               }}
             />
           </div>

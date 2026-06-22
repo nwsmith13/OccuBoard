@@ -18,7 +18,7 @@ import { Logo } from "./Logo.jsx";
 const navItems = [
   { label: "Dashboard", path: "/app/dashboard", icon: LayoutDashboard },
   { label: "Resume Studio", path: "/app/resume-studio", icon: FileText },
-  { label: "New Jobs", path: "/app/new-jobs", icon: PlusCircle },
+  { label: "Analyze Jobs", path: "/app/new-jobs", icon: PlusCircle },
   { label: "Generated Resumes", path: "/app/generated-resumes", icon: FileStack },
   { label: "Applications", path: "/app/applications", icon: BarChart3 },
   { label: "Settings", path: "/app/settings", icon: Settings },

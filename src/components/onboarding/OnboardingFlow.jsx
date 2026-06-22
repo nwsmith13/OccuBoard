@@ -113,7 +113,7 @@ function getCurrentStep(state) {
     return {
       stepNumber: 2,
       icon: Search,
-      title: "Add Your First Job",
+      title: "Analyze Your First Job",
       subtitle: "Create the opportunity workspace.",
       body: "Paste a job description or job posting URL so OccuBoard can open your first Job Command Center.",
       cta: "Analyze Job",

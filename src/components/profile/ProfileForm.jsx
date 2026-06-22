@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { getCompletenessTone } from "../../lib/completenessTone.js";
-import { createEmptyProfile, getMissingProfileItems, getProfileCompleteness } from "../../lib/profile.js";
+import { createEmptyProfile, getResumeHeaderCompleteness } from "../../lib/profile.js";
 import { normalizeResumeText } from "../../lib/resumeParser.js";
 import { trackEvent, trackProductMilestone } from "../../lib/productAnalytics.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -25,8 +25,8 @@ export function ProfileForm({ compact = false, onSaved }) {
     setCleaned(false);
   }, [profile, user]);
 
-  const completeness = getProfileCompleteness(form);
-  const missingItems = getMissingProfileItems(form);
+  const headerCompleteness = getResumeHeaderCompleteness(form);
+  const completeness = headerCompleteness.percent;
   const tone = getCompletenessTone(completeness);
   const update = (event) => {
     setSaved(false);
@@ -83,9 +83,18 @@ export function ProfileForm({ compact = false, onSaved }) {
         <div className={`mt-3 h-2 rounded-full ${tone.track}`}>
           <div className={`h-2 rounded-full transition-all duration-300 ${tone.bar}`} style={{ width: `${completeness}%` }} />
         </div>
-        <p className="mt-3 text-xs font-semibold leading-5 text-slate-600">
-          {missingItems.length ? `Missing: ${missingItems.join(", ")}.` : "Your basic profile and resume foundation are complete."}
-        </p>
+        {headerCompleteness.complete ? (
+          <p className="mt-3 text-xs font-bold leading-5 text-emerald-700">Ready for resume generation</p>
+        ) : (
+          <div className="mt-3 grid gap-1.5 text-xs font-semibold leading-5 text-slate-700">
+            {headerCompleteness.items.map((item) => (
+              <div key={item.field} className="flex items-center gap-2">
+                <span className={item.complete ? "text-emerald-700" : "text-rose-600"} aria-hidden="true">{item.complete ? "\u2713" : "\u2717"}</span>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid min-w-0 gap-4 md:grid-cols-2">

@@ -18,7 +18,7 @@ import { getJobAiStatus, isCoverLetterSkipped } from "../../lib/jobAiStatus.js";
 import { getJobMomentumValue } from "../../lib/jobMomentum.js";
 import { hasValidInterviewPrep } from "../../lib/interviewPrep.js";
 import { buildOnboardingState, getOnboardingRecruiterViewReviews } from "../../lib/onboarding.js";
-import { getMissingProfileItems, getProfileCompleteness } from "../../lib/profile.js";
+import { getResumeHeaderCompleteness } from "../../lib/profile.js";
 import { trackEvent, trackProductMilestone } from "../../lib/productAnalytics.js";
 import { filterRecommendationsForDashboard, generateRecommendations, getRecommendationIcon, getRecommendationMeta, getRecommendationTone } from "../../lib/recommendationEngine.js";
 import { buildSearchPatternInsights } from "../../lib/searchPatternInsights.js";
@@ -42,8 +42,8 @@ export function DashboardPage() {
   const [upgrading, setUpgrading] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const activeJobs = useMemo(() => getActiveJobs(jobs), [jobs]);
-  const completeness = getProfileCompleteness(profile);
-  const missingProfileItems = getMissingProfileItems(profile);
+  const headerCompleteness = getResumeHeaderCompleteness(profile);
+  const completeness = headerCompleteness.percent;
   const completenessTone = getCompletenessTone(completeness);
   const recommendations = useMemo(() => generateRecommendations({
     jobs: activeJobs,
@@ -254,9 +254,18 @@ export function DashboardPage() {
               <div className={`h-2 rounded-full transition-all duration-300 ${completenessTone.bar}`} style={{ width: `${completeness}%` }} />
             </div>
           </div>
-          <p className="mt-3 text-xs font-semibold leading-5 text-slate-600">
-            {missingProfileItems.length ? `Missing: ${missingProfileItems.join(", ")}.` : "Basic profile details are complete."}
-          </p>
+          {headerCompleteness.complete ? (
+            <p className="mt-3 text-xs font-bold leading-5 text-emerald-700">Ready for resume generation</p>
+          ) : (
+            <div className="mt-3 grid gap-1.5 text-xs font-semibold leading-5 text-slate-700">
+              {headerCompleteness.items.map((item) => (
+                <div key={item.field} className="flex items-center gap-2">
+                  <span className={item.complete ? "text-emerald-700" : "text-rose-600"} aria-hidden="true">{item.complete ? "\u2713" : "\u2717"}</span>
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <p className="mt-1 text-xs font-bold text-brand-700">Open profile settings -&gt;</p>
         </Card>
         </button>
@@ -408,9 +417,9 @@ function FirstTimeDashboard({ onboarding, error, onAction }) {
       action: "Upload Resume",
     },
     job: {
-      headline: "Add your first job",
+      headline: "Analyze your first job",
       description: "Paste a LinkedIn job posting or the full job description.",
-      action: "Add Job",
+      action: "Analyze Job",
     },
     fit: {
       headline: "Analyze your fit",

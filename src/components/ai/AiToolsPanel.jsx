@@ -1,6 +1,6 @@
 import { CheckCircle2, ChevronDown, Clipboard, Lightbulb, Loader2, RefreshCcw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BillingLimitModal } from "../billing/BillingLimitModal.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useIntelligenceMode } from "../../contexts/IntelligenceModeContext.jsx";
@@ -13,6 +13,7 @@ import { formatDate } from "../../lib/date.js";
 import { getLatestForJob, isCoverLetter, isRecruiterMessage, normalizeMessageType } from "../../lib/jobAiStatus.js";
 import { buildMitigationPlan, getAppliedMitigationLabels, getAppliedMitigations } from "../../lib/mitigationPlan.js";
 import { buildOnboardingState } from "../../lib/onboarding.js";
+import { getMissingResumeHeaderItems } from "../../lib/profile.js";
 import { buildGapRecovery, buildMaterialRecoveryScores, buildRewriteInsights, estimateOptimizedFit } from "../../lib/rewriteInsights.js";
 import { assessRewriteRestraint } from "../../lib/rewriteRestraint.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
@@ -24,6 +25,7 @@ import { getFitScoreTone } from "../ui/FitScoreBadge.jsx";
 export function AiToolsPanel({ job, compact = false, contentOnly = false, activeTab = "fit", onTabChange, onExportComplete }) {
   const { user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
   const {
     profile,
     resumeUploads,
@@ -47,6 +49,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   const [intensity, setIntensity] = useState("Moderate");
   const [manualIntensity, setManualIntensity] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState("");
+  const [resumeHeaderWarningOpen, setResumeHeaderWarningOpen] = useState(false);
   const showSlowHint = useSlowLoading(Boolean(aiState.loading));
   const loadingRef = useRef(null);
   const jobScoreHistory = jobScores.filter((score) => score.job_id === job.id);
@@ -66,7 +69,7 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
     if (latestMessage?.contact_id && !selectedContactId) setSelectedContactId(latestMessage.contact_id);
   }, [latestMessage?.contact_id, selectedContactId]);
 
-  async function runAi(action, { regenerate = false } = {}) {
+  async function runAi(action, { regenerate = false, skipHeaderCheck = false } = {}) {
     if (aiState.loading) return;
     const usageField = getAiUsageField(action, job, Boolean(latestScore || latestResume || latestMessage));
     if (usageField && !canUseUsageFeature(billing, usageField)) {
@@ -80,6 +83,10 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
     const localError = getLocalError(action, profile, job);
     if (localError) {
       setAiState({ loading: "", latest: null, error: localError, confirm: "" });
+      return;
+    }
+    if (action === "resume" && !skipHeaderCheck && getMissingResumeHeaderItems(profile).length) {
+      setResumeHeaderWarningOpen(true);
       return;
     }
     setAiState({ loading: action, error: "", latest: null, confirm: "" });
@@ -124,6 +131,19 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
   if (contentOnly) {
     return (
       <section className="grid gap-4">
+        <ResumeHeaderWarningModal
+          open={resumeHeaderWarningOpen}
+          missingItems={getMissingResumeHeaderItems(profile)}
+          onCompleteProfile={() => {
+            setResumeHeaderWarningOpen(false);
+            navigate(`/app/resume-studio?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}#profile`);
+          }}
+          onGenerateAnyway={() => {
+            setResumeHeaderWarningOpen(false);
+            runAi("resume", { skipHeaderCheck: true });
+          }}
+          onClose={() => setResumeHeaderWarningOpen(false)}
+        />
         <BillingLimitModal
           open={Boolean(limitAction)}
           upgrading={upgrading}
@@ -153,14 +173,6 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
         {aiState.latest?.action === "fit" && !showOnboardingHelp && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">
             Analysis completed. You have a clearer view of this opportunity.
-          </div>
-        )}
-        {aiState.latest?.action === "resume" && aiState.latest.resumeId && !showOnboardingHelp && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-            <p className="font-bold">Tailored resume saved.</p>
-            <Link className="mt-2 inline-flex font-semibold text-emerald-800 underline" to={`/app/generated-resumes?resume=${aiState.latest.resumeId}`}>
-              View in Generated Resumes
-            </Link>
           </div>
         )}
         {aiState.latest?.action === "message" && (
@@ -234,6 +246,19 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
 
   return (
     <section className={compact ? "grid gap-3" : "rounded-lg border border-brand-100 bg-white p-5 shadow-card"}>
+      <ResumeHeaderWarningModal
+        open={resumeHeaderWarningOpen}
+        missingItems={getMissingResumeHeaderItems(profile)}
+        onCompleteProfile={() => {
+          setResumeHeaderWarningOpen(false);
+          navigate(`/app/resume-studio?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}#profile`);
+        }}
+        onGenerateAnyway={() => {
+          setResumeHeaderWarningOpen(false);
+          runAi("resume", { skipHeaderCheck: true });
+        }}
+        onClose={() => setResumeHeaderWarningOpen(false)}
+      />
       <BillingLimitModal
         open={Boolean(limitAction)}
         upgrading={upgrading}
@@ -327,14 +352,6 @@ export function AiToolsPanel({ job, compact = false, contentOnly = false, active
       {aiState.latest?.action === "fit" && !showOnboardingHelp && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">
           Analysis completed. You have a clearer view of this opportunity.
-        </div>
-      )}
-      {aiState.latest?.action === "resume" && aiState.latest.resumeId && !showOnboardingHelp && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-          <p className="font-bold">Tailored resume saved.</p>
-          <Link className="mt-2 inline-flex font-semibold text-emerald-800 underline" to={`/app/generated-resumes?resume=${aiState.latest.resumeId}`}>
-            View in Generated Resumes
-          </Link>
         </div>
       )}
       {aiState.latest?.action === "message" && (
@@ -662,6 +679,20 @@ export function ResumeResult({ resume, job: currentJob, score, materials = {}, a
           </p>
         </div>
         <CopyButton text={draft} />
+      </div>
+      <div className="mt-4 rounded-lg bg-white/90 p-3 ring-1 ring-brand-100">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-black text-ink">Tailored Resume Ready</p>
+            <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">Choose the next application step without scrolling through the full resume.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {onOpenRecruiterView && <Button className="min-h-8 px-3 text-xs" onClick={onOpenRecruiterView}>Review Recruiter View</Button>}
+            {onOpenExport && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenExport}>Export Resume</Button>}
+            {onOpenMessage && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenMessage}>Generate Recruiter Message</Button>}
+            {onOpenInterview && <Button variant="secondary" className="min-h-8 px-3 text-xs" onClick={onOpenInterview}>Prepare Interview</Button>}
+          </div>
+        </div>
       </div>
       <ResumeFitImprovementSnapshot score={score} generatedText={draft} />
       {whyThisFits && (
@@ -1496,6 +1527,40 @@ function MissingOrError({ message }) {
     <div className="mt-4 rounded-lg bg-rose-50 p-3 text-sm font-semibold text-rose-700">
       {message}
       {needsProfile && <Link className="ml-2 underline" to="/app/settings">Open profile setup</Link>}
+    </div>
+  );
+}
+
+function ResumeHeaderWarningModal({ open, missingItems = [], onCompleteProfile, onGenerateAnyway, onClose }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/35 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="resume-header-warning-title">
+      <section className="w-full max-w-lg rounded-xl bg-white p-5 shadow-2xl ring-1 ring-brand-100">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Resume Header</p>
+            <h2 id="resume-header-warning-title" className="mt-1 text-xl font-black text-ink">Your resume header is incomplete.</h2>
+          </div>
+          <button type="button" className="rounded-lg px-2 py-1 text-sm font-bold text-slate-500 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100" onClick={onClose} aria-label="Close resume header warning">
+            X
+          </button>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-slate-700">
+          Adding contact details helps recruiters reach you and creates a stronger professional resume.
+        </p>
+        {missingItems.length > 0 && (
+          <div className="mt-4 rounded-lg bg-brand-50/70 p-3 ring-1 ring-brand-100">
+            <p className="text-sm font-black text-ink">Missing:</p>
+            <ul className="mt-2 grid gap-1.5 text-sm font-semibold text-slate-700">
+              {missingItems.map((item) => <li key={item.field}>{"\u2022"} {item.label}</li>)}
+            </ul>
+          </div>
+        )}
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="secondary" onClick={onGenerateAnyway}>Generate Anyway</Button>
+          <Button onClick={onCompleteProfile}>Complete Profile</Button>
+        </div>
+      </section>
     </div>
   );
 }

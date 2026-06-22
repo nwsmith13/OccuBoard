@@ -12,14 +12,14 @@ import { getNextBestAction } from "../../utils/nextBestAction.js";
 const navigationItems = [
   { title: "Dashboard", subtitle: "Navigate", path: "/app/dashboard", aliases: "home focus today overview", icon: LayoutDashboard },
   { title: "Resume Studio", subtitle: "Navigate", path: "/app/resume-studio", aliases: "resume cv profile import upload", icon: FileText },
-  { title: "New Jobs", subtitle: "Navigate", path: "/app/new-jobs", aliases: "new job analyze add job paste job", icon: Search },
+  { title: "Analyze Jobs", subtitle: "Navigate", path: "/app/new-jobs", aliases: "new job analyze add job paste job", icon: Search },
   { title: "Generated Resumes", subtitle: "Navigate", path: "/app/generated-resumes", aliases: "tailored resumes exports materials", icon: FileText },
   { title: "Applications", subtitle: "Navigate", path: "/app/applications", aliases: "pipeline board jobs opportunities tracker", icon: BriefcaseBusiness },
   { title: "Settings", subtitle: "Navigate", path: "/app/settings", aliases: "account profile configuration", icon: Settings },
 ];
 
 const globalCommands = [
-  { title: "Analyze a new job", subtitle: "New Jobs", path: "/app/new-jobs", aliases: "new job analyze add job paste job", icon: Search },
+  { title: "Analyze a new job", subtitle: "Analyze Jobs", path: "/app/new-jobs", aliases: "new job analyze add job paste job", icon: Search },
   { title: "Import resume", subtitle: "Resume Studio", path: "/app/resume-studio", aliases: "upload resume import cv base resume", icon: Upload },
   { title: "View applications", subtitle: "Applications", path: "/app/applications", aliases: "pipeline board opportunities", icon: BriefcaseBusiness },
   { title: "View generated resumes", subtitle: "Generated Resumes", path: "/app/generated-resumes", aliases: "tailored resume export pdf docx", icon: FileText },
