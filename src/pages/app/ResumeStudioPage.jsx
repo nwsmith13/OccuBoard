@@ -7,7 +7,7 @@ import { Button } from "../../components/ui/Button.jsx";
 import { Card } from "../../components/ui/Card.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { normalizeResumeText } from "../../lib/resumeParser.js";
-import { createEmptyProfile } from "../../lib/profile.js";
+import { createEmptyProfile, getMissingResumeHeaderItems } from "../../lib/profile.js";
 import { trackProductMilestone } from "../../lib/productAnalytics.js";
 import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 
@@ -26,6 +26,7 @@ export function ResumeStudioPage() {
   const latestUpload = resumeUploads[0];
   const hasBaseResume = Boolean(profile?.base_resume_text?.trim());
   const shouldShowNextJob = hasBaseResume && jobs.length === 0;
+  const missingResumeHeaderItems = getMissingResumeHeaderItems(profile);
 
   async function applyUploadText(text) {
     const wasFirstResume = !hasBaseResume;
@@ -140,6 +141,11 @@ export function ResumeStudioPage() {
 
       {handoff && (
         <ResumeOnboardingHandoff
+          missingItems={missingResumeHeaderItems}
+          onCompleteProfile={() => {
+            setHandoff(false);
+            navigate(`/app/resume-studio?returnTo=${encodeURIComponent("/app/new-jobs")}#profile`);
+          }}
           onContinue={() => navigate("/app/new-jobs", { state: { onboardingStep: "analyze-job" } })}
           onSkip={() => setHandoff(false)}
         />

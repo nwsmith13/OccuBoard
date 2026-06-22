@@ -131,7 +131,8 @@ export function ResumeImportCard({ compact = false, highlighted = false, onBaseR
   );
 }
 
-export function ResumeOnboardingHandoff({ onContinue, onSkip }) {
+export function ResumeOnboardingHandoff({ missingItems = [], onCompleteProfile, onContinue, onSkip }) {
+  const hasMissingHeader = missingItems.length > 0;
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-white/95 px-4 backdrop-blur-sm">
       <section className="w-full max-w-xl rounded-xl border border-brand-100 bg-white p-6 text-center shadow-soft sm:p-8" role="dialog" aria-modal="true" aria-labelledby="resume-upload-success-title">
@@ -144,15 +145,39 @@ export function ResumeOnboardingHandoff({ onContinue, onSkip }) {
           <p className="text-xs font-black uppercase tracking-[0.14em]">Step 1 Complete</p>
         </div>
         <h2 id="resume-upload-success-title" className="mt-2 text-2xl font-black text-ink">Resume uploaded successfully</h2>
-        <p className="mt-2 text-base font-semibold text-slate-700">Your resume foundation is ready.</p>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
-          Add a job description so OccuBoard can analyze fit, tailor your resume, generate recruiter messaging, and prepare interview materials.
+        <p className="mt-2 text-base font-semibold text-slate-700">
+          {hasMissingHeader
+            ? "Your resume foundation is ready. Before analyzing a job, add the contact details you want included in your tailored resume header."
+            : "Your resume foundation is ready."}
         </p>
+        {hasMissingHeader ? (
+          <div className="mx-auto mt-4 max-w-sm rounded-lg bg-brand-50/75 p-3 text-left ring-1 ring-brand-100">
+            <p className="text-sm font-black text-ink">Missing:</p>
+            <ul className="mt-2 grid gap-1.5 text-sm font-semibold text-slate-700">
+              {missingItems.map((item) => <li key={item.field}>{"\u2022"} {item.label}</li>)}
+            </ul>
+          </div>
+        ) : (
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
+            Add a job description so OccuBoard can analyze fit, tailor your resume, generate recruiter messaging, and prepare interview materials.
+          </p>
+        )}
         <div className="mt-6 flex flex-col-reverse items-center justify-center gap-2 sm:flex-row">
           <Button variant="ghost" className="w-full sm:w-fit" onClick={onSkip}>Stay here</Button>
-          <Button className="w-full sm:w-fit" onClick={onContinue}>
-            Analyze My First Job <ArrowRight size={16} aria-hidden="true" />
-          </Button>
+          {hasMissingHeader ? (
+            <>
+              <Button variant="secondary" className="w-full sm:w-fit" onClick={onContinue}>
+                Analyze Job Anyway <ArrowRight size={16} aria-hidden="true" />
+              </Button>
+              <Button className="w-full sm:w-fit" onClick={onCompleteProfile}>
+                Complete Profile <ArrowRight size={16} aria-hidden="true" />
+              </Button>
+            </>
+          ) : (
+            <Button className="w-full sm:w-fit" onClick={onContinue}>
+              Analyze My First Job <ArrowRight size={16} aria-hidden="true" />
+            </Button>
+          )}
         </div>
       </section>
     </div>

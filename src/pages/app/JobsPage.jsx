@@ -1376,6 +1376,15 @@ function getNextBestActionShellTone(tone, actionType) {
 
 function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
   const [dateMode, setDateMode] = useState(form.appliedDate && form.appliedDate !== todayIso() ? "custom" : "today");
+  const panelRef = useRef(null);
+  const todayButtonRef = useRef(null);
+  const [highlightDateChoice, setHighlightDateChoice] = useState(true);
+  useEffect(() => {
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => todayButtonRef.current?.focus(), 120);
+    const timer = window.setTimeout(() => setHighlightDateChoice(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, []);
   function chooseToday() {
     setDateMode("today");
     onChange("appliedDate", todayIso());
@@ -1384,7 +1393,7 @@ function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
     setDateMode("custom");
   }
   return (
-    <section className="rounded-xl bg-white/95 p-4 shadow-card ring-1 ring-brand-100">
+    <section ref={panelRef} className="scroll-mt-24 rounded-xl border-l-4 border-l-brand-500 bg-white/95 p-4 shadow-soft ring-2 ring-brand-100">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Mark Applied</p>
@@ -1393,9 +1402,10 @@ function MarkAppliedPanel({ form, saving, onChange, onCancel, onSave }) {
         </div>
         <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={onCancel}>Cancel</Button>
       </div>
-      <div className="mt-4 grid gap-3">
+      <div className={`mt-4 grid gap-3 rounded-xl p-3 transition ${highlightDateChoice ? "animate-pulse bg-brand-50 ring-2 ring-brand-200" : "bg-brand-50/55 ring-1 ring-brand-100"}`}>
         <div className="flex flex-wrap gap-2">
           <button
+            ref={todayButtonRef}
             type="button"
             className={`rounded-lg px-4 py-2 text-sm font-black ring-1 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 ${dateMode === "today" ? "bg-brand-700 text-white ring-brand-700" : "bg-white text-brand-800 ring-brand-200 hover:bg-brand-50"}`}
             onClick={chooseToday}
