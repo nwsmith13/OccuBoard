@@ -53,6 +53,15 @@ export async function updateSubscriptionByStripeId(subscriptionId, payload = {})
   }).then((rows) => rows?.[0] ?? null);
 }
 
+export async function markWelcomeEmailSent(userId) {
+  if (!hasBillingDatabase() || !userId) return null;
+  return supabaseRest(`/user_subscriptions?user_id=eq.${encodeURIComponent(userId)}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ welcome_email_sent: true, updated_at: new Date().toISOString() }),
+  }).then((rows) => rows?.[0] ?? null);
+}
+
 async function supabaseRest(path, options = {}) {
   const response = await fetch(`${supabaseUrl}/rest/v1${path}`, {
     ...options,

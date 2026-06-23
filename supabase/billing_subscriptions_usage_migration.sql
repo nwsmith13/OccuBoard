@@ -10,9 +10,13 @@ create table if not exists public.user_subscriptions (
   status text default 'free',
   current_period_end timestamptz,
   cancel_at_period_end boolean default false,
+  welcome_email_sent boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.user_subscriptions
+add column if not exists welcome_email_sent boolean default false;
 
 create table if not exists public.user_usage (
   id uuid primary key default gen_random_uuid(),
@@ -76,4 +80,3 @@ for each row execute function public.set_updated_at();
 
 -- Server-side Stripe webhook writes require a Supabase service role key in deployment
 -- because users should not be able to write subscription status from the browser.
-
