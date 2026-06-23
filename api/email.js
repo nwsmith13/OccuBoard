@@ -79,6 +79,7 @@ function buildWelcomeHtml({ firstName }) {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;overflow:hidden;border:1px solid #dbeafe;border-radius:20px;background:#ffffff;box-shadow:0 18px 45px rgba(15,94,168,0.08);">
             <tr>
               <td style="background:#eff6ff;padding:28px 28px 24px;border-bottom:1px solid #dbeafe;">
+                <img src="https://www.occuboard.io/Assets/occuboard-logo-email.png" alt="OccuBoard" width="180" style="display:block;width:180px;max-width:100%;height:auto;margin:0 0 22px;" />
                 <div style="font-size:12px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#0f5ea8;">OccuBoard Pro</div>
                 <h1 style="margin:10px 0 0;font-size:28px;line-height:1.2;color:#0f172a;">Welcome to OccuBoard Pro</h1>
               </td>
@@ -102,7 +103,7 @@ function buildWelcomeHtml({ firstName }) {
                 </table>
                 <p style="margin:24px 0 0;font-size:15px;line-height:1.7;color:#475569;">If you have questions, feedback, or run into any issues, simply reply to this email.</p>
                 <p style="margin:22px 0 0;font-size:15px;line-height:1.7;color:#334155;">Thank you for supporting OccuBoard.</p>
-                <p style="margin:18px 0 0;font-size:15px;line-height:1.6;color:#0f172a;">Matthew Smith<br /><span style="color:#475569;">Founder, ARSO Solutions Lab</span></p>
+                <p style="margin:18px 0 0;font-size:15px;line-height:1.6;color:#0f172a;">Matthew Smith<br /><span style="color:#475569;">Founder, Occuboard.io</span></p>
               </td>
             </tr>
           </table>
