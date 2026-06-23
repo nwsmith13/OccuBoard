@@ -79,7 +79,7 @@ function buildWelcomeHtml({ firstName }) {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;overflow:hidden;border:1px solid #dbeafe;border-radius:20px;background:#ffffff;box-shadow:0 18px 45px rgba(15,94,168,0.08);">
             <tr>
               <td style="background:#eff6ff;padding:28px 28px 24px;border-bottom:1px solid #dbeafe;">
-                <img src="https://www.occuboard.io/Assets/occuboard-logo-email.png" alt="OccuBoard" width="180" style="display:block;width:180px;max-width:100%;height:auto;margin:0 0 22px;" />
+                <img src="https://www.occuboard.io/assets/occuboard-logo-email.png" alt="OccuBoard" width="180" style="display:block;width:180px;max-width:100%;height:auto;margin:0 0 22px;" />
                 <div style="font-size:12px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#0f5ea8;">OccuBoard Pro</div>
                 <h1 style="margin:10px 0 0;font-size:28px;line-height:1.2;color:#0f172a;">Welcome to OccuBoard Pro</h1>
               </td>
