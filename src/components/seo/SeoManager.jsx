@@ -45,7 +45,7 @@ const organizationSchema = {
   "@id": `${baseUrl}/#organization`,
   name: "OccuBoard",
   url: `${baseUrl}/`,
-  logo: `${baseUrl}/assets/occuboard-logo-email.png`,
+  logo: `${baseUrl}/occuboard-logo.svg`,
   email: "support@occuboard.io",
   description: "OccuBoard is an AI-powered job application copilot for realistic fit analysis, recruiter perspective, truthful positioning, interview preparation, and application tracking.",
 };

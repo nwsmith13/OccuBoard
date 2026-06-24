@@ -136,9 +136,9 @@ export function ResumeOnboardingHandoff({ missingItems = [], onCompleteProfile, 
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-white/95 px-4 backdrop-blur-sm">
       <section className="w-full max-w-xl rounded-xl border border-brand-100 bg-white p-6 text-center shadow-soft sm:p-8" role="dialog" aria-modal="true" aria-labelledby="resume-upload-success-title">
-        <img src="/assets/occuboard-logo.svg" alt="OccuBoard" className="mx-auto h-auto w-44 max-w-full" />
+        <img src="/occuboard-logo.svg" alt="OccuBoard" className="mx-auto h-auto w-44 max-w-full" />
         <div className="mx-auto mt-6 grid h-14 w-14 place-items-center rounded-full bg-emerald-50 ring-1 ring-emerald-100">
-          <img src="/assets/favicon.svg" alt="" className="h-8 w-8" aria-hidden="true" />
+          <img src="/occuboard-icon.svg" alt="" className="h-8 w-8" aria-hidden="true" />
         </div>
         <div className="mt-5 flex items-center justify-center gap-2 text-emerald-700">
           <CheckCircle2 size={20} aria-hidden="true" />

@@ -4,8 +4,8 @@ import { clearProductTourRestart } from "../../lib/onboarding.js";
 import { Button } from "../ui/Button.jsx";
 import { getFitScoreTone } from "../ui/FitScoreBadge.jsx";
 
-const occuboardLogo = "/assets/occuboard-logo.svg";
-const occuboardIcon = "/assets/favicon.svg";
+const occuboardLogo = "/occuboard-logo.svg";
+const occuboardIcon = "/occuboard-icon.svg";
 
 export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmationAcknowledged, onDismiss }) {
   const step = getCurrentStep(state);
