@@ -19,10 +19,11 @@ export function OnboardingFlow({ state, emailConfirmed = false, onEmailConfirmat
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-emerald-50 px-4 py-8 text-ink sm:px-6">
+    <main className="relative min-h-screen bg-[#07111F] px-4 py-8 text-ink sm:px-6">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,122,0,0.2),transparent_30%),radial-gradient(circle_at_86%_12%,rgba(34,197,94,0.12),transparent_25%),linear-gradient(135deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
       <section className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col justify-center">
         {showConfirmationSuccess && <EmailConfirmedBanner onContinue={onEmailConfirmationAcknowledged} />}
-        <div className="rounded-3xl bg-white/95 p-5 shadow-soft ring-1 ring-brand-100 sm:p-8 lg:p-10">
+        <div className="relative rounded-3xl bg-white/95 p-5 shadow-soft ring-1 ring-white/10 sm:p-8 lg:p-10">
           <img src={occuboardLogo} alt="OccuBoard" className="mx-auto mb-6 h-12 w-auto max-w-[220px] object-contain sm:h-14 sm:max-w-[260px]" />
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl">

@@ -13,12 +13,11 @@ import { useWorkspaceStore } from "../../stores/workspaceStore.js";
 import { Button } from "../ui/Button.jsx";
 
 const exportColors = {
-  "Occu Blue": "#0F5EA8",
-  Sky: "#7FD7E7",
-  Cyan: "#06B6D4",
-  Green: "#34D399",
-  Purple: "#7C3AED",
-  Charcoal: "#334155",
+  "Occu Orange": "#FF7A00",
+  Navy: "#07111F",
+  Charcoal: "#0D1B2A",
+  Green: "#22C55E",
+  Slate: "#334155",
 };
 
 export function ResumeExportPanel({ resume, content, profile, job, score, source = "unknown", compact = false, showHistory = !compact, showPreviewDefault = true, historyResumeId, onExportComplete }) {
@@ -27,7 +26,7 @@ export function ResumeExportPanel({ resume, content, profile, job, score, source
   const [includeWhyThisFits, setIncludeWhyThisFits] = useState(false);
   const [showPreview, setShowPreview] = useState(showPreviewDefault);
   const [exportStyle, setExportStyle] = useState("Professional");
-  const [exportAccentColor, setExportAccentColor] = useState(exportColors["Occu Blue"]);
+  const [exportAccentColor, setExportAccentColor] = useState(exportColors["Occu Orange"]);
   const [exporting, setExporting] = useState("");
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -201,7 +200,7 @@ export function ResumeExportPanel({ resume, content, profile, job, score, source
   );
 }
 
-function ResumeExportPreview({ sections, accentColor = exportColors["Occu Blue"] }) {
+function ResumeExportPreview({ sections, accentColor = exportColors["Occu Orange"] }) {
   const contactSection = sections.find((section) => section.title === "CONTACT");
   const documentSections = sections.filter((section) => section.title !== "CONTACT");
   return (

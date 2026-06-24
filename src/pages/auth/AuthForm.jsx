@@ -48,8 +48,9 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
 
   if (confirmationEmail) {
     return (
-      <div className="grid min-h-screen place-items-center bg-brand-50 px-4 py-8">
-        <div className="w-full max-w-md rounded-lg border border-brand-100 bg-white p-6 text-center shadow-soft">
+      <div className="relative grid min-h-screen place-items-center bg-[#07111F] px-4 py-8">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,122,0,0.18),transparent_30%),linear-gradient(135deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
+        <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-white p-6 text-center shadow-soft">
           <Link to="/" className="mb-8 block"><Logo /></Link>
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-2xl ring-1 ring-emerald-100" aria-hidden="true">
             ✓
@@ -71,11 +72,12 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-brand-50 px-4 py-8">
-      <div className="w-full max-w-md rounded-lg border border-brand-100 bg-white p-6 shadow-soft">
+    <div className="relative grid min-h-screen place-items-center bg-[#07111F] px-4 py-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(255,122,0,0.2),transparent_30%),radial-gradient(circle_at_84%_10%,rgba(34,197,94,0.12),transparent_25%),linear-gradient(135deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
+      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-white p-6 shadow-soft">
         <Link to="/" className="mb-8 block"><Logo /></Link>
         <h1 className="text-3xl font-bold">{title}</h1>
-        <p className="mt-2 text-sm text-slate-600">Keep your job search organized from the first saved role to the final offer.</p>
+        <p className="mt-2 text-sm text-slate-600">Analyze roles, strengthen applications, and stay ready for the next conversation.</p>
         {!isConfigured && (
           <div className="mt-5 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">
             Supabase env vars are not set, so auth forms open the local demo workspace.

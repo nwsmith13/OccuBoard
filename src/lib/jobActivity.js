@@ -104,12 +104,12 @@ export function getActivityColor(type = "") {
   if (type.includes("followup")) return "bg-amber-50 text-amber-700 ring-amber-100";
   if (type.includes("cover_letter")) return "bg-brand-50 text-brand-800 ring-brand-100";
   if (type.includes("resume")) return "bg-brand-50 text-brand-800 ring-brand-100";
-  if (type.includes("message")) return "bg-cyan-50 text-cyan-700 ring-cyan-100";
+  if (type.includes("message")) return "bg-brand-50 text-brand-800 ring-brand-100";
   if (type.includes("stage") || type.includes("application")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   if (type.includes("archived") || type.includes("restored")) return "bg-slate-50 text-slate-600 ring-slate-100";
-  if (type.includes("contact")) return "bg-cyan-50 text-cyan-700 ring-cyan-100";
+  if (type.includes("contact")) return "bg-brand-50 text-brand-800 ring-brand-100";
   if (type.includes("interview")) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
-  if (type.includes("analysis")) return "bg-purple-50 text-purple-700 ring-purple-100";
+  if (type.includes("analysis")) return "bg-brand-50 text-brand-800 ring-brand-100";
   return "bg-slate-50 text-slate-600 ring-slate-100";
 }
 

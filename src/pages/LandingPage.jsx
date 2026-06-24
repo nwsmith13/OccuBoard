@@ -28,13 +28,13 @@ const materialFeatures = [
   ["Tailored Resume", FileText, "Strengthen role-specific positioning while preserving your experience and voice."],
   ["Recruiter Outreach", Mail, "Generate concise, role-aware messages that sound human and credible."],
   ["Cover Letter", Briefcase, "Create optional cover letters with professional, startup, or conversational tone."],
-  ["Interview Preparation", MessageCircleQuestion, "Prepare likely questions, STAR stories, talking points, research, and responses to concern areas."],
+  ["Interview Prep", MessageCircleQuestion, "Prepare likely questions, STAR stories, talking points, research, and responses to concern areas."],
 ];
 
 const workflowSteps = [
   ["Add a Job", ClipboardList, "Paste the complete job description so OccuBoard can evaluate the role."],
   ["Analyze Fit", Target, "Review match strength, evidence, and hiring considerations."],
-  ["Review Recruiter Perspective", Users, "See likely first impressions, concerns, and recruiter confidence."],
+  ["Review Recruiter View", Users, "See likely first impressions, concerns, and recruiter confidence."],
   ["Recover Considerations", ShieldCheck, "Turn true gaps into supported positioning opportunities."],
   ["Generate Materials", FileCheck2, "Create a tailored resume and optional outreach grounded in the analysis."],
   ["Apply", CalendarCheck, "Submit your application and mark the opportunity applied."],
@@ -42,16 +42,16 @@ const workflowSteps = [
 ];
 
 const heroTabs = [
-  { id: "recruiter", label: "Recruiter Perspective", icon: Users },
+  { id: "recruiter", label: "Recruiter View", icon: Users },
   { id: "resume", label: "Resume Optimization", icon: FileText },
   { id: "recovery", label: "Recovery Strategy", icon: ShieldCheck },
-  { id: "interview", label: "Interview Preparation", icon: MessageCircleQuestion },
+  { id: "interview", label: "Interview Prep", icon: MessageCircleQuestion },
   { id: "package", label: "Application Package", icon: FileCheck2 },
 ];
 
 const productTourSteps = [
   {
-    label: "Recruiter Perspective",
+    label: "Recruiter View",
     icon: Users,
     title: "See how recruiters may read the application.",
     description: "OccuBoard surfaces recruiter confidence, likely first impressions, strongest signal, and primary concern before the user applies.",
@@ -88,7 +88,7 @@ const productTourSteps = [
     ],
   },
   {
-    label: "Interview Preparation",
+    label: "Interview Prep",
     icon: MessageCircleQuestion,
     title: "Turn likely questions into coaching.",
     description: "OccuBoard prepares question context, evaluation criteria, answer direction, and related stories.",
@@ -110,7 +110,7 @@ const productTourSteps = [
       ["Resume", "Optimized"],
       ["Recruiter Message", "Generated"],
       ["Cover Letter", "Optional"],
-      ["Interview Preparation", "Ready"],
+      ["Interview Prep", "Ready"],
       ["Application Tracking", "Ready"],
     ],
   },
@@ -121,41 +121,43 @@ export function LandingPage() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
-    <div className="w-full overflow-x-hidden bg-white pt-20 text-ink sm:pt-24 2xl:pt-28">
-      <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-brand-100/80 bg-white/85 px-4 py-2 shadow-card backdrop-blur-xl sm:left-6 sm:right-6 sm:px-5 2xl:px-6 2xl:py-3">
+    <div className="w-full overflow-x-hidden bg-[#07111F] pt-20 text-[#F8FAFC] sm:pt-24 2xl:pt-28">
+      <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#07111F]/82 px-4 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:left-6 sm:right-6 sm:px-5 2xl:px-6 2xl:py-3">
         <Logo className="h-9 sm:h-12 2xl:h-16" />
         <nav className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <Link className="hidden text-xs font-semibold text-slate-600 hover:text-brand-800 min-[420px]:inline sm:text-sm" to="/login">Login</Link>
+          <Link className="hidden text-xs font-semibold text-slate-300 hover:text-white min-[420px]:inline sm:text-sm" to="/login">Login</Link>
           <Link to="/signup">
-            <Button className="min-h-9 px-2.5 text-xs sm:px-3 sm:text-sm">Get Started</Button>
+            <Button className="min-h-9 bg-[#FF7A00] px-2.5 text-xs text-white hover:bg-[#ff8f2a] sm:px-3 sm:text-sm">Join Beta</Button>
           </Link>
         </nav>
       </header>
 
       <main>
-        <section id="hero" className="border-y border-brand-100 bg-gradient-to-b from-brand-50 to-white">
-          <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-8 overflow-hidden px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-center lg:gap-7 lg:py-6 2xl:gap-10 2xl:py-20">
+        <section id="hero" className="relative overflow-hidden border-y border-white/10 bg-[#07111F]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(255,122,0,0.22),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(34,197,94,0.12),transparent_26%),linear-gradient(135deg,#07111F_0%,#0D1B2A_55%,#07111F_100%)]" aria-hidden="true" />
+          <div className="absolute inset-0 opacity-[0.18] [background-image:radial-gradient(rgba(248,250,252,0.34)_1px,transparent_1px)] [background-size:22px_22px]" aria-hidden="true" />
+          <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-8 overflow-hidden px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-center lg:gap-7 lg:py-8 2xl:gap-10 2xl:py-20">
             <div className="min-w-0">
-              <p className="mb-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-brand-700 shadow-card lg:mb-3 lg:py-1.5 2xl:mb-4 2xl:py-2">
+              <p className="mb-4 inline-flex rounded-full border border-[#FF7A00]/35 bg-[#FF7A00]/12 px-4 py-2 text-sm font-semibold text-orange-200 shadow-[0_10px_30px_rgba(255,122,0,0.15)] lg:mb-3 lg:py-1.5 2xl:mb-4 2xl:py-2">
                 AI-powered job application copilot
               </p>
-              <h1 className="max-w-3xl text-4xl font-bold tracking-normal text-ink sm:text-5xl lg:text-[2.85rem] lg:leading-[1.04] 2xl:text-6xl">
-                Understand the role. Strengthen your application. Apply with confidence.
+              <h1 className="max-w-3xl text-4xl font-bold tracking-normal text-white sm:text-5xl lg:text-[2.85rem] lg:leading-[1.04] 2xl:text-6xl">
+                Land More Interviews With Less Busywork
               </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600 lg:mt-3 lg:text-base lg:leading-7 2xl:mt-6 2xl:text-lg 2xl:leading-8">
-                OccuBoard analyzes each job against your real experience, identifies hiring considerations, and helps you build a truthful strategy for your resume, recruiter outreach, and interview preparation.
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-[#CBD5E1] lg:mt-3 lg:text-base lg:leading-7 2xl:mt-6 2xl:text-lg 2xl:leading-8">
+                Analyze jobs, tailor resumes, generate recruiter messages, prepare for interviews, and track applications in one AI-powered workspace.
               </p>
-              <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-brand-800 lg:mt-3">
+              <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-[#F8FAFC] lg:mt-3">
                 No invented experience. No generic keyword stuffing. Just clearer positioning grounded in what you have actually done.
               </p>
               <div className="mt-8 flex flex-wrap gap-3 lg:mt-4 2xl:mt-8">
-                <Link to="/signup"><Button>Analyze Your First Job <ArrowRight size={18} /></Button></Link>
-                <a href="#how-it-works"><Button variant="secondary">See How It Works</Button></a>
+                <Link to="/signup"><Button className="bg-[#FF7A00] text-white shadow-[0_16px_40px_rgba(255,122,0,0.28)] hover:bg-[#ff8f2a]">Join the Early Beta <ArrowRight size={18} /></Button></Link>
+                <Link to="/signup"><Button variant="secondary" className="border border-white/15 bg-white/10 text-white ring-0 hover:bg-white/15">Try 3 Free Applications</Button></Link>
               </div>
               <div className="mt-6 flex max-w-3xl flex-wrap gap-2 lg:mt-3">
-                {["Recruiter Confidence Analysis", "Hiring Consideration Detection", "Truthful Recovery Strategy", "Interview Preparation", "Application Tracking"].map((item) => (
-                  <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-brand-800 shadow-sm ring-1 ring-brand-100">
-                    <CheckCircle2 size={13} className="text-emerald-600" />
+                {["Analyze Jobs", "Tailor Resumes", "Recruiter View", "Interview Prep", "Track Applications"].map((item) => (
+                  <span key={item} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold text-[#F8FAFC] shadow-sm backdrop-blur">
+                    <CheckCircle2 size={13} className="text-[#22C55E]" />
                     {item}
                   </span>
                 ))}
@@ -165,12 +167,14 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="know-before-you-apply" className="scroll-mt-28 bg-white">
+        <DifferentiatorSection />
+
+        <section id="know-before-you-apply" className="scroll-mt-28 bg-[#0D1B2A]">
           <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-9 2xl:py-12">
-            <div className="grid gap-5 rounded-xl border border-brand-100 bg-brand-50/60 p-4 shadow-soft sm:p-5 lg:grid-cols-[0.75fr_1.25fr_auto] lg:items-center">
+            <div className="grid gap-5 rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-[0_24px_70px_rgba(0,0,0,0.22)] backdrop-blur sm:p-5 lg:grid-cols-[0.75fr_1.25fr_auto] lg:items-center">
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Recruiter Perspective</p>
-                <h2 className="mt-1 text-2xl font-bold text-ink">Know what may stand out before you apply.</h2>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFB26B]">Recruiter View</p>
+                <h2 className="mt-1 text-2xl font-bold text-white">Know what may stand out before you apply.</h2>
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
@@ -178,21 +182,21 @@ export function LandingPage() {
                   ["Strongest Signal", "Customer onboarding", "Product adoption and stakeholder communication."],
                   ["Primary Concern", "Healthcare experience", "Recovered with supported adjacent evidence."],
                 ].map(([label, value, description]) => (
-                  <div key={label} className="rounded-lg border border-brand-100 bg-white p-3 shadow-card">
-                    <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">{label}</p>
-                    <p className="mt-1 text-lg font-black text-ink">{value}</p>
+                  <div key={label} className="rounded-xl border border-white/10 bg-white p-3 shadow-[0_18px_45px_rgba(0,0,0,0.16)]">
+                    <p className="text-[11px] font-black uppercase tracking-[0.1em] text-[#C35A00]">{label}</p>
+                    <p className="mt-1 text-lg font-black text-[#07111F]">{value}</p>
                     <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">{description}</p>
                   </div>
                 ))}
               </div>
-              <Button type="button" variant="secondary" className="w-fit justify-center whitespace-nowrap" onClick={() => setTourOpen(true)}>
+              <Button type="button" className="w-fit justify-center whitespace-nowrap bg-[#FF7A00] text-white hover:bg-[#ff8f2a]" onClick={() => setTourOpen(true)}>
                 Explore Product Tour
               </Button>
             </div>
           </div>
         </section>
 
-        <section id="strategy" className="scroll-mt-28 bg-brand-50/60">
+        <section id="strategy" className="scroll-mt-28 bg-[#07111F]">
           <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-12 2xl:py-14">
             <ShowcaseGrid
               reverse
@@ -210,7 +214,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="coverage" className="scroll-mt-28 bg-white">
+        <section id="coverage" className="scroll-mt-28 bg-[#0D1B2A]">
           <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-12 2xl:py-14">
             <ShowcaseGrid
               visual={<CoveragePreview />}
@@ -226,12 +230,12 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="materials" className="scroll-mt-28 bg-white">
+        <section id="materials" className="scroll-mt-28 bg-[#07111F]">
           <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-12 2xl:py-14">
             <div className="mb-8 max-w-3xl">
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Build Better Application Materials</p>
-              <h2 className="mt-2 text-3xl font-bold">Carry the strategy through every application material.</h2>
-              <p className="mt-3 leading-7 text-slate-600">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFB26B]">Build Better Application Materials</p>
+              <h2 className="mt-2 text-3xl font-bold text-white">Carry the strategy through every application material.</h2>
+              <p className="mt-3 leading-7 text-[#CBD5E1]">
                 Your analysis informs each generated asset, keeping the application focused, consistent, and grounded in your real background.
               </p>
             </div>
@@ -239,8 +243,8 @@ export function LandingPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {materialFeatures.map(([label, Icon, featureDescription]) => (
                   <Card key={label}>
-                    <Icon className="mb-4 text-brand-700" size={24} />
-                    <h3 className="text-lg font-bold">{label}</h3>
+                    <Icon className="mb-4 text-[#FF7A00]" size={24} />
+                    <h3 className="text-lg font-bold text-[#07111F]">{label}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{featureDescription}</p>
                   </Card>
                 ))}
@@ -250,17 +254,17 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="application-workspace" className="scroll-mt-28 border-y border-brand-100 bg-brand-50/70">
+        <section id="application-workspace" className="scroll-mt-28 border-y border-white/10 bg-[#0D1B2A]">
           <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[0.7fr_1fr] lg:items-center lg:py-12 2xl:py-14">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">Application Workspace</p>
-              <h2 className="mt-2 text-3xl font-bold">Keep everything together once your strategy is ready.</h2>
-              <p className="mt-3 max-w-xl leading-7 text-slate-600">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFB26B]">Application Workspace</p>
+              <h2 className="mt-2 text-3xl font-bold text-white">Keep everything together once your strategy is ready.</h2>
+              <p className="mt-3 max-w-xl leading-7 text-[#CBD5E1]">
                 The place that keeps everything organized once your strategy is ready, without turning your job search into another spreadsheet.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 {["Applications", "Follow-ups", "Notes and contacts", "Generated materials", "Interview preparation"].map((item) => (
-                  <span key={item} className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-brand-800 shadow-sm ring-1 ring-brand-100">
+                  <span key={item} className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold text-[#F8FAFC] shadow-sm">
                     {item}
                   </span>
                 ))}
@@ -272,25 +276,25 @@ export function LandingPage() {
 
         <section id="how-it-works" className="scroll-mt-28 mx-auto max-w-7xl px-4 py-12 sm:px-6 2xl:py-16">
           <div className="mb-8 max-w-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">How It Works</p>
-            <h2 className="mt-2 text-3xl font-bold">From job description to application strategy.</h2>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFB26B]">How It Works</p>
+            <h2 className="mt-2 text-3xl font-bold text-white">From job description to application strategy.</h2>
           </div>
           <WorkflowPreview />
         </section>
 
       </main>
 
-      <footer className="border-t border-brand-100 bg-ink px-4 py-12 text-white">
+      <footer className="border-t border-white/10 bg-[#07111F] px-4 py-12 text-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold">Know what to strengthen before you apply.</h2>
-            <p className="mt-2 text-brand-100">Turn your next job description into a realistic fit assessment, recruiter perspective, recovery strategy, and application plan.</p>
+            <p className="mt-2 text-[#CBD5E1]">Turn your next job description into a realistic fit assessment, Recruiter View, recovery strategy, and application plan.</p>
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
-            <Link to="/signup"><Button variant="secondary">Analyze Your First Job</Button></Link>
-            <p className="text-sm font-semibold text-brand-100">
+            <Link to="/signup"><Button className="bg-[#FF7A00] text-white hover:bg-[#ff8f2a]">Analyze Your First Job</Button></Link>
+            <p className="text-sm font-semibold text-[#CBD5E1]">
               Questions?{" "}
-              <button type="button" className="underline decoration-brand-200 underline-offset-4 hover:text-white" onClick={() => setFeedbackOpen(true)}>
+              <button type="button" className="underline decoration-[#FFB26B] underline-offset-4 hover:text-white" onClick={() => setFeedbackOpen(true)}>
                 Contact us
               </button>{" "}
               at hello@occuboard.io.
@@ -298,7 +302,7 @@ export function LandingPage() {
           </div>
         </div>
       </footer>
-      <PublicFooter onContact={() => setFeedbackOpen(true)} />
+      <PublicFooter variant="dark" onContact={() => setFeedbackOpen(true)} />
       {tourOpen ? <ProductTourModal onClose={() => setTourOpen(false)} /> : null}
       <FeedbackModal open={feedbackOpen} type="Support Question" onClose={() => setFeedbackOpen(false)} />
     </div>
@@ -310,19 +314,92 @@ function ShowcaseGrid({ visual, eyebrow = "", title, description, highlights, re
     <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
       <div className={`min-w-0 ${reverse ? "order-2" : ""}`}>{visual}</div>
       <div className={`min-w-0 ${reverse ? "order-1" : ""}`}>
-        {eyebrow ? <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">{eyebrow}</p> : null}
-        <h3 className="text-3xl font-bold text-ink">{title}</h3>
-        <p className="mt-3 max-w-xl leading-7 text-slate-600">{description}</p>
+        {eyebrow ? <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFB26B]">{eyebrow}</p> : null}
+        <h3 className="text-3xl font-bold text-white">{title}</h3>
+        <p className="mt-3 max-w-xl leading-7 text-[#CBD5E1]">{description}</p>
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {highlights.map(([label, value]) => (
-            <div key={label} className="rounded-lg border border-brand-100 bg-white p-3 shadow-card">
-              <p className="text-[11px] font-black uppercase tracking-[0.1em] text-brand-600">{label}</p>
-              <p className="mt-1 text-sm font-bold leading-5 text-ink">{value}</p>
+            <div key={label} className="rounded-xl border border-white/10 bg-white p-3 shadow-[0_18px_45px_rgba(0,0,0,0.16)]">
+              <p className="text-[11px] font-black uppercase tracking-[0.1em] text-[#C35A00]">{label}</p>
+              <p className="mt-1 text-sm font-bold leading-5 text-[#07111F]">{value}</p>
             </div>
           ))}
         </div>
       </div>
     </div>
+  );
+}
+
+function DifferentiatorSection() {
+  const cards = [
+    {
+      title: "Recruiter View",
+      badge: "Differentiator",
+      icon: Users,
+      copy: "Preview how your resume and experience may be interpreted from a hiring or screening perspective, including strengths, concerns, and talking points.",
+      bullets: [
+        "Honest fit assessment",
+        "Strengths and potential gaps",
+        "Resume-to-job alignment",
+        "Talking points for outreach and interviews",
+      ],
+    },
+    {
+      title: "Interview Prep",
+      badge: "Beyond Resume Tailoring",
+      icon: MessageCircleQuestion,
+      copy: "Turn each job description into focused interview preparation with likely questions, role-specific talking points, and examples from your background.",
+      bullets: [
+        "Likely interview questions",
+        "Role-specific talking points",
+        "STAR-style story prompts",
+        "Gaps to prepare for before the call",
+      ],
+    },
+  ];
+  return (
+    <section className="relative overflow-hidden border-y border-white/10 bg-[#07111F]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_30%,rgba(255,122,0,0.18),transparent_28%),linear-gradient(180deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
+      <div className="absolute inset-0 opacity-[0.14] [background-image:linear-gradient(rgba(148,163,184,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.18)_1px,transparent_1px)] [background-size:36px_36px]" aria-hidden="true" />
+      <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:py-14">
+        <div className="max-w-3xl">
+          <span className="inline-flex rounded-full border border-[#FF7A00]/35 bg-[#FF7A00]/12 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-orange-200">Beyond Resume Tailoring</span>
+          <h2 className="mt-4 text-3xl font-black text-white sm:text-4xl">See Your Application From the Other Side</h2>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-[#CBD5E1]">
+            OccuBoard helps you understand how your resume may look to a recruiter, what strengths stand out, what gaps may raise questions, and how to prepare before the interview.
+          </p>
+        </div>
+        <div className="mt-8 grid gap-5 lg:grid-cols-2">
+          {cards.map(({ title, badge, icon: Icon, copy, bullets }) => (
+            <article key={title} className="group rounded-2xl border border-white/10 bg-white p-5 text-[#07111F] shadow-[0_24px_70px_rgba(0,0,0,0.22)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_28px_80px_rgba(255,122,0,0.18)] sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <span className="inline-flex rounded-full bg-[#FF7A00]/12 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#C35A00]">{badge}</span>
+                  <h3 className="mt-4 text-2xl font-black text-[#07111F]">{title}</h3>
+                </div>
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#07111F] text-[#FF7A00] shadow-[0_16px_38px_rgba(7,17,31,0.18)]">
+                  <Icon size={23} />
+                </span>
+              </div>
+              <p className="mt-4 text-sm font-semibold leading-6 text-slate-700">{copy}</p>
+              <div className="mt-5 grid gap-2">
+                {bullets.map((item) => (
+                  <div key={item} className="flex gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 ring-1 ring-slate-100">
+                    <CheckCircle2 className="mt-0.5 shrink-0 text-[#22C55E]" size={16} />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="mt-8">
+          <Link to="/signup">
+            <Button className="bg-[#FF7A00] text-white shadow-[0_16px_40px_rgba(255,122,0,0.26)] hover:bg-[#ff8f2a]">Analyze your first job <ArrowRight size={18} /></Button>
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -353,7 +430,7 @@ function IntelligencePreview() {
   };
 
   return (
-    <div id="intelligence-preview" className="min-w-0 rounded-xl border border-brand-100 bg-white p-2.5 shadow-soft sm:p-3 2xl:p-4">
+    <div id="intelligence-preview" className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur sm:p-3 2xl:p-4">
       <div className="mb-2.5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap 2xl:mb-3" role="tablist" aria-label="Hero product preview">
         {heroTabs.map(({ id, label, icon: Icon }) => {
           const selected = id === activeTab;
@@ -363,8 +440,8 @@ function IntelligencePreview() {
               type="button"
               role="tab"
               aria-selected={selected}
-              className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-black transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100 2xl:min-h-10 2xl:gap-2 2xl:px-3 2xl:py-2 2xl:text-xs ${
-                selected ? "bg-brand-700 text-white shadow-card" : "bg-brand-50 text-brand-800 ring-1 ring-brand-100 hover:bg-white hover:shadow-card"
+              className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-black transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF7A00]/30 2xl:min-h-10 2xl:gap-2 2xl:px-3 2xl:py-2 2xl:text-xs ${
+                selected ? "bg-[#FF7A00] text-white shadow-[0_12px_30px_rgba(255,122,0,0.24)]" : "bg-white/10 text-[#F8FAFC] ring-1 ring-white/10 hover:bg-white/20"
               }`}
               onClick={() => handleSelect(id)}
             >
@@ -374,15 +451,15 @@ function IntelligencePreview() {
           );
         })}
       </div>
-      <div className="rounded-lg border border-brand-100 bg-gradient-to-b from-white to-brand-50/70 p-3 shadow-card sm:p-4 2xl:p-5">
-        <div className="flex items-center justify-between gap-3 border-b border-brand-100 pb-3 2xl:pb-4">
+      <div className="rounded-xl border border-white/10 bg-white p-3 shadow-[0_22px_70px_rgba(0,0,0,0.26)] sm:p-4 2xl:p-5">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3 2xl:pb-4">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">{active.label}</p>
-            <p className="mt-1 break-words font-bold text-ink">Live application intelligence preview</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-[#C35A00]">{active.label}</p>
+            <p className="mt-1 break-words font-bold text-[#07111F]">Live application intelligence preview</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <ActiveIcon className="text-brand-500" size={21} />
-            <Button type="button" variant="secondary" className="min-h-8 justify-center px-2.5 text-[11px]" onClick={() => setTourOpen(true)}>
+            <ActiveIcon className="text-[#FF7A00]" size={21} />
+            <Button type="button" className="min-h-8 justify-center bg-[#07111F] px-2.5 text-[11px] text-white hover:bg-[#0D1B2A]" onClick={() => setTourOpen(true)}>
               Tour
             </Button>
           </div>
@@ -489,7 +566,7 @@ function HeroPreviewPanel({ activeTab }) {
           ["Resume", "Optimized"],
           ["Recruiter Message", "Generated"],
           ["Cover Letter", "Optional"],
-          ["Interview Preparation", "Ready"],
+          ["Interview Prep", "Ready"],
           ["Application Tracking", "Ready"],
         ]} />
         <PreviewMetric label="Recruiter Confidence" value="85%" tone="brand" />
@@ -596,7 +673,7 @@ function MaterialsPreview() {
   return (
     <ProductFrame label="Generated Materials" title="Analysis-backed application package" icon={<FileText size={21} />}>
       <div className="flex flex-wrap gap-2">
-        {["Resume", "Recruiter Message", "Cover Letter", "Interview Preparation"].map((tab, index) => (
+        {["Resume", "Recruiter Message", "Cover Letter", "Interview Prep"].map((tab, index) => (
           <span key={tab} className={`rounded-full px-3 py-1.5 text-xs font-bold ring-1 ${index === 0 ? "bg-brand-700 text-white ring-brand-700" : "bg-white text-brand-800 ring-brand-100"}`}>
             {tab}
           </span>
@@ -629,23 +706,23 @@ function WorkflowPreview() {
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
       {workflowSteps.map(([title, Icon, description], index) => (
         <div key={title} className="relative">
-          <Card className="h-full">
+          <Card className="h-full border-white/10 bg-white text-[#07111F]">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-lg bg-brand-700 text-white">
+              <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#FF7A00] text-white shadow-[0_12px_28px_rgba(255,122,0,0.22)]">
                 <Icon size={20} />
               </div>
-              <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-black text-brand-700">{index + 1}</span>
+              <span className="rounded-full bg-[#FF7A00]/12 px-2.5 py-1 text-xs font-black text-[#C35A00]">{index + 1}</span>
             </div>
             <h3 className="text-base font-bold">{title}</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-            <div className="mt-4 rounded-lg bg-brand-50 p-2 ring-1 ring-brand-100">
-              <div className="h-2 w-2/3 rounded-full bg-brand-300" />
+            <div className="mt-4 rounded-lg bg-slate-50 p-2 ring-1 ring-slate-100">
+              <div className="h-2 w-2/3 rounded-full bg-[#FF7A00]/55" />
               <div className="mt-2 h-2 w-full rounded-full bg-white" />
               <div className="mt-2 h-2 w-4/5 rounded-full bg-white" />
             </div>
           </Card>
           {index < workflowSteps.length - 1 ? (
-            <div className="hidden xl:absolute xl:right-[-13px] xl:top-1/2 xl:z-10 xl:block xl:-translate-y-1/2 xl:text-brand-400">
+            <div className="hidden xl:absolute xl:right-[-13px] xl:top-1/2 xl:z-10 xl:block xl:-translate-y-1/2 xl:text-[#FF7A00]">
               <ArrowRight size={22} />
             </div>
           ) : null}
@@ -757,13 +834,13 @@ function PreviewPanelRows({ rows }) {
 
 function ProductFrame({ id, label, title, icon, children }) {
   return (
-    <div id={id} className="min-w-0 rounded-lg border border-brand-100 bg-white p-3 shadow-soft sm:p-4 2xl:p-5">
-      <div className="flex items-center justify-between gap-3 border-b border-brand-100 pb-3 2xl:pb-4">
+    <div id={id} className="min-w-0 rounded-2xl border border-white/10 bg-white p-3 shadow-[0_24px_70px_rgba(0,0,0,0.22)] sm:p-4 2xl:p-5">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3 2xl:pb-4">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-brand-600">{label}</p>
-          <p className="mt-1 break-words font-bold text-ink">{title}</p>
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-[#C35A00]">{label}</p>
+          <p className="mt-1 break-words font-bold text-[#07111F]">{title}</p>
         </div>
-        <span className="shrink-0 text-brand-500">{icon}</span>
+        <span className="shrink-0 text-[#FF7A00]">{icon}</span>
       </div>
       <div className="mt-3 2xl:mt-4">{children}</div>
     </div>
@@ -773,7 +850,7 @@ function ProductFrame({ id, label, title, icon, children }) {
 function PreviewMetric({ label, value, tone }) {
   const colors = tone === "emerald"
     ? "bg-emerald-50 text-emerald-800 ring-emerald-100"
-    : "bg-brand-50 text-brand-800 ring-brand-100";
+    : "bg-[#FFF4EA] text-[#9A4A00] ring-[#FFD7B5]";
   return (
     <div className={`rounded-lg p-2.5 ring-1 2xl:p-3 ${colors}`}>
       <p className="text-2xl font-black 2xl:text-3xl">{value}</p>
@@ -797,7 +874,7 @@ function PreviewDetail({ label, value, tone = "slate" }) {
 function InsightRow({ label, value, tone }) {
   const colors = {
     amber: "bg-amber-50 text-amber-900 ring-amber-100",
-    blue: "bg-brand-50 text-brand-900 ring-brand-100",
+    blue: "bg-[#FFF4EA] text-[#9A4A00] ring-[#FFD7B5]",
     green: "bg-emerald-50 text-emerald-900 ring-emerald-100",
   };
   return (
@@ -859,9 +936,9 @@ function MaterialLine({ text }) {
 
 function WorkspacePreview() {
   return (
-    <div className="rounded-lg border border-brand-100 bg-white p-4 shadow-soft">
+    <div className="rounded-2xl border border-white/10 bg-white p-4 shadow-[0_24px_70px_rgba(0,0,0,0.22)]">
       <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 font-bold text-brand-900"><PanelsTopLeft size={20} /> Application Workspace</div>
+        <div className="flex items-center gap-2 font-bold text-[#07111F]"><PanelsTopLeft size={20} className="text-[#FF7A00]" /> Application Workspace</div>
         <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">3 active</span>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -870,10 +947,10 @@ function WorkspacePreview() {
           ["Interviewing", "1", "Prep kit prepared"],
           ["Follow-Up", "2", "Next actions scheduled"],
         ].map(([stage, value, note]) => (
-          <div key={stage} className="rounded-lg bg-brand-50 p-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-600">{stage}</div>
+          <div key={stage} className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
+            <div className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C35A00]">{stage}</div>
             <div className="mt-3 rounded-lg bg-white p-3 shadow-card">
-              <div className="text-2xl font-bold text-ink">{value}</div>
+              <div className="text-2xl font-bold text-[#07111F]">{value}</div>
               <p className="mt-2 text-xs leading-5 text-slate-500">{note}</p>
             </div>
           </div>

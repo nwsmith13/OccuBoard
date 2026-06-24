@@ -145,22 +145,22 @@ export function DashboardPage() {
       />
       <main className="grid min-w-0 gap-5">
         {error && <div className="rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
-        <section className="overflow-hidden rounded-xl bg-gradient-to-br from-stone-100 via-white to-emerald-50 px-4 py-3 shadow-card transition duration-[160ms] ease-out hover:shadow-soft sm:px-5">
+        <section className="overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#0D1B2A] to-[#14233A] px-4 py-3 text-white shadow-card transition duration-[160ms] ease-out hover:shadow-soft sm:px-5">
           <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className={tinyLabelClass}>Momentum</p>
-              <h2 className="mt-1 text-xl font-bold text-ink">{momentum.headline}</h2>
-              <p className={helperTextClass}>{momentum.summary}</p>
+              <h2 className="mt-1 text-xl font-bold text-white">{momentum.headline}</h2>
+              <p className="mt-1 text-[13px] leading-5 text-[#CBD5E1]">{momentum.summary}</p>
             </div>
-            <Link to="/app/new-jobs" className="inline-flex shrink-0 self-start rounded-lg bg-white/55 p-0.5 shadow-sm transition duration-[160ms] ease-out hover:bg-white/85 hover:shadow-card">
+            <Link to="/app/new-jobs" className="inline-flex shrink-0 self-start rounded-lg bg-white/10 p-0.5 shadow-sm transition duration-[160ms] ease-out hover:bg-white/15 hover:shadow-card">
               <Button className="min-h-8 px-3.5 py-1.5">Analyze New Job</Button>
             </Link>
           </div>
           <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
             {momentum.items.map((item) => (
-              <div key={item.label} className="rounded-lg bg-white/70 px-3 py-1.5 shadow-sm transition duration-[160ms] ease-out hover:bg-white/90">
-                <p className="text-lg font-black text-slate-900">{item.value}</p>
-                <p className={metadataTextClass}>{item.label}</p>
+              <div key={item.label} className="rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 shadow-sm transition duration-[160ms] ease-out hover:bg-white/15">
+                <p className="text-lg font-black text-white">{item.value}</p>
+                <p className="text-xs font-semibold leading-5 text-[#CBD5E1]">{item.label}</p>
               </div>
             ))}
           </div>
@@ -444,10 +444,10 @@ function FirstTimeDashboard({ onboarding, error, onAction }) {
     <main className="mx-auto grid w-full max-w-6xl gap-5">
       {error && <div className="rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
 
-      <section className="rounded-xl bg-gradient-to-br from-brand-50 via-white to-emerald-50 px-5 py-6 shadow-card ring-1 ring-brand-100 sm:px-7">
-        <p className={tinyLabelClass}>Welcome</p>
-        <h1 className="mt-2 text-3xl font-black text-ink sm:text-4xl">Welcome to OccuBoard</h1>
-        <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-slate-700">
+      <section className="rounded-xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#0D1B2A] to-[#14233A] px-5 py-6 text-white shadow-card sm:px-7">
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-300">Welcome</p>
+        <h1 className="mt-2 text-3xl font-black text-white sm:text-4xl">Welcome to OccuBoard</h1>
+        <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-[#CBD5E1]">
           Turn any job posting into a tailored resume, recruiter message, interview prep kit, and application tracker.
         </p>
       </section>
@@ -829,7 +829,7 @@ function getMiniStatTone(tone) {
 
 function getStageBar(stage) {
   return {
-    Saved: "bg-cyan-300",
+    Saved: "bg-brand-300",
     Applied: "bg-brand-500",
     Interview: "bg-emerald-400",
     Closed: "bg-slate-300",

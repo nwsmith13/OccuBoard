@@ -133,14 +133,14 @@ export function AppLayout() {
   const showOnboardingRibbon = workspaceReady && !onboardingState.completed && shouldShowOnboardingRibbon(location.pathname);
 
   const sidebar = (
-    <aside className={`${collapsed ? "w-20" : "w-72"} flex h-full flex-col border-r border-slate-200 bg-white/95 transition-all lg:sticky lg:top-0 lg:h-screen`}>
+    <aside className={`${collapsed ? "w-20" : "w-72"} flex h-full flex-col border-r border-white/10 bg-[#07111F] text-[#F8FAFC] transition-all lg:sticky lg:top-0 lg:h-screen`}>
       <div className={`${collapsed ? "flex min-h-24 flex-col items-center justify-center gap-1 px-2" : "relative flex min-h-28 items-center px-4 py-4"}`}>
         <Link to="/app/dashboard" className={collapsed ? "flex justify-center" : "min-w-0 flex-1 pr-9"}>
           <Logo compact={collapsed} sidebar />
         </Link>
         <button
           type="button"
-          className={`${collapsed ? "" : "absolute right-3 top-3"} rounded-lg p-2 text-slate-600 hover:bg-stone-100`}
+          className={`${collapsed ? "" : "absolute right-3 top-3"} rounded-lg p-2 text-[#94A3B8] hover:bg-white/10 hover:text-white`}
           onClick={toggleSidebar}
           aria-label="Toggle sidebar"
         >
@@ -156,7 +156,7 @@ export function AppLayout() {
             onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition ${
-                isActive ? "bg-brand-100 text-brand-900" : "text-slate-600 hover:bg-stone-100 hover:text-slate-900"
+                isActive ? "bg-brand-500 text-white shadow-[0_12px_30px_rgba(255,122,0,0.22)]" : "text-[#CBD5E1] hover:bg-white/10 hover:text-white"
               }`
             }
             title={collapsed ? label : undefined}
@@ -166,14 +166,14 @@ export function AppLayout() {
           </NavLink>
         ))}
       </nav>
-      <div className="mt-auto border-t border-slate-200 p-4">
+      <div className="mt-auto border-t border-white/10 p-4">
         {!collapsed && (
-          <div className="mb-3 rounded-lg bg-stone-100 p-3 text-sm">
-            <div className="font-semibold text-ink">{profile?.email || user?.email || "Local preview"}</div>
-            <div className="text-slate-500">{isConfigured ? "Signed in" : "Supabase not configured"}</div>
+          <div className="mb-3 rounded-lg border border-white/10 bg-white/10 p-3 text-sm">
+            <div className="font-semibold text-white">{profile?.email || user?.email || "Local preview"}</div>
+            <div className="text-[#94A3B8]">{isConfigured ? "Signed in" : "Supabase not configured"}</div>
           </div>
         )}
-        <Button variant="ghost" className="w-full justify-start" onClick={isConfigured ? signOut : undefined}>
+        <Button variant="ghost" className="w-full justify-start text-[#CBD5E1] hover:bg-white/10 hover:text-white" onClick={isConfigured ? signOut : undefined}>
           <LogOut size={18} />
           {!collapsed && "Logout"}
         </Button>
@@ -182,7 +182,7 @@ export function AppLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-[#fbfaf8] text-ink">
+    <div className="min-h-screen bg-[#F8FAFC] text-ink">
       <div className="hidden min-h-screen lg:flex">
         {sidebar}
         <main className="min-w-0 flex-1">
@@ -204,9 +204,9 @@ export function AppLayout() {
         <Header title={current?.label ?? "Dashboard"} billing={billing} onMenu={() => setMobileOpen(true)} onCommand={() => setCommandOpen(true)} />
         {mobileOpen && (
           <div className="fixed inset-0 z-40 bg-ink/30">
-            <div className="h-full max-w-80 bg-white shadow-soft">
+            <div className="h-full max-w-80 bg-[#07111F] shadow-soft">
               <div className="flex justify-end p-3">
-                <button className="rounded-lg p-2 text-slate-700 hover:bg-stone-100" onClick={() => setMobileOpen(false)} aria-label="Close navigation">
+                <button className="rounded-lg p-2 text-[#CBD5E1] hover:bg-white/10 hover:text-white" onClick={() => setMobileOpen(false)} aria-label="Close navigation">
                   <X size={20} />
                 </button>
               </div>
@@ -228,7 +228,7 @@ export function AppLayout() {
       <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
       <button
         type="button"
-        className="fixed bottom-5 right-5 z-30 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-800 px-4 text-sm font-black text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+        className="fixed bottom-5 right-5 z-30 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-500 px-4 text-sm font-black text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
         onClick={() => {
           setHelpCenter({ open: true, section: "" });
           trackProductEvent("help_center_opened", { source: "floating_button" });
@@ -287,17 +287,17 @@ function shouldShowOnboardingRibbon(pathname = "") {
 function Header({ title, billing, onMenu, onCommand }) {
   const pro = isProSubscription(billing?.subscription);
   return (
-    <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur lg:px-6">
+    <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-white/10 bg-[#07111F]/95 px-4 text-[#F8FAFC] backdrop-blur lg:px-6">
       <div className="flex items-center gap-3">
-        <button type="button" className="rounded-lg p-2 text-slate-700 hover:bg-stone-100 lg:hidden" onClick={onMenu} aria-label="Open navigation">
+        <button type="button" className="rounded-lg p-2 text-[#CBD5E1] hover:bg-white/10 hover:text-white lg:hidden" onClick={onMenu} aria-label="Open navigation">
           <Menu size={21} />
         </button>
         <Link to="/app/dashboard" className="hidden shrink-0 sm:block" aria-label="OccuBoard dashboard">
           <Logo compact />
         </Link>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Workspace</p>
-          <h1 className="text-lg font-bold text-ink">{title}</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#94A3B8]">Workspace</p>
+          <h1 className="text-lg font-bold text-white">{title}</h1>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -306,13 +306,13 @@ function Header({ title, billing, onMenu, onCommand }) {
         </span>
         <button
           type="button"
-          className="hidden min-h-10 items-center gap-3 rounded-lg border border-brand-100 bg-white px-3 text-sm font-semibold text-slate-500 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-800 sm:inline-flex"
+          className="hidden min-h-10 items-center gap-3 rounded-lg border border-white/10 bg-white/10 px-3 text-sm font-semibold text-[#CBD5E1] shadow-sm transition hover:border-brand-500/40 hover:bg-white/15 hover:text-white sm:inline-flex"
           onClick={onCommand}
           aria-label="Open search or command palette"
         >
-          <Command size={16} className="text-brand-700" />
+          <Command size={16} className="text-brand-400" />
           <span>Search or command...</span>
-          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-500">Ctrl K</span>
+          <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-bold text-[#94A3B8]">Ctrl K</span>
         </button>
         <Link to="/app/new-jobs" className="hidden sm:block">
           <Button variant="secondary">Analyze a Job</Button>

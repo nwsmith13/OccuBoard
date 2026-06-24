@@ -7,7 +7,7 @@ export function buildCoverLetterFilename({ profile, job, extension }) {
   return `${person}-${company}-${title}-Cover-Letter.${extension}`;
 }
 
-export async function exportCoverLetterPdf({ content, profile, job, accentColor = "#0F5EA8" }) {
+export async function exportCoverLetterPdf({ content, profile, job, accentColor = "#FF7A00" }) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const fileName = buildCoverLetterFilename({ profile, job, extension: "pdf" });
@@ -47,7 +47,7 @@ export async function exportCoverLetterPdf({ content, profile, job, accentColor 
   rememberCoverLetterExport({ fileName, type: "PDF", job });
 }
 
-export async function exportCoverLetterDocx({ content, profile, job, accentColor = "#0F5EA8" }) {
+export async function exportCoverLetterDocx({ content, profile, job, accentColor = "#FF7A00" }) {
   const docx = await import("docx");
   const fileName = buildCoverLetterFilename({ profile, job, extension: "docx" });
   const document = new docx.Document({
@@ -131,7 +131,7 @@ function slugifyName(value) {
     .replace(/^-+|-+$/g, "") || "Cover-Letter";
 }
 
-function hexToRgb(value = "#0F5EA8") {
+function hexToRgb(value = "#FF7A00") {
   const hex = String(value).replace("#", "").trim();
   if (!/^[0-9a-f]{6}$/i.test(hex)) return [15, 94, 168];
   return [
@@ -141,7 +141,7 @@ function hexToRgb(value = "#0F5EA8") {
   ];
 }
 
-function toDocxHex(value = "#0F5EA8") {
+function toDocxHex(value = "#FF7A00") {
   const hex = String(value).replace("#", "").trim();
   return /^[0-9a-f]{6}$/i.test(hex) ? hex.toUpperCase() : "0F5EA8";
 }

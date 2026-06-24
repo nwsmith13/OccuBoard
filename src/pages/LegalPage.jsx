@@ -134,15 +134,15 @@ export function TermsPage() {
 
 function LegalDocument({ title, intro, sections }) {
   return (
-    <div className="min-h-screen bg-[#fbfaf8] text-ink">
-      <header className="border-b border-brand-100 bg-white/95">
+    <div className="min-h-screen bg-[#F8FAFC] text-ink">
+      <header className="border-b border-white/10 bg-[#07111F]">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-5 sm:px-6">
           <Link to="/" aria-label="OccuBoard home"><Logo /></Link>
           <Link to="/signup"><Button className="min-h-9 px-3">Get Started</Button></Link>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
-        <section className="rounded-xl border border-brand-100 bg-white p-5 shadow-card sm:p-8">
+        <section className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-card sm:p-8">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-brand-600">OccuBoard</p>
           <h1 className="mt-2 text-4xl font-black tracking-normal text-ink">{title}</h1>
           <p className="mt-3 text-sm font-semibold text-slate-500">Last Updated: {lastUpdated}</p>
@@ -164,19 +164,22 @@ function LegalDocument({ title, intro, sections }) {
   );
 }
 
-export function PublicFooter({ onContact }) {
+export function PublicFooter({ onContact, variant = "light" }) {
+  const isDark = variant === "dark";
+  const linkClass = isDark ? "font-semibold hover:text-white" : "font-semibold hover:text-brand-800";
+
   return (
-    <footer className="border-t border-brand-100 bg-white px-4 py-6 text-sm text-slate-600">
+    <footer className={`border-t px-4 py-6 text-sm ${isDark ? "border-white/10 bg-[#07111F] text-[#94A3B8]" : "border-brand-100 bg-white text-slate-600"}`}>
       <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="font-semibold">© {new Date().getFullYear()} OccuBoard</p>
         <nav className="flex flex-wrap gap-4" aria-label="Legal links">
           {onContact ? (
-            <button type="button" className="font-semibold hover:text-brand-800" onClick={onContact}>Contact</button>
+            <button type="button" className={linkClass} onClick={onContact}>Contact</button>
           ) : (
-            <a className="font-semibold hover:text-brand-800" href="mailto:hello@occuboard.io">Contact</a>
+            <a className={linkClass} href="mailto:hello@occuboard.io">Contact</a>
           )}
-          <Link className="font-semibold hover:text-brand-800" to="/privacy">Privacy Policy</Link>
-          <Link className="font-semibold hover:text-brand-800" to="/terms">Terms of Service</Link>
+          <Link className={linkClass} to="/privacy">Privacy Policy</Link>
+          <Link className={linkClass} to="/terms">Terms of Service</Link>
         </nav>
       </div>
     </footer>

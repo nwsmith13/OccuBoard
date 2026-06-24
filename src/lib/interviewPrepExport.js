@@ -1,7 +1,7 @@
 import { formatDate } from "./date.js";
 import { getDisplayCompanyName, getDisplayJobTitle } from "./jobDisplay.js";
 
-const defaultAccent = "#0F5EA8";
+const defaultAccent = "#FF7A00";
 
 export function buildInterviewCheatSheetFilename({ profile, job, extension = "pdf" }) {
   const person = slugifyName(profile?.full_name || profile?.email?.split("@")[0] || "Interview-Cheat-Sheet");

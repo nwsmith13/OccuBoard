@@ -1402,7 +1402,7 @@ function getRecoveryTone(recovery = "") {
 function getRecoveryBarTone(recovery = "") {
   if (recovery.startsWith("Fully")) return "bg-emerald-500";
   if (recovery.startsWith("Strong")) return "bg-emerald-400";
-  if (recovery.startsWith("Moderate")) return "bg-cyan-500";
+  if (recovery.startsWith("Moderate")) return "bg-brand-500";
   if (recovery.startsWith("Partial")) return "bg-amber-400";
   return "bg-slate-300";
 }
@@ -1418,7 +1418,7 @@ function getRecoveryPercent(recovery = "") {
 function getReadinessBarTone(readiness) {
   if (readiness >= 88) return "bg-emerald-500";
   if (readiness >= 78) return "bg-emerald-400";
-  if (readiness >= 66) return "bg-cyan-500";
+  if (readiness >= 66) return "bg-brand-500";
   if (readiness >= 50) return "bg-amber-400";
   return "bg-slate-300";
 }

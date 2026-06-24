@@ -1,6 +1,6 @@
 const tones = {
-  Saved: "bg-cyan-100 text-cyan-800 ring-1 ring-cyan-200",
-  Applied: "bg-blue-100 text-blue-800 ring-1 ring-blue-200",
+  Saved: "bg-brand-50 text-brand-900 ring-1 ring-brand-200",
+  Applied: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100",
   Interview: "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
   Closed: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
 };
