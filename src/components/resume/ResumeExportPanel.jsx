@@ -14,10 +14,13 @@ import { Button } from "../ui/Button.jsx";
 
 const exportColors = {
   "Occu Orange": "#FF7A00",
-  Navy: "#07111F",
-  Charcoal: "#0D1B2A",
-  Green: "#22C55E",
-  Slate: "#334155",
+  Navy: "#0D1B2A",
+  Blue: "#2563EB",
+  Green: "#16A34A",
+  Purple: "#7C3AED",
+  Slate: "#475569",
+  Red: "#DC2626",
+  Teal: "#0F766E",
 };
 
 export function ResumeExportPanel({ resume, content, profile, job, score, source = "unknown", compact = false, showHistory = !compact, showPreviewDefault = true, historyResumeId, onExportComplete }) {

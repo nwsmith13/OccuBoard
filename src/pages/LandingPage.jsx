@@ -152,7 +152,7 @@ export function LandingPage() {
               </p>
               <div className="mt-8 flex flex-wrap gap-3 lg:mt-4 2xl:mt-8">
                 <Link to="/signup"><Button className="bg-[#FF7A00] text-white shadow-[0_16px_40px_rgba(255,122,0,0.28)] hover:bg-[#ff8f2a]">Join the Early Beta <ArrowRight size={18} /></Button></Link>
-                <Link to="/signup"><Button variant="secondary" className="border border-white/15 bg-white/10 text-white ring-0 hover:bg-white/15">Try 3 Free Applications</Button></Link>
+                <Link to="/signup"><Button variant="secondary" className="border border-white/20 bg-white text-[#07111F] ring-0 hover:bg-[#F8FAFC]">Try 3 Free Applications</Button></Link>
               </div>
               <div className="mt-6 flex max-w-3xl flex-wrap gap-2 lg:mt-3">
                 {["Analyze Jobs", "Tailor Resumes", "Recruiter View", "Interview Prep", "Track Applications"].map((item) => (

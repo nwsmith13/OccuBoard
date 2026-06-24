@@ -173,7 +173,7 @@ export function AppLayout() {
             <div className="text-[#94A3B8]">{isConfigured ? "Signed in" : "Supabase not configured"}</div>
           </div>
         )}
-        <Button variant="ghost" className="w-full justify-start text-[#CBD5E1] hover:bg-white/10 hover:text-white" onClick={isConfigured ? signOut : undefined}>
+        <Button variant="ghost" className="w-full justify-start bg-white/10 text-[#F8FAFC] ring-1 ring-white/10 hover:bg-white/15 hover:text-white" onClick={isConfigured ? signOut : undefined}>
           <LogOut size={18} />
           {!collapsed && "Logout"}
         </Button>
