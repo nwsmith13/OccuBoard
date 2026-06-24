@@ -136,7 +136,7 @@ export function AppLayout() {
     <aside className={`${collapsed ? "w-20" : "w-72"} flex h-full flex-col border-r border-white/10 bg-[#07111F] text-[#F8FAFC] transition-all lg:sticky lg:top-0 lg:h-screen`}>
       <div className={`${collapsed ? "flex min-h-24 flex-col items-center justify-center gap-1 px-2" : "relative flex min-h-28 items-center px-4 py-4"}`}>
         <Link to="/app/dashboard" className={collapsed ? "flex justify-center" : "min-w-0 flex-1 pr-9"}>
-          <Logo compact={collapsed} sidebar />
+          <Logo compact={collapsed} sidebar onDark />
         </Link>
         <button
           type="button"

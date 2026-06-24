@@ -13,7 +13,7 @@ export function LoginPage() {
     <AuthForm
       mode="login"
       title="Welcome back"
-      submitLabel="Login"
+      submitLabel="Sign In"
       notice={notice}
       footer={(
         <span className="grid gap-2">

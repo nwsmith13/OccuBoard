@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Logo } from "../../components/layout/Logo.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { Field } from "../../components/ui/Field.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+
+const stackedLogo = "/occuboard-logo-stacked.svg";
 
 export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSuccess }) {
   const { signIn, signUp, isConfigured } = useAuth();
@@ -51,7 +52,9 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
       <div className="relative grid min-h-screen place-items-center bg-[#07111F] px-4 py-8">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,122,0,0.18),transparent_30%),linear-gradient(135deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
         <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-white p-6 text-center shadow-soft">
-          <Link to="/" className="mb-8 block"><Logo /></Link>
+          <Link to="/" className="mx-auto mb-8 block w-fit" aria-label="OccuBoard home">
+            <img src={stackedLogo} alt="OccuBoard" className="h-auto w-40 object-contain sm:w-44" />
+          </Link>
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-2xl ring-1 ring-emerald-100" aria-hidden="true">
             ✓
           </span>
@@ -75,7 +78,9 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
     <div className="relative grid min-h-screen place-items-center bg-[#07111F] px-4 py-8">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(255,122,0,0.2),transparent_30%),radial-gradient(circle_at_84%_10%,rgba(34,197,94,0.12),transparent_25%),linear-gradient(135deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
       <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-white p-6 shadow-soft">
-        <Link to="/" className="mb-8 block"><Logo /></Link>
+        <Link to="/" className="mx-auto mb-8 block w-fit" aria-label="OccuBoard home">
+          <img src={stackedLogo} alt="OccuBoard" className="h-auto w-40 object-contain sm:w-44" />
+        </Link>
         <h1 className="text-3xl font-bold">{title}</h1>
         <p className="mt-2 text-sm text-slate-600">Analyze roles, strengthen applications, and stay ready for the next conversation.</p>
         {!isConfigured && (

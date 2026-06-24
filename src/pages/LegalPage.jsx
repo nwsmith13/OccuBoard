@@ -137,7 +137,7 @@ function LegalDocument({ title, intro, sections }) {
     <div className="min-h-screen bg-[#F8FAFC] text-ink">
       <header className="border-b border-white/10 bg-[#07111F]">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-5 sm:px-6">
-          <Link to="/" aria-label="OccuBoard home"><Logo /></Link>
+          <Link to="/" aria-label="OccuBoard home"><Logo onDark /></Link>
           <Link to="/signup"><Button className="min-h-9 px-3">Get Started</Button></Link>
         </div>
       </header>

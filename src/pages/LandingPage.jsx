@@ -123,11 +123,11 @@ export function LandingPage() {
   return (
     <div className="w-full overflow-x-hidden bg-[#07111F] pt-20 text-[#F8FAFC] sm:pt-24 2xl:pt-28">
       <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#07111F]/82 px-4 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:left-6 sm:right-6 sm:px-5 2xl:px-6 2xl:py-3">
-        <Logo className="h-9 sm:h-12 2xl:h-16" />
+        <Logo onDark className="h-9 sm:h-12 2xl:h-16" />
         <nav className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <Link className="hidden text-xs font-semibold text-slate-300 hover:text-white min-[420px]:inline sm:text-sm" to="/login">Login</Link>
+          <Link className="hidden text-xs font-semibold text-slate-300 hover:text-white min-[420px]:inline sm:text-sm" to="/login">Sign In</Link>
           <Link to="/signup">
-            <Button className="min-h-9 bg-[#FF7A00] px-2.5 text-xs text-white hover:bg-[#ff8f2a] sm:px-3 sm:text-sm">Join Beta</Button>
+            <Button className="min-h-9 bg-[#FF7A00] px-2.5 text-xs text-white hover:bg-[#ff8f2a] sm:px-3 sm:text-sm">Try Free</Button>
           </Link>
         </nav>
       </header>

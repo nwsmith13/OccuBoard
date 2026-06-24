@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 104" role="img" aria-labelledby="title desc">
+  <title id="title">OccuBoard</title>
+  <desc id="desc">Horizontal OccuBoard logo for dark backgrounds.</desc>
+  <g transform="translate(8 10)">
+    <circle cx="42" cy="42" r="39" fill="#07111F"/>
+    <path d="M61.8 20.4A31.5 31.5 0 1 0 69.5 45.4" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="butt"/>
+    <path d="M22.6 41.3L37 55.7L75.2 15.7L80 20.3L37.3 65.2L17.9 45.9Z" fill="#FF7A00"/>
+  </g>
+  <g transform="translate(112 26)">
+    <text x="0" y="45" font-family="Inter, Outfit, Montserrat, Arial, sans-serif" font-size="54" font-weight="800" letter-spacing="-3" fill="#FFFFFF">Occu</text>
+    <text x="126" y="45" font-family="Inter, Outfit, Montserrat, Arial, sans-serif" font-size="54" font-weight="900" letter-spacing="-3" fill="#FF7A00">Board</text>
+  </g>
+</svg>
