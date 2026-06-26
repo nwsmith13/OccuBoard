@@ -8,7 +8,7 @@ export function SignUpPage() {
       mode="signup"
       title="Create your workspace"
       submitLabel="Sign up"
-      footer={<span>Already have an account? <Link className="font-semibold text-brand-700" to="/login">Sign In</Link></span>}
+      footer={<span>Already have an account? <Link className="font-semibold text-[#FFB26B] hover:text-[#FF7A00]" to="/login">Sign In</Link></span>}
       onSuccess={() => navigate("/app")}
     />
   );

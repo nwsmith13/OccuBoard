@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/Button.jsx";
 import { Field } from "../../components/ui/Field.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 
-const stackedLogo = "/occuboard-logo-stacked.svg";
+const stackedLogo = "/occuboard-logo-stacked-on-dark.svg";
 
 export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSuccess }) {
   const { signIn, signUp, isConfigured } = useAuth();
@@ -51,23 +51,23 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
     return (
       <div className="relative grid min-h-screen place-items-center bg-[#07111F] px-4 py-8">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,122,0,0.18),transparent_30%),linear-gradient(135deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
-        <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-white p-6 text-center shadow-soft">
-          <Link to="/" className="mx-auto mb-8 block w-fit" aria-label="OccuBoard home">
-            <img src={stackedLogo} alt="OccuBoard" className="h-auto w-40 object-contain sm:w-44" />
+        <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0D1B2A]/95 p-6 text-center text-[#F8FAFC] shadow-soft">
+          <Link to="/" className="mx-auto mb-4 block w-fit" aria-label="OccuBoard home">
+            <img src={stackedLogo} alt="OccuBoard" className="h-auto w-48 object-contain sm:w-52" />
           </Link>
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-2xl ring-1 ring-emerald-100" aria-hidden="true">
             ✓
           </span>
           <h1 className="mt-5 text-3xl font-bold">Check your email to confirm your account.</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
-            We sent a confirmation link to <strong className="text-ink">{confirmationEmail}</strong>. Confirm your email before logging in.
+          <p className="mt-3 text-sm leading-6 text-[#CBD5E1]">
+            We sent a confirmation link to <strong className="text-white">{confirmationEmail}</strong>. Confirm your email before logging in.
           </p>
           <Link to="/login" className="mt-6 inline-flex">
             <Button>Back to login</Button>
           </Link>
-          <nav className="mt-6 flex justify-center gap-4 border-t border-slate-100 pt-4 text-xs font-semibold text-slate-500" aria-label="Legal links">
-            <Link className="hover:text-brand-800" to="/privacy">Privacy Policy</Link>
-            <Link className="hover:text-brand-800" to="/terms">Terms of Service</Link>
+          <nav className="mt-6 flex justify-center gap-4 border-t border-white/10 pt-4 text-xs font-semibold text-[#94A3B8]" aria-label="Legal links">
+            <Link className="hover:text-white" to="/privacy">Privacy Policy</Link>
+            <Link className="hover:text-white" to="/terms">Terms of Service</Link>
           </nav>
         </div>
       </div>
@@ -77,12 +77,12 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
   return (
     <div className="relative grid min-h-screen place-items-center bg-[#07111F] px-4 py-8">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(255,122,0,0.2),transparent_30%),radial-gradient(circle_at_84%_10%,rgba(34,197,94,0.12),transparent_25%),linear-gradient(135deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
-      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-white p-6 shadow-soft">
-        <Link to="/" className="mx-auto mb-8 block w-fit" aria-label="OccuBoard home">
-          <img src={stackedLogo} alt="OccuBoard" className="h-auto w-40 object-contain sm:w-44" />
+      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0D1B2A]/95 p-6 text-[#F8FAFC] shadow-soft">
+        <Link to="/" className="mx-auto mb-4 block w-fit" aria-label="OccuBoard home">
+          <img src={stackedLogo} alt="OccuBoard" className="h-auto w-48 object-contain sm:w-52" />
         </Link>
         <h1 className="text-3xl font-bold">{title}</h1>
-        <p className="mt-2 text-sm text-slate-600">Analyze roles, strengthen applications, and stay ready for the next conversation.</p>
+        <p className="mt-2 text-sm text-[#CBD5E1]">Analyze roles, strengthen applications, and stay ready for the next conversation.</p>
         {!isConfigured && (
           <div className="mt-5 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">
             Supabase env vars are not set, so auth forms open the local demo workspace.
@@ -96,10 +96,10 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <Button type="submit" disabled={submitting}>{submitting ? "Working..." : submitLabel}</Button>
         </form>
-        <p className="mt-5 text-center text-sm text-slate-600">{footer}</p>
-        <nav className="mt-4 flex justify-center gap-4 border-t border-slate-100 pt-4 text-xs font-semibold text-slate-500" aria-label="Legal links">
-          <Link className="hover:text-brand-800" to="/privacy">Privacy Policy</Link>
-          <Link className="hover:text-brand-800" to="/terms">Terms of Service</Link>
+        <p className="mt-5 text-center text-sm text-[#CBD5E1]">{footer}</p>
+        <nav className="mt-4 flex justify-center gap-4 border-t border-white/10 pt-4 text-xs font-semibold text-[#94A3B8]" aria-label="Legal links">
+          <Link className="hover:text-white" to="/privacy">Privacy Policy</Link>
+          <Link className="hover:text-white" to="/terms">Terms of Service</Link>
         </nav>
       </div>
     </div>

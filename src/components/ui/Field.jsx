@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 export const Field = forwardRef(function Field({ label, id, as = "input", className = "", ...props }, ref) {
   const Component = as;
   return (
-    <label className="grid min-w-0 gap-2 text-sm font-medium text-ink" htmlFor={id}>
+    <label className="grid min-w-0 gap-2 text-sm font-medium text-current" htmlFor={id}>
       {label}
       <Component
         id={id}

@@ -123,8 +123,13 @@ export function LandingPage() {
   return (
     <div className="w-full overflow-x-hidden bg-[#07111F] pt-20 text-[#F8FAFC] sm:pt-24 2xl:pt-28">
       <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#07111F]/82 px-4 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:left-6 sm:right-6 sm:px-5 2xl:px-6 2xl:py-3">
-        <Logo onDark className="h-9 sm:h-12 2xl:h-16" />
-        <nav className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <Logo onDark className="h-12 sm:h-14 lg:h-16 2xl:h-[4.5rem]" />
+        <nav className="hidden items-center gap-5 text-sm font-bold text-[#CBD5E1] md:flex" aria-label="Homepage sections">
+          <a className="transition hover:text-white" href="#features">Features</a>
+          <a className="transition hover:text-white" href="#how-it-works">How It Works</a>
+          <a className="transition hover:text-white" href="#pricing">Pricing</a>
+        </nav>
+        <nav className="flex shrink-0 items-center gap-2 sm:gap-3" aria-label="Account">
           <Link className="hidden text-xs font-semibold text-slate-300 hover:text-white min-[420px]:inline sm:text-sm" to="/login">Sign In</Link>
           <Link to="/signup">
             <Button className="min-h-9 bg-[#FF7A00] px-2.5 text-xs text-white hover:bg-[#ff8f2a] sm:px-3 sm:text-sm">Try Free</Button>
@@ -136,7 +141,7 @@ export function LandingPage() {
         <section id="hero" className="relative overflow-hidden border-y border-white/10 bg-[#07111F]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(255,122,0,0.22),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(34,197,94,0.12),transparent_26%),linear-gradient(135deg,#07111F_0%,#0D1B2A_55%,#07111F_100%)]" aria-hidden="true" />
           <div className="absolute inset-0 opacity-[0.18] [background-image:radial-gradient(rgba(248,250,252,0.34)_1px,transparent_1px)] [background-size:22px_22px]" aria-hidden="true" />
-          <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-8 overflow-hidden px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-center lg:gap-7 lg:py-8 2xl:gap-10 2xl:py-20">
+          <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-8 overflow-hidden px-4 pb-12 pt-6 sm:px-6 sm:pb-14 sm:pt-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-center lg:gap-7 lg:pb-8 lg:pt-4 2xl:gap-10 2xl:pb-20 2xl:pt-10">
             <div className="min-w-0">
               <p className="mb-4 inline-flex rounded-full border border-[#FF7A00]/35 bg-[#FF7A00]/12 px-4 py-2 text-sm font-semibold text-orange-200 shadow-[0_10px_30px_rgba(255,122,0,0.15)] lg:mb-3 lg:py-1.5 2xl:mb-4 2xl:py-2">
                 AI-powered job application copilot
@@ -150,11 +155,11 @@ export function LandingPage() {
               <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-[#F8FAFC] lg:mt-3">
                 No invented experience. No generic keyword stuffing. Just clearer positioning grounded in what you have actually done.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3 lg:mt-4 2xl:mt-8">
+              <div className="mt-6 flex flex-wrap gap-3 lg:mt-4 2xl:mt-8">
                 <Link to="/signup"><Button className="bg-[#FF7A00] text-white shadow-[0_16px_40px_rgba(255,122,0,0.28)] hover:bg-[#ff8f2a]">Join the Early Beta <ArrowRight size={18} /></Button></Link>
                 <Link to="/signup"><Button variant="secondary" className="border border-white/20 bg-white text-[#07111F] ring-0 hover:bg-[#F8FAFC]">Try 3 Free Applications</Button></Link>
               </div>
-              <div className="mt-6 flex max-w-3xl flex-wrap gap-2 lg:mt-3">
+              <div className="mt-4 flex max-w-3xl flex-wrap gap-2 lg:mt-3">
                 {["Analyze Jobs", "Tailor Resumes", "Recruiter View", "Interview Prep", "Track Applications"].map((item) => (
                   <span key={item} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold text-[#F8FAFC] shadow-sm backdrop-blur">
                     <CheckCircle2 size={13} className="text-[#22C55E]" />
@@ -274,6 +279,21 @@ export function LandingPage() {
           </div>
         </section>
 
+        <section id="pricing" className="scroll-mt-28 bg-[#07111F]">
+          <div className="mx-auto max-w-7xl px-4 pb-4 pt-8 sm:px-6 lg:pb-6 lg:pt-10">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.22)] backdrop-blur sm:flex sm:items-center sm:justify-between sm:gap-5 sm:p-6">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFB26B]">Pricing</p>
+                <h2 className="mt-2 text-2xl font-bold text-white">Start with 3 free AI-powered applications.</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#CBD5E1]">Upgrade when you are ready for unlimited job analyses, resume tailoring, recruiter messages, interview prep, and application tracking.</p>
+              </div>
+              <Link to="/signup" className="mt-5 inline-flex shrink-0 sm:mt-0">
+                <Button className="bg-[#FF7A00] text-white hover:bg-[#ff8f2a]">Try Free</Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
         <section id="how-it-works" className="scroll-mt-28 mx-auto max-w-7xl px-4 py-12 sm:px-6 2xl:py-16">
           <div className="mb-8 max-w-2xl">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFB26B]">How It Works</p>
@@ -358,7 +378,7 @@ function DifferentiatorSection() {
     },
   ];
   return (
-    <section className="relative overflow-hidden border-y border-white/10 bg-[#07111F]">
+    <section id="features" className="scroll-mt-28 relative overflow-hidden border-y border-white/10 bg-[#07111F]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_30%,rgba(255,122,0,0.18),transparent_28%),linear-gradient(180deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
       <div className="absolute inset-0 opacity-[0.14] [background-image:linear-gradient(rgba(148,163,184,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.18)_1px,transparent_1px)] [background-size:36px_36px]" aria-hidden="true" />
       <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:py-14">

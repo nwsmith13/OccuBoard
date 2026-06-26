@@ -9,7 +9,7 @@ export function Logo({ compact = false, sidebar = false, onDark = false, classNa
       <img
         src={src}
         alt="OccuBoard logo"
-        className={`${compact ? "h-10 w-10 object-contain" : `${sidebar ? "h-16" : "h-16"} w-auto max-w-full object-contain`} ${className}`}
+        className={`${compact ? "h-11 w-11 object-contain" : `${sidebar ? "h-20" : "h-16"} w-auto max-w-full object-contain`} ${className}`}
       />
     </div>
   );

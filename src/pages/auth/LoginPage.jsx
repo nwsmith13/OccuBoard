@@ -17,8 +17,8 @@ export function LoginPage() {
       notice={notice}
       footer={(
         <span className="grid gap-2">
-          <Link className="font-semibold text-brand-700" to="/forgot-password">Forgot password?</Link>
-          <span>New to OccuBoard? <Link className="font-semibold text-brand-700" to="/signup">Create an account</Link></span>
+          <Link className="font-semibold text-[#FFB26B] hover:text-[#FF7A00]" to="/forgot-password">Forgot password?</Link>
+          <span>New to OccuBoard? <Link className="font-semibold text-[#FFB26B] hover:text-[#FF7A00]" to="/signup">Create an account</Link></span>
         </span>
       )}
       onSuccess={() => navigate("/app")}

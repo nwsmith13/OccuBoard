@@ -1172,15 +1172,16 @@ function ApplicationPackageOverview({ job, score, resume, coverLetter, coverLett
 }
 
 function CommandPackageRow({ title, status, actionLabel, onAction, ready }) {
+  const complete = Boolean(ready && status !== "Optional" && !String(status).startsWith("Optional /"));
   return (
     <div className="flex w-full min-w-0 max-w-full flex-col gap-2 rounded-lg bg-brand-50/60 px-3 py-2.5 ring-1 ring-brand-100 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-center gap-3">
-        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ring-1 ${ready ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-white text-slate-400 ring-brand-100"}`}>
-          {ready ? "\u2713" : "\u25CB"}
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ring-1 ${complete ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-white text-slate-400 ring-brand-100"}`}>
+          {complete ? "\u2713" : "\u25CB"}
         </span>
         <div className="min-w-0">
           <h4 className="break-words text-sm font-bold text-ink">{title}</h4>
-          <p className={`mt-0.5 break-words text-xs font-black [overflow-wrap:anywhere] ${ready ? "text-emerald-700" : "text-slate-500"}`}>{status}</p>
+          <p className={`mt-0.5 break-words text-xs font-black [overflow-wrap:anywhere] ${complete ? "text-emerald-700" : "text-slate-500"}`}>{status}</p>
         </div>
       </div>
       <button type="button" className="inline-flex w-fit max-w-full items-center rounded-md px-0.5 text-xs font-bold text-brand-700 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200" onClick={onAction}>
@@ -2533,12 +2534,13 @@ function ApplicationChecklist({ job, score, resume, coverLetter, coverLetterSkip
   const rows = [
     { label: "Analysis", done: Boolean(score), status: score ? "Complete" : "Not started" },
     { label: "Resume", done: Boolean(resume), status: resume ? "Complete" : "Not started" },
-    { label: "Cover Letter", done: true, status: coverLetter ? "Generated" : coverLetterSkipped ? "Optional ✓" : "Optional" },
-    { label: "Recruiter Message", done: true, status: recruiterMessage ? "Generated" : "Optional" },
-    { label: "Interview Prep", done: true, status: prep ? "Prepared" : "Optional / Prepare when needed" },
+    { label: "Cover Letter", done: Boolean(coverLetter || coverLetterSkipped), status: coverLetter ? "Generated" : coverLetterSkipped ? "Optional ✓" : "Optional" },
+    { label: "Recruiter Message", done: Boolean(recruiterMessage), status: recruiterMessage ? "Generated" : "Optional" },
+    { label: "Interview Prep", done: Boolean(prep), status: prep ? "Prepared" : "Optional / Prepare when needed" },
   ];
-  const complete = rows.filter((row) => row.done).length;
-  const percent = Math.round((complete / rows.length) * 100);
+  const checklistRows = rows.map((row) => row.label === "Cover Letter" ? { ...row, done: Boolean(coverLetter || coverLetterSkipped) } : row);
+  const complete = checklistRows.filter((row) => row.done).length;
+  const percent = Math.round((complete / checklistRows.length) * 100);
   if (onboardingCompleted) {
     const status = isTrackedApplicationStatus(job?.status) ? getApplicationStatusDisplay(job.status) : "In Progress";
     const tone = getApplicationStatusTone(job?.status);
@@ -2560,7 +2562,7 @@ function ApplicationChecklist({ job, score, resume, coverLetter, coverLetterSkip
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-600">Application Checklist</p>
-          <h3 className="mt-1 text-lg font-bold text-ink">{complete} of {rows.length} stages complete</h3>
+          <h3 className="mt-1 text-lg font-bold text-ink">{complete} of {checklistRows.length} stages complete</h3>
         </div>
         <div className="min-w-[160px]">
           <div className="h-2 overflow-hidden rounded-full bg-slate-100" aria-label={`${percent}% complete`}>
@@ -2570,7 +2572,7 @@ function ApplicationChecklist({ job, score, resume, coverLetter, coverLetterSkip
         </div>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {rows.map(({ label, done, status }) => (
+        {checklistRows.map(({ label, done, status }) => (
           <div key={label} className="flex items-center gap-2 rounded-lg bg-brand-50/70 px-3 py-2 ring-1 ring-brand-100">
             <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-black ring-1 ${done ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-white text-slate-400 ring-slate-200"}`}>
               {done ? "\u2713" : "\u25CB"}
@@ -4206,14 +4208,14 @@ function InterviewToolkit({ focusAreas, questionsToAsk, onPrintCheatSheet, onDow
   const talkingPointsText = focusAreas.map((area) => area.emphasize || area.title).filter(Boolean).join("\n");
   const questionsText = questionsToAsk.map((question) => question).filter(Boolean).join("\n");
   return (
-    <section className="rounded-xl bg-emerald-50/80 p-4 shadow-card ring-1 ring-emerald-100">
+    <section className="rounded-xl bg-slate-50/90 p-4 shadow-card ring-1 ring-slate-200">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-emerald-700 ring-1 ring-emerald-100">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-slate-600 ring-1 ring-slate-200">
             <CheckCircle2 size={17} aria-hidden="true" />
           </span>
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-700">Optional Interview Tools</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">Optional Interview Tools</p>
             <h3 className="mt-1 text-lg font-black text-ink">Interview Toolkit</h3>
             <p className="mt-1 text-sm leading-6 text-slate-700">These resources help you prepare for interviews but are not required to complete your application package.</p>
           </div>
@@ -5417,7 +5419,7 @@ function WorkspaceRail({ activeTab, completed, score, job, onSelect }) {
             <div className="flex gap-2 md:block md:space-y-1">
               {steps.map(([id, label]) => {
                 const selected = current === id;
-                const done = completed[id];
+                const done = isWorkflowStepVisuallyComplete(id, completed);
                 const completion = getStepCompletionLabel(id, score, done, completed);
                 const completionTone = id === "fit" && score ? getStepScoreTone(score.score) : "bg-emerald-100 text-emerald-800";
                 return (
@@ -5442,6 +5444,11 @@ function WorkspaceRail({ activeTab, completed, score, job, onSelect }) {
       </div>
     </aside>
   );
+}
+
+function isWorkflowStepVisuallyComplete(id, completed = {}) {
+  if (id === "coverLetter") return ["ready", "optionalDone"].includes(completedCoverLetterState(completed));
+  return completed[id] === true;
 }
 
 function getStepCompletionLabel(id, score, done, completed = {}) {
