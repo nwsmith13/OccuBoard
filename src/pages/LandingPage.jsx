@@ -121,9 +121,9 @@ export function LandingPage() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
-    <div className="w-full overflow-x-hidden bg-[#07111F] pt-20 text-[#F8FAFC] sm:pt-24 2xl:pt-28">
-      <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#07111F]/82 px-4 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:left-6 sm:right-6 sm:px-5 2xl:px-6 2xl:py-3">
-        <Logo onDark className="h-14 sm:h-16 lg:h-20 2xl:h-24" />
+    <div className="w-full overflow-x-hidden bg-[#07111F] pt-24 text-[#F8FAFC] sm:pt-28 lg:pt-32 2xl:pt-36">
+      <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#07111F]/82 px-4 py-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:left-6 sm:right-6 sm:px-5 2xl:px-6 2xl:py-2">
+        <Logo onDark className="h-16 sm:h-20 lg:h-24 2xl:h-28" />
         <nav className="hidden items-center gap-5 text-sm font-bold text-[#CBD5E1] md:flex" aria-label="Homepage sections">
           <a className="transition hover:text-white" href="#features">Features</a>
           <a className="transition hover:text-white" href="#how-it-works">How It Works</a>
@@ -141,8 +141,8 @@ export function LandingPage() {
         <section id="hero" className="relative overflow-hidden border-y border-white/10 bg-[#07111F]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(255,122,0,0.22),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(34,197,94,0.12),transparent_26%),linear-gradient(135deg,#07111F_0%,#0D1B2A_55%,#07111F_100%)]" aria-hidden="true" />
           <div className="absolute inset-0 opacity-[0.18] [background-image:radial-gradient(rgba(248,250,252,0.34)_1px,transparent_1px)] [background-size:22px_22px]" aria-hidden="true" />
-          <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-8 overflow-hidden px-4 pb-12 pt-6 sm:px-6 sm:pb-14 sm:pt-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-center lg:gap-7 lg:pb-8 lg:pt-4 2xl:gap-10 2xl:pb-20 2xl:pt-10">
-            <div className="min-w-0">
+          <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-8 overflow-hidden px-4 pb-12 pt-2 sm:px-6 sm:pb-14 sm:pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:items-start lg:gap-7 lg:pb-8 lg:pt-0 2xl:gap-10 2xl:pb-20 2xl:pt-2">
+            <div className="min-w-0 lg:pt-1">
               <p className="mb-4 inline-flex rounded-full border border-[#FF7A00]/35 bg-[#FF7A00]/12 px-4 py-2 text-sm font-semibold text-orange-200 shadow-[0_10px_30px_rgba(255,122,0,0.15)] lg:mb-3 lg:py-1.5 2xl:mb-4 2xl:py-2">
                 AI-powered job application copilot
               </p>
@@ -450,7 +450,7 @@ function IntelligencePreview() {
   };
 
   return (
-    <div id="intelligence-preview" className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur sm:p-3 2xl:p-4">
+    <div id="intelligence-preview" className="min-w-0 self-start rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur sm:p-3 lg:min-h-[575px] 2xl:min-h-[620px] 2xl:p-4">
       <div className="mb-2.5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap 2xl:mb-3" role="tablist" aria-label="Hero product preview">
         {heroTabs.map(({ id, label, icon: Icon }) => {
           const selected = id === activeTab;
@@ -471,7 +471,7 @@ function IntelligencePreview() {
           );
         })}
       </div>
-      <div className="rounded-xl border border-white/10 bg-white p-3 shadow-[0_22px_70px_rgba(0,0,0,0.26)] sm:p-4 2xl:p-5">
+      <div className="rounded-xl border border-white/10 bg-white p-3 shadow-[0_22px_70px_rgba(0,0,0,0.26)] sm:p-4 lg:min-h-[505px] 2xl:min-h-[545px] 2xl:p-5">
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3 2xl:pb-4">
           <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-[0.12em] text-[#C35A00]">{active.label}</p>
@@ -484,7 +484,9 @@ function IntelligencePreview() {
             </Button>
           </div>
         </div>
-        <HeroPreviewPanel activeTab={activeTab} />
+        <div className="lg:min-h-[420px] 2xl:min-h-[455px]">
+          <HeroPreviewPanel activeTab={activeTab} />
+        </div>
       </div>
       {tourOpen ? <ProductTourModal onClose={() => setTourOpen(false)} /> : null}
     </div>
