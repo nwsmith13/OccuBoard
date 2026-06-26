@@ -134,13 +134,13 @@ export function AppLayout() {
 
   const sidebar = (
     <aside className={`${collapsed ? "w-20" : "w-72"} flex h-full flex-col border-r border-white/10 bg-[#07111F] text-[#F8FAFC] transition-all lg:sticky lg:top-0 lg:h-screen`}>
-      <div className={`${collapsed ? "flex min-h-24 flex-col items-center justify-center gap-1 px-2" : "relative flex min-h-28 items-center px-4 py-4"}`}>
-        <Link to="/app/dashboard" className={collapsed ? "flex justify-center" : "min-w-0 flex-1 pr-9"}>
+      <div className={`${collapsed ? "flex min-h-28 flex-col items-center justify-center gap-2 px-2" : "flex min-h-32 items-center gap-3 px-4 py-4"}`}>
+        <Link to="/app/dashboard" className={collapsed ? "flex justify-center" : "min-w-0 flex-1"}>
           <Logo compact={collapsed} sidebar onDark />
         </Link>
         <button
           type="button"
-          className={`${collapsed ? "" : "absolute right-3 top-3"} rounded-lg p-2 text-[#94A3B8] hover:bg-white/10 hover:text-white`}
+          className="shrink-0 rounded-lg p-2 text-[#CBD5E1] hover:bg-white/10 hover:text-white"
           onClick={toggleSidebar}
           aria-label="Toggle sidebar"
         >
@@ -173,8 +173,8 @@ export function AppLayout() {
             <div className="text-[#94A3B8]">{isConfigured ? "Signed in" : "Supabase not configured"}</div>
           </div>
         )}
-        <Button variant="ghost" className="w-full justify-start bg-white/10 text-[#F8FAFC] ring-1 ring-white/10 hover:bg-white/15 hover:text-white" onClick={isConfigured ? signOut : undefined}>
-          <LogOut size={18} />
+        <Button variant="ghost" className="w-full justify-start bg-[#0D1B2A] !text-white ring-1 ring-white/15 hover:bg-white/15 hover:!text-white" onClick={isConfigured ? signOut : undefined}>
+          <LogOut size={18} className="text-white" />
           {!collapsed && "Logout"}
         </Button>
       </div>
@@ -293,7 +293,7 @@ function Header({ title, billing, onMenu, onCommand }) {
           <Menu size={21} />
         </button>
         <Link to="/app/dashboard" className="hidden shrink-0 sm:block" aria-label="OccuBoard dashboard">
-          <Logo compact />
+          <Logo compact className="h-12 w-12" />
         </Link>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#94A3B8]">Workspace</p>

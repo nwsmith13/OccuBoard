@@ -123,7 +123,7 @@ export function LandingPage() {
   return (
     <div className="w-full overflow-x-hidden bg-[#07111F] pt-20 text-[#F8FAFC] sm:pt-24 2xl:pt-28">
       <header className="fixed left-3 right-3 top-3 z-[70] mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#07111F]/82 px-4 py-2 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:left-6 sm:right-6 sm:px-5 2xl:px-6 2xl:py-3">
-        <Logo onDark className="h-12 sm:h-14 lg:h-16 2xl:h-[4.5rem]" />
+        <Logo onDark className="h-14 sm:h-16 lg:h-20 2xl:h-24" />
         <nav className="hidden items-center gap-5 text-sm font-bold text-[#CBD5E1] md:flex" aria-label="Homepage sections">
           <a className="transition hover:text-white" href="#features">Features</a>
           <a className="transition hover:text-white" href="#how-it-works">How It Works</a>

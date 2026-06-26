@@ -8,7 +8,7 @@ export const Field = forwardRef(function Field({ label, id, as = "input", classN
       <Component
         id={id}
         ref={ref}
-        className={`min-w-0 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm outline-none transition placeholder:text-slate-400 hover:border-brand-300 focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-100 ${className}`}
+        className={`min-w-0 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-[#07111F] outline-none transition placeholder:text-slate-500 hover:border-brand-300 focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-100 ${className}`}
         {...props}
       />
     </label>

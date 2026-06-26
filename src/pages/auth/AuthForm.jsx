@@ -53,7 +53,7 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,122,0,0.18),transparent_30%),linear-gradient(135deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
         <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0D1B2A]/95 p-6 text-center text-[#F8FAFC] shadow-soft">
           <Link to="/" className="mx-auto mb-4 block w-fit" aria-label="OccuBoard home">
-            <img src={stackedLogo} alt="OccuBoard" className="h-auto w-48 object-contain sm:w-52" />
+            <img src={stackedLogo} alt="OccuBoard" className="h-auto w-56 object-contain sm:w-60" />
           </Link>
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-2xl ring-1 ring-emerald-100" aria-hidden="true">
             ✓
@@ -79,7 +79,7 @@ export function AuthForm({ mode, title, submitLabel, footer, notice = "", onSucc
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(255,122,0,0.2),transparent_30%),radial-gradient(circle_at_84%_10%,rgba(34,197,94,0.12),transparent_25%),linear-gradient(135deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
       <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0D1B2A]/95 p-6 text-[#F8FAFC] shadow-soft">
         <Link to="/" className="mx-auto mb-4 block w-fit" aria-label="OccuBoard home">
-          <img src={stackedLogo} alt="OccuBoard" className="h-auto w-48 object-contain sm:w-52" />
+          <img src={stackedLogo} alt="OccuBoard" className="h-auto w-56 object-contain sm:w-60" />
         </Link>
         <h1 className="text-3xl font-bold">{title}</h1>
         <p className="mt-2 text-sm text-[#CBD5E1]">Analyze roles, strengthen applications, and stay ready for the next conversation.</p>

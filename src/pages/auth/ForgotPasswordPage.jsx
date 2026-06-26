@@ -40,7 +40,7 @@ export function ForgotPasswordPage() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(255,122,0,0.2),transparent_30%),linear-gradient(135deg,#07111F_0%,#0D1B2A_100%)]" aria-hidden="true" />
       <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0D1B2A]/95 p-6 text-[#F8FAFC] shadow-soft">
         <Link to="/" className="mx-auto mb-4 block w-fit" aria-label="OccuBoard home">
-          <img src={stackedLogo} alt="OccuBoard" className="h-auto w-48 object-contain sm:w-52" />
+          <img src={stackedLogo} alt="OccuBoard" className="h-auto w-56 object-contain sm:w-60" />
         </Link>
         {sent ? (
           <div className="text-center">
